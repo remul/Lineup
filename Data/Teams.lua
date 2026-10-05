@@ -2,7 +2,7 @@ local _, ns = ...
 
 -- A team is:
 --   name        "Major Payne"
---   groupID  number, or nil for ungrouped
+--   groupID     number, or nil for ungrouped
 --   pets        { [slot] = { petID = "BattlePet-...", speciesID = number, abilities = { id, id, id } } }
 --               (petID is nil for a pet you don't own; abilities may be nil for "keep current";
 --               { leveling = true, preferences = {...} } is a leveling slot, filled from the leveling
@@ -360,7 +360,6 @@ function Teams:SetGroupIcon(group, icon)
     group.icon = icon
 end
 
--- Teams in a deleted group become ungrouped.
 -- Groups are shown in the order of the saved list; delta -1 moves a group up, 1 moves it down.
 function Teams:MoveGroup(group, delta)
     local groups = ns.db.groups
@@ -371,6 +370,7 @@ function Teams:MoveGroup(group, delta)
     end
 end
 
+-- Teams in a deleted group become ungrouped.
 function Teams:DeleteGroup(group)
     for _, team in ipairs(self:GetAll()) do
         if team.groupID == group.id then

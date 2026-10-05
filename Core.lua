@@ -108,22 +108,36 @@ end
 -- Event dispatch: ns:RegisterEvent("EVENT_NAME", callback) calls callback(...) when it fires.
 -- Without a callback, ns:EVENT_NAME(...) is called. An event can have several callbacks.
 local frame = CreateFrame("Frame")
-ns.frame = frame
 local callbacks = {}
 
 frame:SetScript("OnEvent", function(_, event, ...)
-    for _, callback in ipairs(callbacks[event] or {}) do
-        callback(...)
+    local list = callbacks[event]
+    if list then
+        for _, callback in ipairs(list) do
+            callback(...)
+        end
     end
 end)
 
-function ns:RegisterEvent(event, callback)
-    callback = callback or function(...)
-        ns[event](ns, ...)
-    end
+local function AddCallback(event, callback)
     callbacks[event] = callbacks[event] or {}
-    tinsert(callbacks[event], callback)
+    tinsert(callbacks[event], callback or function(...)
+        -- Calls the ns:EVENT_NAME handler; the IDE can't tell which method that is.
+        ---@diagnostic disable-next-line: param-type-mismatch
+        ns[event](ns, ...)
+    end)
+end
+
+function ns:RegisterEvent(event, callback)
+    AddCallback(event, callback)
     frame:RegisterEvent(event)
+end
+
+-- Like RegisterEvent, but only for one unit (e.g. UNIT_AURA for "player"), so the game doesn't
+-- deliver the event for every unit around. Only use it for events no one listens to for all units.
+function ns:RegisterUnitEvent(event, unit, callback)
+    AddCallback(event, callback)
+    frame:RegisterUnitEvent(event, unit)
 end
 
 -- Removes every callback for the event.
@@ -145,20 +159,9 @@ function ns:ADDON_LOADED(loadedName)
     ApplyDefaults(LineupCharDB, CHAR_DEFAULTS)
     self.db = LineupDB
     self.charDb = LineupCharDB
-
-    if self.OnInitialize then
-        self:OnInitialize()
-    end
-end
-
-function ns:PLAYER_LOGIN()
-    if self.OnEnable then
-        self:OnEnable()
-    end
 end
 
 ns:RegisterEvent("ADDON_LOADED")
-ns:RegisterEvent("PLAYER_LOGIN")
 
 -- Slash commands
 SLASH_LINEUP1 = "/lineup"

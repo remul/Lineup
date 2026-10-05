@@ -229,20 +229,17 @@ local function FindGroupByName(name)
     end
 end
 
-local function FindTeamByName(name)
-    for _, team in ipairs(ns.Teams:GetAll()) do
-        if team.name == name then
-            return team
-        end
-    end
-end
-
 -- Saves every team of a ParseAll result. Teams go into groupID unless a group header comes first.
 -- With replace, a team with the same name is overwritten instead of added again. A group header
 -- named ungroupedName (Rematch's "Ungrouped") puts the teams after it in no group.
 -- Returns numImported, numReplaced, problems ({ teamName, list of problem strings }).
 function Import.ImportAll(result, groupID, replace, ungroupedName)
     local numImported, numReplaced, problems = 0, 0, {}
+    -- Existing teams by name, so big imports don't scan the whole list for every team.
+    local teamsByName = {}
+    for _, team in ipairs(ns.Teams:GetAll()) do
+        teamsByName[team.name] = teamsByName[team.name] or team
+    end
     for _, entry in ipairs(result.entries) do
         if entry.kind == "group" and entry.name == ungroupedName then
             groupID = nil
@@ -255,8 +252,9 @@ function Import.ImportAll(result, groupID, replace, ungroupedName)
         else
             local draft, _, teamProblems = Import.BuildDraft(entry.parsed)
             draft.groupID = groupID
-            local existing = replace and FindTeamByName(draft.name)
-            ns.Teams:Save(existing, draft)
+            local existing = replace and teamsByName[draft.name]
+            local team = ns.Teams:Save(existing, draft)
+            teamsByName[team.name] = teamsByName[team.name] or team
             numImported = numImported + 1
             if existing then
                 numReplaced = numReplaced + 1

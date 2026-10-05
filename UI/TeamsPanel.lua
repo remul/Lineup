@@ -27,6 +27,7 @@ local PET_ICON_SPACING = 5
 local PET_ICON_INDENT = 18
 -- Downward chevron; rotated to point right for collapsed groups (plus/minus if the atlas is missing).
 local CHEVRON_ATLAS = "uitools-icon-chevron-down"
+local HAS_CHEVRON = C_Texture.GetAtlasInfo(CHEVRON_ATLAS) ~= nil
 local UNGROUPED = 0
 
 local TAB_TEAMS, TAB_QUEUE, TAB_ABOUT = 1, 2, 3
@@ -36,9 +37,17 @@ local TAB_LABELS = { "Teams", "Leveling Queue", "|TInterface\\Buttons\\UI-Option
 
 local panel, teamsView, queueView, aboutView, scrollBox, countText, emptyText
 local currentTab = TAB_TEAMS
+local refreshPending = false
 
-local function SortByName(a, b)
-    return a.name:lower() < b.name:lower()
+-- Sorts teams by name, lowercasing each name once instead of on every comparison.
+local function SortTeamsByName(teams)
+    local keys = {}
+    for _, team in ipairs(teams) do
+        keys[team] = team.name:lower()
+    end
+    table.sort(teams, function(a, b)
+        return keys[a] < keys[b]
+    end)
 end
 
 -- Group header (template: LineupGroupHeaderTemplate)
@@ -94,7 +103,7 @@ function GroupHeaderMixin:Init(data)
     self.Name:SetPoint("LEFT", icon and self.Icon or self.ExpandIcon, "RIGHT", 6, 0)
     self.Name:SetText(data.name)
     self.Count:SetFormattedText("(%d)", data.count)
-    if C_Texture.GetAtlasInfo(CHEVRON_ATLAS) then
+    if HAS_CHEVRON then
         self.ExpandIcon:SetAtlas(CHEVRON_ATLAS)
         self.ExpandIcon:SetRotation(data.collapsed and math.pi / 2 or 0)
     else
@@ -385,18 +394,22 @@ end
 -- List building: headers followed by their (sorted) teams unless collapsed, with a little space
 -- between groups. Team rows alternate stripes within each group and are indented under headers.
 local function BuildElements()
+    local groups = Teams:GetGroups()
+    local groupExists = {}
+    for _, group in ipairs(groups) do
+        groupExists[group.id] = true
+    end
+
     local teamsByGroup = {}
     for _, team in ipairs(Teams:GetAll()) do
-        local key = team.groupID and Teams:GetGroup(team.groupID) and team.groupID or UNGROUPED
+        local key = groupExists[team.groupID] and team.groupID or UNGROUPED
         teamsByGroup[key] = teamsByGroup[key] or {}
         tinsert(teamsByGroup[key], team)
     end
 
-    local groups = Teams:GetGroups()
-
     local elements = {}
     local function AddTeams(teams, indented)
-        table.sort(teams, SortByName)
+        SortTeamsByName(teams)
         for index, team in ipairs(teams) do
             tinsert(elements, { team = team, indented = indented, stripe = index % 2 == 1 })
         end
@@ -542,7 +555,7 @@ function TeamsPanel:Setup()
     PanelTemplates_SetNumTabs(panel, #panel.Tabs)
 
     panel:SetScript("OnShow", function()
-        TeamsPanel:Refresh()
+        TeamsPanel:RefreshNow()
     end)
     self:SelectTab(TAB_TEAMS)
 end
@@ -554,14 +567,27 @@ function TeamsPanel:SelectTab(tab)
     teamsView:SetShown(tab == TAB_TEAMS)
     queueView:SetShown(tab == TAB_QUEUE)
     aboutView:SetShown(tab == TAB_ABOUT)
-    self:Refresh()
+    self:RefreshNow()
 end
 
 function TeamsPanel:GetFrame()
     return panel
 end
 
+-- Asks for a redraw. Many things trigger one (journal updates, target changes, loads...), often
+-- several in the same frame, so they're merged into a single redraw on the next frame.
 function TeamsPanel:Refresh()
+    if refreshPending then
+        return
+    end
+    refreshPending = true
+    C_Timer.After(0, function()
+        refreshPending = false
+        TeamsPanel:RefreshNow()
+    end)
+end
+
+function TeamsPanel:RefreshNow()
     if not panel or not panel:IsVisible() then
         return
     end

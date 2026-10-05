@@ -112,13 +112,14 @@ local function UpdateButton(button)
     if info.cancelBuff then
         local buffName = GetItemBuff(info.toyID or info.itemID)
         button.Cancel:SetShown(buffName ~= nil)
-        if not InCombatLockdown() then
+        -- Only touch the secure attributes when switching between "use" and "remove".
+        local wantedType = buffName and "cancelaura" or "toy"
+        if not InCombatLockdown() and button:GetAttribute("type") ~= wantedType then
+            button:SetAttribute("type", wantedType)
             if buffName then
-                button:SetAttribute("type", "cancelaura")
                 button:SetAttribute("unit", "player")
                 button:SetAttribute("spell", buffName)
             else
-                button:SetAttribute("type", "toy")
                 button:SetAttribute("toy", info.toyID)
             end
         end
@@ -405,11 +406,11 @@ ns:RegisterEvent("PLAYER_REGEN_ENABLED", function()
     end
 end)
 
-for _, event in ipairs({ "SPELL_UPDATE_COOLDOWN", "BAG_UPDATE_COOLDOWN", "BAG_UPDATE_DELAYED", "UNIT_AURA", "TOYS_UPDATED" }) do
-    ns:RegisterEvent(event, function(unit)
-        if event == "UNIT_AURA" and unit ~= "player" then
-            return
-        end
-        PetToolbar:Refresh()
-    end)
+local function OnToolbarEvent()
+    PetToolbar:Refresh()
 end
+for _, event in ipairs({ "SPELL_UPDATE_COOLDOWN", "BAG_UPDATE_COOLDOWN", "BAG_UPDATE_DELAYED", "TOYS_UPDATED" }) do
+    ns:RegisterEvent(event, OnToolbarEvent)
+end
+-- Safari Hat and treat buffs: only the player's auras matter.
+ns:RegisterUnitEvent("UNIT_AURA", "player", OnToolbarEvent)

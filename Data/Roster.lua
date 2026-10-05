@@ -20,7 +20,33 @@ hooksecurefunc(C_PetJournal, "ClearSearchFilter", function()
     end
 end)
 
+-- True if the journal currently hides any owned pets (search, "collected" off, or a family or
+-- source unchecked). "Not collected" doesn't matter: those entries are skipped while scanning.
+local function IsAnyFilterUsed()
+    local J = C_PetJournal
+    if searchText ~= "" or not J.IsFilterChecked(LE_PET_JOURNAL_FILTER_COLLECTED) then
+        return true
+    end
+    for i = 1, J.GetNumPetTypes() do
+        if not J.IsPetTypeChecked(i) then
+            return true
+        end
+    end
+    for i = 1, J.GetNumPetSources() do
+        if not J.IsPetSourceChecked(i) then
+            return true
+        end
+    end
+    return false
+end
+
 local function WithAllOwnedPets(callback)
+    -- Changing filters makes the journal rebuild its list (twice), so skip it when nothing is hidden.
+    if not IsAnyFilterUsed() then
+        callback()
+        return
+    end
+
     local J = C_PetJournal
     local collected = J.IsFilterChecked(LE_PET_JOURNAL_FILTER_COLLECTED)
     local notCollected = J.IsFilterChecked(LE_PET_JOURNAL_FILTER_NOT_COLLECTED)
@@ -66,7 +92,8 @@ function Roster:Invalidate()
 end
 
 -- Returns a list of { petID, speciesID, name, level, rarity, maxHealth, petType, canBattle } for every
--- owned pet. The list is cached until Invalidate() (the leveling queue calls it when pets change).
+-- owned pet. The list is cached until Invalidate() (the leveling queue calls it when pets change,
+-- and whenever the Pet Journal opens).
 function Roster:GetOwnedPets()
     if cachedPets then
         return cachedPets

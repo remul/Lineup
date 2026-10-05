@@ -2,6 +2,10 @@ local _, ns = ...
 
 -- Blizzard's Pet Journal lives in the load-on-demand Blizzard_Collections addon.
 EventUtil.ContinueOnAddOnLoaded("Blizzard_Collections", function()
+    -- Pets can change outside battles (battle-training stones, trading), so re-read them on open.
+    PetJournal:HookScript("OnShow", function()
+        ns.LevelingQueue:Invalidate()
+    end)
     ns.FamilyFilter:Setup()
     ns.PetToolbar:Setup()
     ns.TargetPanel:Setup()
