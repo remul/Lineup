@@ -58,7 +58,7 @@ function AboutView:Create(parent)
     local icon = content:CreateTexture(nil, "ARTWORK")
     icon:SetSize(40, 40)
     icon:SetPoint("TOPLEFT")
-    icon:SetTexture("Interface\\Icons\\INV_Pet_BattlePetTraining")
+    icon:SetTexture("Interface\\AddOns\\Lineup\\Media\\Icon")
 
     local title = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -2)

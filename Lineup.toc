@@ -5,7 +5,7 @@
 ## Version: @project-version@
 ## SavedVariables: LineupDB
 ## SavedVariablesPerCharacter: LineupCharDB
-## IconTexture: Interface\Icons\INV_Pet_BattlePetTraining
+## IconTexture: Interface\AddOns\Lineup\Media\Icon
 ## AddonCompartmentFunc: Lineup_OnAddonCompartmentClick
 
 Core.lua

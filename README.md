@@ -1,3 +1,5 @@
+<p align="center"><img src="Media/Logo.png" width="200" alt="Lineup"></p>
+
 # Lineup
 
 Pet battle teams for World of Warcraft (Retail), built into Blizzard's own Pet Journal.
