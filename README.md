@@ -26,8 +26,8 @@ family filter, a toolbar, and two windows next to the journal for your current t
 
 ## Installation
 
-Copy (or link) the `Lineup` folder into `World of Warcraft/_retail_/Interface/AddOns/` and restart
-the game. Open the Pet Journal (`Shift+P`, Pets tab) or type `/lineup`.
+Copy the `Lineup_PetBattles` folder into `World of Warcraft/_retail_/Interface/AddOns/` and restart
+the game. (The folder isn't just "Lineup" because another, unrelated addon already uses that name.) Open the Pet Journal (`Shift+P`, Pets tab) or type `/lineup`.
 
 ## Commands
 
@@ -42,7 +42,7 @@ Lineup is plain Lua and XML with no build step. For development, link the reposi
 AddOns folder so changes are picked up with `/reload`:
 
 ```sh
-ln -s "$(pwd)" "/Applications/World of Warcraft/_retail_/Interface/AddOns/Lineup"
+ln -s "$(pwd)" "/Applications/World of Warcraft/_retail_/Interface/AddOns/Lineup_PetBattles"
 ```
 
 Releases are packaged with the [BigWigs packager](https://github.com/BigWigsMods/packager)

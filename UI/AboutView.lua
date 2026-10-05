@@ -58,11 +58,11 @@ function AboutView:Create(parent)
     local icon = content:CreateTexture(nil, "ARTWORK")
     icon:SetSize(40, 40)
     icon:SetPoint("TOPLEFT")
-    icon:SetTexture("Interface\\AddOns\\Lineup\\Media\\Icon")
+    icon:SetTexture(ns.MEDIA .. "Icon")
 
     local title = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -2)
-    title:SetText(addonName)
+    title:SetText(ns.TITLE)
 
     versionText = content:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     versionText:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)

@@ -1,4 +1,4 @@
-package-as: Lineup
+package-as: Lineup_PetBattles
 
 ignore:
   - .gitignore

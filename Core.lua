@@ -1,5 +1,10 @@
 local addonName, ns = ...
 
+-- The display name. The folder (addonName) is "Lineup_PetBattles", since "Lineup" is taken on CurseForge.
+ns.TITLE = "Lineup"
+-- Path to the addon's own textures, e.g. ns.MEDIA .. "Icon".
+ns.MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
+
 -- Defaults are copied into the saved variables on first load and whenever new keys are added.
 local DEFAULTS = {
     debug = false,
@@ -23,7 +28,7 @@ local function ApplyDefaults(target, defaults)
 end
 
 function ns:Print(...)
-    print("|cff33ff99" .. addonName .. "|r:", ...)
+    print("|cff33ff99" .. ns.TITLE .. "|r:", ...)
 end
 
 function ns:Debug(...)
