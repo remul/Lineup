@@ -1,0 +1,32 @@
+## Interface: 120100
+## Title: Lineup
+## Notes: Simple, clean pet battle team manager.
+## Author: remul
+## Version: @project-version@
+## SavedVariables: LineupDB
+## SavedVariablesPerCharacter: LineupCharDB
+## IconTexture: Interface\Icons\INV_Pet_BattlePetTraining
+## AddonCompartmentFunc: Lineup_OnAddonCompartmentClick
+
+Core.lua
+Teams.lua
+Script.lua
+Roster.lua
+LevelingQueue.lua
+Import.lua
+Dialogs.lua
+FamilyFilter.lua
+PetToolbar.lua
+TargetPanel.lua
+TeamsPanel.lua
+IconPicker.lua
+QueueView.lua
+AboutView.lua
+Templates.xml
+GroupEditor.lua
+TeamEditor.lua
+ImportDialog.lua
+NotesWindow.lua
+Target.lua
+Journal.lua
+Battle.lua
