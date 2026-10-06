@@ -300,6 +300,15 @@ function Import.DescribeImportAll(result, replace, ungroupedName)
     return table.concat(lines, "\n")
 end
 
+-- Runs onConfirm after asking first, but only when more than one team would be imported.
+function Import.ConfirmImportAll(result, replace, ungroupedName, prefix, onConfirm)
+    if result.numTeams <= 1 then
+        onConfirm()
+        return
+    end
+    ns.Dialogs.Confirm((prefix or "") .. Import.DescribeImportAll(result, replace, ungroupedName), onConfirm)
+end
+
 -- One-line summary for the import window.
 function Import.Describe(parsed)
     local parts = { parsed.name }

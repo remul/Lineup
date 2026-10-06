@@ -18,7 +18,7 @@ local function ImportFromRematch()
         ns:Print("Rematch has no teams to import.")
         return
     end
-    ns.Dialogs.Confirm("From Rematch: " .. ns.Import.DescribeImportAll(result, true, ungroupedName), function()
+    ns.Import.ConfirmImportAll(result, true, ungroupedName, "From Rematch: ", function()
         ns.Import.Report(ns.Import.ImportAll(result, nil, true, ungroupedName))
         ns.TeamsPanel:Refresh()
     end)

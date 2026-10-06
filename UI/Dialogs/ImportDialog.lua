@@ -56,6 +56,7 @@ local function UpdateStatus()
 end
 
 -- One team: open it in the editor. Several: confirm, then save them all and report problems in chat.
+-- (A single team under a group header is saved directly, without asking.)
 local function DoImport()
     if not result then
         return
@@ -79,7 +80,7 @@ local function DoImport()
 
     local replace = replaceCheck:GetChecked()
     local toImport, groupID = result, importGroupID
-    ns.Dialogs.Confirm(ns.Import.DescribeImportAll(toImport, replace), function()
+    ns.Import.ConfirmImportAll(toImport, replace, nil, nil, function()
         ns.Import.Report(ns.Import.ImportAll(toImport, groupID, replace))
         ns.TeamsPanel:Refresh()
     end)
