@@ -1,5 +1,6 @@
 # Builds the addon package when a version tag (e.g. 1.0.1) is pushed, uploads it to CurseForge
 # and creates the GitHub release with the zip. See .pkgmeta for what goes into the package.
+# Tags containing "beta" or "alpha" (e.g. 1.1.0-beta1) are released as beta/alpha versions.
 #
 # Needs the repository secret CF_API_KEY (a CurseForge API token) and the CurseForge project ID
 # in the TOC (## X-Curse-Project-ID).
@@ -8,7 +9,8 @@ name: Release
 on:
   push:
     tags:
-      - "*"
+      # Only version tags (1.0.1, 1.1.0-beta1, ...); any other tag is just a tag.
+      - "[0-9]*"
 
 permissions:
   contents: write
