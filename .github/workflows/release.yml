@@ -1,9 +1,9 @@
-# Builds the addon package when a version tag (e.g. 1.0.1) is pushed, uploads it to CurseForge
-# and creates the GitHub release with the zip. See .pkgmeta for what goes into the package.
-# Tags containing "beta" or "alpha" (e.g. 1.1.0-beta1) are released as beta/alpha versions.
+# Builds the addon package when a version tag (e.g. 1.0.1) is pushed and creates the GitHub release
+# with the zip. See .pkgmeta for what goes into the package. Tags containing "beta" or "alpha"
+# (e.g. 1.1.0-beta1) are released as beta/alpha versions.
 #
-# Needs the repository secret CF_API_KEY (a CurseForge API token) and the CurseForge project ID
-# in the TOC (## X-Curse-Project-ID).
+# CurseForge packages the addon itself from this repository, so there's no CurseForge upload here
+# (it would only run with a CF_API_KEY secret and ## X-Curse-Project-ID in the TOC).
 name: Release
 
 on:
