@@ -310,12 +310,31 @@ local function RunPlan(plan, token, attempt)
     ns.TeamsPanel:Refresh()
 end
 
+-- If Rematch is running, tell it none of its teams is loaded anymore. Otherwise it keeps filling
+-- the leveling slots of its last team from its own queue (after battles or level-ups) and would
+-- swap pets in the Lineup team. Its leveling slots are cleared first, then its own unload runs.
+local function ReleaseRematchTeam()
+    local rematch = _G.Rematch
+    if type(rematch) ~= "table" or type(rematch.settings) ~= "table" then
+        return
+    end
+    pcall(function()
+        if type(rematch.settings.SpecialSlots) == "table" then
+            wipe(rematch.settings.SpecialSlots)
+        end
+        if rematch.settings.currentTeamID and rematch.loadTeam and rematch.loadTeam.UnloadTeam then
+            rematch.loadTeam:UnloadTeam()
+        end
+    end)
+end
+
 function Teams:Load(team)
     local ok, reason = self:CanLoad()
     if not ok then
         ns:Print(reason)
         return
     end
+    ReleaseRematchTeam()
 
     -- Random and leveling slots skip the team's own pets and the pets currently slotted (so they
     -- don't just shuffle pets between slots).
