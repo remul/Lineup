@@ -142,6 +142,9 @@ function Teams:Save(team, draft)
     team.notes = draft.notes
     if team == loadedTeam then
         SetLoadedTeam(team) -- keep the remembered name in sync after a rename
+        -- Abilities edited in the team editor go into the journal too, so the loaded team doesn't
+        -- show up as changed right after saving it.
+        self:ApplyAbilities(team)
     end
     return team
 end
@@ -178,6 +181,26 @@ function Teams.GetSlotDisplay(entry)
         return icon, (speciesName or L["Unknown pet"]) .. L[" (not collected)"], nil, true
     end
     return nil
+end
+
+-- Which of the two abilities each ability slot picks: { 1, 2, nil } (nil = left open, "keep
+-- current"), plus the species' ability list (slot n picks list[n] or list[n + 3]). nil for slots
+-- without a specific species (random, leveling, empty).
+function Teams.GetAbilityChoices(entry)
+    if not entry.speciesID then
+        return nil
+    end
+    local list = C_PetJournal.GetPetAbilityList(entry.speciesID)
+    local choices = {}
+    for index = 1, 3 do
+        local selected = entry.abilities and entry.abilities[index]
+        if selected == list[index] then
+            choices[index] = 1
+        elseif selected and selected == list[index + 3] then
+            choices[index] = 2
+        end
+    end
+    return choices, list
 end
 
 -- Saves the journal's current pets and abilities into the team. Random and leveling slots stay
@@ -220,6 +243,39 @@ function Teams:GetForTarget(npcID)
         end
     end
     return result
+end
+
+-- Pets in the journal's loadout below full health: { { slot, petID, name, percent, dead } }.
+-- The loadout rather than a team, since that's what goes into battle (random and leveling slots
+-- included).
+function Teams:GetInjuredPets()
+    local injured = {}
+    for slot = 1, NUM_SLOTS do
+        local petID = C_PetJournal.GetPetLoadOutInfo(slot)
+        if petID then
+            local health, maxHealth = C_PetJournal.GetPetStats(petID)
+            if maxHealth > 0 and health < maxHealth then
+                local _, customName, _, _, _, _, _, speciesName = C_PetJournal.GetPetInfoByPetID(petID)
+                injured[#injured + 1] = {
+                    slot = slot,
+                    petID = petID,
+                    name = customName or speciesName,
+                    percent = floor(health / maxHealth * 100),
+                    dead = health == 0,
+                }
+            end
+        end
+    end
+    return injured
+end
+
+-- "Mr. Bigglesworth (40%), Anubisath Idol (dead)"
+function Teams.DescribeInjuredPets(injured)
+    local parts = {}
+    for i, pet in ipairs(injured) do
+        parts[i] = format(pet.dead and L["%s (dead)"] or L["%s (%d%%)"], pet.name, pet.percent)
+    end
+    return table.concat(parts, ", ")
 end
 
 function Teams:CanLoad()
@@ -303,6 +359,10 @@ local function RunPlan(plan, token, attempt)
     end
     loading = false
     ns:Debug(IsPlanDone(plan) and "Team loaded." or "Gave up loading; some slots didn't take.")
+    local injured = Teams:GetInjuredPets()
+    if #injured > 0 and not plan.quiet then
+        ns:Print(format(L["Not at full health: %s"], Teams.DescribeInjuredPets(injured)))
+    end
     -- Blizzard's loadout panel doesn't always redraw after an addon changes the slots.
     if PetJournal_UpdatePetLoadOut and PetJournal and PetJournal:IsShown() then
         PetJournal_UpdatePetLoadOut()
@@ -326,6 +386,27 @@ local function ReleaseRematchTeam()
             rematch.loadTeam:UnloadTeam()
         end
     end)
+end
+
+-- Sets the team's saved abilities on the pets in the journal, where the slot still holds the
+-- team's pet. Pets aren't touched, nor random or leveling slots (they'd be picked again).
+function Teams:ApplyAbilities(team)
+    if not self:CanLoad() then
+        return
+    end
+    local plan = { quiet = true }
+    for slot = 1, NUM_SLOTS do
+        local entry = team.pets[slot]
+        if entry.petID and entry.abilities and entry.petID == C_PetJournal.GetPetLoadOutInfo(slot) then
+            plan[#plan + 1] = { slot = slot, petID = entry.petID, abilities = entry.abilities }
+        end
+    end
+    if #plan == 0 or IsPlanDone(plan) then
+        return
+    end
+    loading = true
+    loadToken = loadToken + 1
+    RunPlan(plan, loadToken, 1)
 end
 
 function Teams:Load(team)

@@ -11,8 +11,9 @@ local EDITOR_HEIGHT = 560
 local LABEL_WIDTH = 70
 local PET_ICON_SIZE = 32
 
-local editor, nameBox, groupDropdown, npcIDBox, targetNameText, petIcons, scriptBox, scriptStatus, deleteButton
-local editingTeam, draft
+local editor, nameBox, groupDropdown, npcIDBox, targetNameText, petIcons, scriptBox, scriptStatus, saveButton, deleteButton
+local fixAbilitiesButton
+local editingTeam, draft, scriptCheck
 
 local function CreateLabel(text, anchor, offsetY)
     local label = editor:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -33,18 +34,115 @@ local function UpdateTarget()
     end
 end
 
-local function UpdatePets()
+-- Shown before the script status: a check mark, a warning sign or a red cross.
+local SCRIPT_STATUS_ICONS = {
+    ok = "|TInterface\\RaidFrame\\ReadyCheck-Ready:16:16|t ",
+    warning = "|TInterface\\DialogFrame\\UI-Dialog-Icon-AlertNew:16:16|t ",
+    error = "|TInterface\\RaidFrame\\ReadyCheck-NotReady:16:16|t ",
+}
+local SAVE_BUTTON_MIN_WIDTH = 100
+
+local SAVE_TEXTS = {
+    error = L["Save with Errors"],
+    warning = L["Save with Warnings"],
+}
+
+-- Sizes a button to its text, at least minWidth wide.
+local function FitButton(button, minWidth)
+    button:SetWidth(max(minWidth, button:GetFontString():GetStringWidth() + 24))
+end
+
+-- The script is checked against the team's pets too, so it's updated with them. A script with
+-- problems can still be saved (to fix later), but the button says so. Abilities the script needs
+-- that a pet can learn get a button to select them.
+local function UpdateScriptStatus()
+    scriptCheck = ns.Script.Check(draft.script, draft.pets)
+    scriptStatus:SetText((SCRIPT_STATUS_ICONS[scriptCheck.level] or "") .. scriptCheck.summary)
+    scriptStatus:SetTextColor(scriptCheck.color:GetRGB())
+
+    local canFix = scriptCheck.fixes ~= nil and #scriptCheck.fixes > 0
+    fixAbilitiesButton:SetShown(canFix)
+    scriptStatus:SetPoint("RIGHT", canFix and fixAbilitiesButton or editor, canFix and "LEFT" or "RIGHT", canFix and -6 or -16, 0)
+
+    saveButton:SetText(SAVE_TEXTS[scriptCheck.level] or SAVE)
+    FitButton(saveButton, SAVE_BUTTON_MIN_WIDTH)
+end
+
+-- "1/1/2": which ability each slot picks ("-" when left open); empty without a fixed pet.
+local function DescribeAbilityChoices(entry)
+    local choices = Teams.GetAbilityChoices(entry)
+    if not choices then
+        return ""
+    end
+    return format("%s/%s/%s", choices[1] or "-", choices[2] or "-", choices[3] or "-")
+end
+
+-- Both abilities of each slot, the picked one bright and the other dimmed.
+local function AddAbilitiesToTooltip(entry)
+    local choices, list = Teams.GetAbilityChoices(entry)
+    if not choices then
+        return
+    end
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine(L["Abilities"], NORMAL_FONT_COLOR:GetRGB())
+    for index = 1, 3 do
+        local _, first = C_PetBattles.GetAbilityInfoByID(list[index])
+        local _, second = C_PetBattles.GetAbilityInfoByID(list[index + 3])
+        local choice = choices[index]
+        local firstShade = (choice == 1 or not choice) and 1 or 0.45
+        local secondShade = (choice == 2 or not choice) and 1 or 0.45
+        GameTooltip:AddDoubleLine(format("%d. %s", index, first), second,
+            firstShade, firstShade, firstShade, secondShade, secondShade, secondShade)
+    end
+    if not (choices[1] and choices[2] and choices[3]) then
+        GameTooltip:AddLine(L["\"-\" keeps whatever is selected in the journal."], 0.6, 0.6, 0.6, true)
+    end
+end
+
+local UpdatePets
+
+-- Menu to pick each ability slot's ability (or leave it open) for a fixed pet in the draft. It
+-- stays open, so all three can be set in one go.
+local function ShowAbilityMenu(owner, slot)
+    local entry = draft.pets[slot]
+    local choices, list = Teams.GetAbilityChoices(entry)
+    if not choices then
+        return
+    end
+    local function IsSelected(data)
+        local selected = entry.abilities and entry.abilities[data.index]
+        return selected == data.abilityID
+    end
+    local function Select(data)
+        entry.abilities = entry.abilities or {}
+        entry.abilities[data.index] = data.abilityID
+        UpdatePets()
+        return MenuResponse.Refresh
+    end
+    MenuUtil.CreateContextMenu(owner, function(_, root)
+        local _, name = Teams.GetSlotDisplay(entry)
+        root:CreateTitle(name)
+        for index = 1, 3 do
+            root:CreateDivider()
+            root:CreateTitle(format(L["Ability slot %d"], index))
+            for _, abilityID in ipairs({ list[index], list[index + 3] }) do
+                local _, abilityName, abilityIcon = C_PetBattles.GetAbilityInfoByID(abilityID)
+                root:CreateRadio(format("|T%s:16:16|t %s", abilityIcon, abilityName), IsSelected, Select,
+                    { index = index, abilityID = abilityID })
+            end
+            root:CreateRadio(GRAY_FONT_COLOR:WrapTextInColorCode(L["Keep current"]), IsSelected, Select, { index = index })
+        end
+    end)
+end
+
+UpdatePets = function()
     for slot, icon in ipairs(petIcons) do
         local texture, _, _, missing = Teams.GetSlotDisplay(draft.pets[slot])
         icon.Texture:SetTexture(texture)
         icon.Texture:SetDesaturated(missing)
+        icon.Abilities.Text:SetText(DescribeAbilityChoices(draft.pets[slot]))
     end
-end
-
-local function UpdateScriptStatus()
-    local summary, color = ns.Script.Describe(draft.script)
-    scriptStatus:SetText(summary)
-    scriptStatus:SetTextColor(color:GetRGB())
+    UpdateScriptStatus()
 end
 
 local function Save()
@@ -163,18 +261,43 @@ local function CreateEditor()
         icon.Background:SetColorTexture(0, 0, 0, 0.5)
         icon.Texture = icon:CreateTexture(nil, "ARTWORK")
         icon.Texture:SetAllPoints()
-        icon:SetScript("OnEnter", function(self)
-            local _, name, level, missing = Teams.GetSlotDisplay(draft.pets[slot])
+        local function ShowTooltip(owner)
+            local entry = draft.pets[slot]
+            local _, name, level, missing = Teams.GetSlotDisplay(entry)
             if name then
-                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:SetOwner(owner, "ANCHOR_TOP")
                 GameTooltip:SetText(name, missing and 1 or nil, missing and 0.25 or nil, missing and 0.25 or nil)
                 if level then
                     GameTooltip:AddLine(format(L["Level %d"], level), 1, 1, 1)
                 end
+                AddAbilitiesToTooltip(entry)
+                GameTooltip:Show()
+            end
+        end
+        icon:SetScript("OnEnter", ShowTooltip)
+        icon:SetScript("OnLeave", GameTooltip_Hide)
+
+        -- The picked abilities under the icon, e.g. "1/1/2"; hovering shows their names, clicking
+        -- changes them.
+        icon.Abilities = CreateFrame("Button", nil, editor)
+        icon.Abilities:SetPoint("TOP", icon, "BOTTOM", 0, -2)
+        icon.Abilities:SetSize(PET_ICON_SIZE + 6, 12)
+        icon.Abilities:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+        icon.Abilities.Text = icon.Abilities:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        icon.Abilities.Text:SetAllPoints()
+        icon.Abilities:SetScript("OnEnter", function(button)
+            ShowTooltip(button)
+            if GameTooltip:IsOwned(button) then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(L["Click to change the abilities."], 0, 1, 0)
                 GameTooltip:Show()
             end
         end)
-        icon:SetScript("OnLeave", GameTooltip_Hide)
+        icon.Abilities:SetScript("OnLeave", GameTooltip_Hide)
+        icon.Abilities:SetScript("OnClick", function(button)
+            GameTooltip:Hide()
+            ShowAbilityMenu(button, slot)
+        end)
         petIcons[slot] = icon
     end
 
@@ -202,7 +325,7 @@ local function CreateEditor()
 
     local scriptInset = CreateFrame("Frame", nil, editor, "InsetFrameTemplate")
     scriptInset:SetPoint("TOPLEFT", 14, -216)
-    scriptInset:SetPoint("BOTTOMRIGHT", -14, 48)
+    scriptInset:SetPoint("BOTTOMRIGHT", -14, 56)
 
     scriptBox = ns.Dialogs.CreateMultiLineEditBox(scriptInset, EDITOR_WIDTH - 80, function(box, userInput)
         if userInput then
@@ -211,16 +334,53 @@ local function CreateEditor()
         end
     end)
 
-    scriptStatus = editor:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    scriptStatus:SetPoint("TOPLEFT", scriptInset, "BOTTOMLEFT", 4, -6)
+    -- Selects the abilities the script needs on pets that can learn them (see Script.Check).
+    fixAbilitiesButton = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
+    fixAbilitiesButton:SetPoint("TOPRIGHT", scriptInset, "BOTTOMRIGHT", 0, -3)
+    fixAbilitiesButton:SetHeight(20)
+    fixAbilitiesButton:SetText(L["Select Script Abilities"])
+    FitButton(fixAbilitiesButton, 0)
+    fixAbilitiesButton:Hide()
+    fixAbilitiesButton:SetScript("OnClick", function()
+        ns.Script.ApplyFixes(draft.pets, scriptCheck.fixes)
+        UpdatePets()
+    end)
+    fixAbilitiesButton:SetScript("OnEnter", function(button)
+        GameTooltip:SetOwner(button, "ANCHOR_TOP")
+        GameTooltip:SetText(L["Select Script Abilities"])
+        for _, fix in ipairs(scriptCheck.fixes) do
+            local _, petName = Teams.GetSlotDisplay(draft.pets[fix.slot])
+            local _, abilityName = C_PetBattles.GetAbilityInfoByID(fix.abilityID)
+            GameTooltip:AddDoubleLine(format(L["Slot %d: %s"], fix.slot, petName), abilityName, 1, 1, 1, 0, 1, 0)
+        end
+        GameTooltip:Show()
+    end)
+    fixAbilitiesButton:SetScript("OnLeave", GameTooltip_Hide)
+
+    scriptStatus = editor:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    scriptStatus:SetPoint("TOPLEFT", scriptInset, "BOTTOMLEFT", 4, -5)
     scriptStatus:SetPoint("RIGHT", -16, 0)
     scriptStatus:SetJustifyH("LEFT")
     scriptStatus:SetWordWrap(false)
 
+    -- The status line shows the first problem; hovering it lists them all.
+    local scriptStatusHover = CreateFrame("Frame", nil, editor)
+    scriptStatusHover:SetAllPoints(scriptStatus)
+    scriptStatusHover:SetScript("OnEnter", function(frame)
+        if scriptCheck.level == "none" then
+            return
+        end
+        GameTooltip:SetOwner(frame, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(L["Script"])
+        ns.Script.AddCheckToTooltip(GameTooltip, scriptCheck)
+        GameTooltip:Show()
+    end)
+    scriptStatusHover:SetScript("OnLeave", GameTooltip_Hide)
+
     -- Buttons
-    local saveButton = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
+    saveButton = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
     saveButton:SetPoint("BOTTOMRIGHT", -8, 6)
-    saveButton:SetSize(100, 22)
+    saveButton:SetSize(SAVE_BUTTON_MIN_WIDTH, 22)
     saveButton:SetText(SAVE)
     saveButton:SetScript("OnClick", Save)
 
@@ -257,7 +417,6 @@ function TeamEditor:Open(team, initialDraft)
     groupDropdown:GenerateMenu()
     UpdateTarget()
     UpdatePets()
-    UpdateScriptStatus()
 
     local teamsPanel = ns.TeamsPanel:GetFrame()
     editor:ClearAllPoints()

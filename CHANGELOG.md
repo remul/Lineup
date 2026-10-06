@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.1.0
+
+- **One Lineup window** instead of the Target and Teams windows, split into sections:
+  - **Target**: the targeted tamer or wild pet with its teams and quick Load / Save.
+  - **Current**: the loaded team and the three pets in your journal with names and health bars
+    (click a pet to show it in the journal), whether the team's script will run, and a warning
+    for dead or badly hurt pets.
+  - **Teams**: the team list, with New Team, New Group and Import on the section header.
+
+  The Leveling Queue and Settings tabs (formerly "Lineup") use the whole window.
+- **Autobattle with scripts**: with [Pet Battle Scripts](https://www.curseforge.com/wow/addons/td-battle-pet-script)
+  (tdBattlePetScript) installed, the loaded Lineup team's script runs from its Auto button in
+  battle. Scripts stay with the team; saving in Pet Battle Scripts' editor updates the team.
+- **Script checks**: scripts are checked with Pet Battle Scripts' own parser (when installed) and
+  against the team: abilities the script uses but no pet has selected are flagged. Team rows show
+  "Script", "Script · check abilities" or "Script · error"; the tooltip lists every problem.
+- **Team editor**: a bigger script status with an icon, **Select Script Abilities** to pick the
+  abilities a script needs, "Save with Errors" / "Save with Warnings", and the picked abilities
+  under each pet (e.g. 1/1/2) – hover for their names, click to change them. Saving the loaded
+  team also applies its abilities in the journal.
+- **Pet health**: dead and hurt pets are marked, a warning shows after loading a team, and
+  Blizzard's Revive Battle Pets button glows while a pet is hurt and the spell is ready.
+- **Export** teams as Rematch team strings, with notes and scripts: Export Team (team menu),
+  Export Group (group menu) and Export All Teams (Settings tab). Paste them into Import in Lineup
+  or Rematch.
+
 ## 1.0.0
 
 First release.

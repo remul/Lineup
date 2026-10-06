@@ -3,6 +3,7 @@
 ## Notes: Simple, clean pet battle team manager.
 ## Author: Remul
 ## Version: @project-version@
+## OptionalDeps: tdBattlePetScript
 ## SavedVariables: LineupDB
 ## SavedVariablesPerCharacter: LineupCharDB
 ## IconTexture: Interface\AddOns\Lineup_PetBattles\Media\Icon
@@ -12,14 +13,17 @@ Locales\Locales.lua
 Locales\deDE.lua
 Core.lua
 Data\Teams.lua
+Data\BattleScripts.lua
 Data\Script.lua
 Data\Roster.lua
 Data\LevelingQueue.lua
 Data\Import.lua
+Data\Export.lua
 UI\Dialogs\Dialogs.lua
 UI\FamilyFilter.lua
 UI\PetToolbar.lua
-UI\TargetPanel.lua
+UI\TargetSection.lua
+UI\CurrentSection.lua
 UI\TeamsPanel.lua
 UI\Dialogs\IconPicker.lua
 UI\QueueView.lua
@@ -29,6 +33,7 @@ UI\Templates.xml
 UI\Dialogs\GroupEditor.lua
 UI\Dialogs\TeamEditor.lua
 UI\Dialogs\ImportDialog.lua
+UI\Dialogs\ExportDialog.lua
 UI\Dialogs\NotesWindow.lua
 Data\Target.lua
 UI\Journal.lua

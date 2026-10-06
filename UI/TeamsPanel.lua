@@ -2,16 +2,20 @@ local _, ns = ...
 local L = ns.L
 local Teams = ns.Teams
 
--- A panel docked to the right of the Collections window, shown with the Pet Journal tab.
--- Teams are listed under collapsible group headers.
+-- The Lineup window, docked to the right of the Collections window and shown with the Pet Journal
+-- tab. Its Teams tab is split into sections: Target (see TargetSection), Current (the loaded team
+-- and loadout, see CurrentSection) and the team list, where teams are listed under collapsible
+-- group headers. The Leveling Queue and Settings tabs use the whole window.
 local TeamsPanel = {}
 ns.TeamsPanel = TeamsPanel
 
--- Same width as the Target window above it.
-local PANEL_WIDTH = ns.TargetPanel.WIDTH
--- Blizzard draws a portrait window's left border 5px further out (NineSlice corner x -13) than a
--- window without portrait (-8). Widen this window to the left so its border lines up with Target.
-local BORDER_ALIGN = 5
+local WINDOW_WIDTH = 360
+-- Gap to the Collections window.
+local WINDOW_OFFSET_X = 9
+-- Space between the window's edge and the sections, and between sections.
+local SECTION_INSET = 12
+local SECTION_SPACING = 8
+local SECTION_HEADER_HEIGHT = 18
 local HEADER_HEIGHT = 28
 local ROW_HEIGHT = 64
 local GROUP_SPACING = 8
@@ -29,19 +33,36 @@ local PET_ICON_INDENT = 18
 -- Downward chevron; rotated to point right for collapsed groups (plus/minus if the atlas is missing).
 local CHEVRON_ATLAS = "uitools-icon-chevron-down"
 local LOADED_ICON = "Interface\\RaidFrame\\ReadyCheck-Ready"
-local LOADED_PET_ICON_SIZE = 18
 local HAS_CHEVRON = C_Texture.GetAtlasInfo(CHEVRON_ATLAS) ~= nil
 local UNGROUPED = 0
 
 local TAB_TEAMS, TAB_QUEUE, TAB_ABOUT = 1, 2, 3
-local TAB_TITLES = { L["Teams"], L["Leveling Queue"], "Lineup" }
--- Tab labels; the Lineup tab (info and settings) gets a gear icon.
-local TAB_LABELS = { L["Teams"], L["Leveling Queue"], "|TInterface\\Buttons\\UI-OptionsButton:14:14|t Lineup" }
+-- Tab labels; the Settings tab (settings and info about the addon) gets a gear icon.
+local TAB_LABELS = { L["Teams"], L["Leveling Queue"], "|TInterface\\Buttons\\UI-OptionsButton:14:14|t " .. L["Settings"] }
 
-local panel, teamsView, queueView, aboutView, scrollBox, countText, emptyText, searchBox, loadedLine, expandAllButton
+local panel, teamsView, queueView, aboutView, scrollBox, countText, emptyText, searchBox, expandAllButton
 local currentTab = TAB_TEAMS
 local refreshPending = false
-local UpdateLoadedLine, UpdateExpandAllButton
+local UpdateExpandAllButton
+
+-- Section header: a gold title and a thin line across the rest of the width (to anchor, or up to
+-- the frame given with SetLineEnd). Used by all sections of the window.
+function TeamsPanel.CreateSectionHeader(parent, text)
+    local header = CreateFrame("Frame", nil, parent)
+    header:SetHeight(SECTION_HEADER_HEIGHT)
+    header.Text = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    header.Text:SetPoint("LEFT")
+    header.Text:SetText(text)
+    header.Line = header:CreateTexture(nil, "ARTWORK")
+    header.Line:SetHeight(1)
+    header.Line:SetPoint("LEFT", header.Text, "RIGHT", 8, 0)
+    header.Line:SetPoint("RIGHT")
+    header.Line:SetColorTexture(1, 0.82, 0, 0.3)
+    function header:SetLineEnd(frame)
+        self.Line:SetPoint("RIGHT", frame, "LEFT", -8, 0)
+    end
+    return header
+end
 
 -- Sorts teams by name, lowercasing each name once instead of on every comparison.
 local function SortTeamsByName(teams)
@@ -154,6 +175,11 @@ function GroupHeaderMixin:ShowGroupMenu()
             ns.ImportDialog:Open(group and group.id)
         end)
         if group then
+            root:CreateButton(L["Export Group"], function()
+                ns.ExportDialog:Open(format(L["Export \"%s\""], group.name), ns.Export.Group(group))
+            end)
+        end
+        if group then
             local groups = Teams:GetGroups()
             local index = tIndexOf(groups, group)
             root:CreateDivider()
@@ -191,6 +217,7 @@ local function SplitTeamName(name)
     end
     return name, nil
 end
+TeamsPanel.SplitTeamName = SplitTeamName
 
 function TeamRowMixin:OnLoad()
     self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -282,7 +309,29 @@ function TeamRowMixin:OnLoad()
     self.Script:SetPoint("TOPRIGHT", self.Target, "BOTTOMRIGHT", 0, -2)
     self.Script:SetJustifyH("RIGHT")
     self.Script:SetTextScale(0.9)
-    self.Script:SetText(L["Script"])
+end
+
+-- "Script", with what's wrong when it won't run as written. Grey while tdBattlePetScript isn't
+-- installed (nothing can run then), otherwise green, orange or red like the script's status.
+local SCRIPT_LABELS = {
+    ok = L["Script"],
+    warning = L["Script · check abilities"],
+    error = L["Script · error"],
+}
+
+function TeamRowMixin:UpdateScriptLabel(team)
+    if not team.script then
+        self.Script:Hide()
+        return
+    end
+    local status = ns.Script.Check(team.script, team.pets)
+    self.Script:SetText(SCRIPT_LABELS[status.level] or L["Script"])
+    if status.level == "ok" and not ns.Script.CanRun() then
+        self.Script:SetTextColor(GRAY_FONT_COLOR:GetRGB())
+    else
+        self.Script:SetTextColor(status.color:GetRGB())
+    end
+    self.Script:Show()
 end
 
 function TeamRowMixin:Init(data)
@@ -333,7 +382,7 @@ function TeamRowMixin:Init(data)
         end
     end
     self.Target:SetText(target)
-    self.Script:SetShown(team.script ~= nil)
+    self:UpdateScriptLabel(team)
 end
 
 -- The gear is dimmed to keep the list calm, and in full colour while the row is hovered or loaded.
@@ -371,6 +420,9 @@ function TeamRowMixin:ShowTeamMenu()
         root:CreateButton(L["Pop Out Notes"], function()
             ns.NotesWindow:Open(team)
         end):SetEnabled(ns.NotesWindow.HasContent(team))
+        root:CreateButton(L["Export Team"], function()
+            ns.ExportDialog:Open(format(L["Export \"%s\""], team.name), ns.Export.Team(team))
+        end)
 
         local moveTo = root:CreateButton(L["Move to Group"])
         local function IsInGroup(groupID)
@@ -416,8 +468,9 @@ function TeamRowMixin:OnEnter()
         end
     end
     if team.script then
-        local summary, color = ns.Script.Describe(team.script)
-        GameTooltip:AddLine(L["Script: "] .. summary, color:GetRGB())
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(L["Script"], NORMAL_FONT_COLOR:GetRGB())
+        ns.Script.AddCheckToTooltip(GameTooltip, ns.Script.Check(team.script, team.pets))
     end
     if team.notes then
         GameTooltip:AddLine(" ")
@@ -539,32 +592,6 @@ local function BuildElements(query)
     return elements, numShown
 end
 
--- The "Loaded: <team>" line above the search box.
-UpdateLoadedLine = function()
-    local team = Teams:GetLoadedTeam()
-    -- While a team is loading the journal still holds the previous pets, so don't call it changed.
-    local changed = team ~= nil and not Teams:IsLoading() and Teams:HasChanges(team)
-    loadedLine.team = team
-    loadedLine:SetEnabled(team ~= nil)
-    if team then
-        local name = SplitTeamName(team.name)
-        loadedLine.Label:SetText(L["Loaded:"])
-        loadedLine.Name:SetText(changed and (name .. ORANGE_FONT_COLOR:WrapTextInColorCode(L["  · changed"])) or name)
-    else
-        loadedLine.Label:SetText(L["No team loaded"])
-        loadedLine.Name:SetText("")
-    end
-    -- Save and Revert only while the journal differs from the saved team; the pet icons move aside.
-    loadedLine.SaveButton:SetShown(changed)
-    loadedLine.RevertButton:SetShown(changed)
-    loadedLine.PetIcons[3]:SetPoint("RIGHT", changed and loadedLine.SaveButton or loadedLine, changed and "LEFT" or "RIGHT", changed and -8 or -6, 0)
-    for slot, icon in ipairs(loadedLine.PetIcons) do
-        local texture = team and Teams.GetSlotDisplay(team.pets[slot])
-        icon:SetTexture(texture)
-        icon:SetShown(texture ~= nil)
-    end
-end
-
 -- Shows the state like the group headers: right while any group is collapsed, down when all are
 -- open. A click toggles (the tooltip says which way); hidden without groups.
 UpdateExpandAllButton = function()
@@ -595,112 +622,61 @@ end
 -- Panel
 function TeamsPanel:Setup()
     panel = CreateFrame("Frame", "LineupTeamsPanel", PetJournal, "ButtonFrameTemplate")
-    panel:SetPoint("TOPLEFT", CollectionsJournal, "TOPRIGHT", ns.TargetPanel.OFFSET_X - BORDER_ALIGN, -ns.TargetPanel.HEIGHT - 2)
-    panel:SetPoint("BOTTOMLEFT", CollectionsJournal, "BOTTOMRIGHT", ns.TargetPanel.OFFSET_X - BORDER_ALIGN, 0)
-    panel:SetWidth(PANEL_WIDTH + BORDER_ALIGN)
+    panel:SetPoint("TOPLEFT", CollectionsJournal, "TOPRIGHT", WINDOW_OFFSET_X, 0)
+    panel:SetPoint("BOTTOMLEFT", CollectionsJournal, "BOTTOMRIGHT", WINDOW_OFFSET_X, 0)
+    panel:SetWidth(WINDOW_WIDTH)
     ButtonFrameTemplate_HidePortrait(panel)
     panel.CloseButton:Hide()
     panel.Inset:Hide()
+    panel:SetTitle(ns.TITLE)
 
-    -- Teams tab
+    -- Teams tab: Target, Current, then the team list.
     teamsView = CreateFrame("Frame", nil, panel)
     teamsView:SetAllPoints()
 
-    local buttonsY = -30
+    local targetSection = ns.TargetSection:Create(teamsView)
+    targetSection:SetPoint("TOPLEFT", SECTION_INSET, -28)
+    targetSection:SetPoint("RIGHT", -SECTION_INSET, 0)
 
-    -- Three equal buttons across the top: New Team, New Group, Import.
-    local buttonWidth = (PANEL_WIDTH + BORDER_ALIGN - 20 - 8) / 3
-    local function CreateTopButton(index, text, onClick)
-        local button = CreateFrame("Button", nil, teamsView, "UIPanelButtonTemplate")
-        button:SetPoint("TOPLEFT", 10 + (index - 1) * (buttonWidth + 4), buttonsY)
-        button:SetSize(buttonWidth, 24)
+    local currentSection = ns.CurrentSection:Create(teamsView)
+    currentSection:SetPoint("TOPLEFT", targetSection, "BOTTOMLEFT", 0, -SECTION_SPACING)
+    currentSection:SetPoint("RIGHT", -SECTION_INSET, 0)
+
+    -- Teams: New Team / New Group / Import on the header line, then search and the list.
+    local teamsHeader = TeamsPanel.CreateSectionHeader(teamsView, L["Teams"])
+    teamsHeader:SetPoint("TOPLEFT", currentSection, "BOTTOMLEFT", 0, -SECTION_SPACING)
+    teamsHeader:SetPoint("RIGHT", -SECTION_INSET, 0)
+    teamsHeader:SetHeight(22)
+
+    local previous
+    local function CreateHeaderButton(text, onClick)
+        local button = CreateFrame("Button", nil, teamsHeader, "UIPanelButtonTemplate")
+        button:SetHeight(20)
         button:SetText(text)
+        button:SetWidth(button:GetFontString():GetStringWidth() + 20)
         button:SetScript("OnClick", onClick)
-    end
-    CreateTopButton(1, L["New Team"], function()
-        ns.TeamEditor:Open(nil)
-    end)
-    CreateTopButton(2, L["New Group"], function()
-        ns.GroupEditor:Open(nil)
-    end)
-    CreateTopButton(3, L["Import"], function()
-        ns.ImportDialog:Open()
-    end)
-
-    -- "Loaded: <team>" line; clicking it shows the team in the list.
-    loadedLine = CreateFrame("Button", nil, teamsView)
-    loadedLine:SetPoint("TOPLEFT", 8, buttonsY - 28)
-    loadedLine:SetPoint("RIGHT", -8, 0)
-    loadedLine:SetHeight(24)
-    loadedLine:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
-
-    loadedLine.Label = loadedLine:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-    loadedLine.Label:SetPoint("LEFT", 8, 0)
-
-    -- Save / Revert, shown while the loadout differs from the saved team.
-    local function CreateLineButton(text, tooltip, onClick)
-        local button = CreateFrame("Button", nil, loadedLine, "UIPanelButtonTemplate")
-        button:SetSize(58, 20)
-        button:SetText(text)
-        button:SetScript("OnClick", function()
-            onClick(loadedLine.team)
-        end)
-        button:SetScript("OnEnter", function()
-            GameTooltip:SetOwner(button, "ANCHOR_BOTTOM")
-            GameTooltip:SetText(text)
-            GameTooltip:AddLine(tooltip, 1, 1, 1, true)
-            GameTooltip:Show()
-        end)
-        button:SetScript("OnLeave", GameTooltip_Hide)
+        if previous then
+            button:SetPoint("RIGHT", previous, "LEFT", -4, 0)
+        else
+            button:SetPoint("RIGHT")
+        end
+        previous = button
         return button
     end
-    loadedLine.RevertButton = CreateLineButton(L["Revert"], L["Load the saved version of this team again."], function(team)
-        Teams:Load(team)
+    CreateHeaderButton(L["Import"], function()
+        ns.ImportDialog:Open()
     end)
-    loadedLine.RevertButton:SetPoint("RIGHT", -2, 0)
-    loadedLine.SaveButton = CreateLineButton(SAVE, L["Save the pets and abilities in your journal into this team."], function(team)
-        Teams:UpdateFromLoadout(team)
-        ns:Print(format(L["Saved changes to \"%s\"."], team.name))
-        TeamsPanel:Refresh()
+    CreateHeaderButton(L["New Group"], function()
+        ns.GroupEditor:Open(nil)
     end)
-    loadedLine.SaveButton:SetPoint("RIGHT", loadedLine.RevertButton, "LEFT", -4, 0)
+    teamsHeader:SetLineEnd(CreateHeaderButton(L["New Team"], function()
+        ns.TeamEditor:Open(nil)
+    end))
 
-    loadedLine.PetIcons = {}
-    for slot = 3, 1, -1 do
-        local icon = loadedLine:CreateTexture(nil, "ARTWORK")
-        icon:SetSize(LOADED_PET_ICON_SIZE, LOADED_PET_ICON_SIZE)
-        if slot == 3 then
-            icon:SetPoint("RIGHT", -6, 0)
-        else
-            icon:SetPoint("RIGHT", loadedLine.PetIcons[slot + 1], "LEFT", -3, 0)
-        end
-        loadedLine.PetIcons[slot] = icon
-    end
-
-    loadedLine.Name = loadedLine:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    loadedLine.Name:SetPoint("LEFT", loadedLine.Label, "RIGHT", 6, 0)
-    loadedLine.Name:SetPoint("RIGHT", loadedLine.PetIcons[1], "LEFT", -8, 0)
-    loadedLine.Name:SetJustifyH("LEFT")
-    loadedLine.Name:SetWordWrap(false)
-
-    loadedLine:SetScript("OnClick", function(line)
-        if line.team then
-            TeamsPanel:ShowTeam(line.team)
-        end
-    end)
-    loadedLine:SetScript("OnEnter", function(line)
-        if line.team then
-            GameTooltip:SetOwner(line, "ANCHOR_BOTTOM")
-            GameTooltip:SetText(line.team.name)
-            GameTooltip:AddLine(L["Click to show it in the list."], 1, 1, 1)
-            GameTooltip:Show()
-        end
-    end)
-    loadedLine:SetScript("OnLeave", GameTooltip_Hide)
-
+    local searchY = -6
     -- Search (teams, targets and groups) and the Sort button for groups.
     local sortButton = CreateFrame("Button", nil, teamsView, "UIPanelButtonTemplate")
-    sortButton:SetPoint("TOPRIGHT", -10, buttonsY - 58)
+    sortButton:SetPoint("TOPRIGHT", teamsHeader, "BOTTOMRIGHT", 0, searchY)
     sortButton:SetSize(70, 22)
     sortButton:SetText(L["Sort"])
     sortButton:SetScript("OnClick", function()
@@ -718,7 +694,7 @@ function TeamsPanel:Setup()
     -- Expand / collapse all groups; the chevron shows the state, like the group headers.
     expandAllButton = CreateFrame("Button", nil, teamsView)
     expandAllButton:SetSize(22, 22)
-    expandAllButton:SetPoint("TOPLEFT", 10, buttonsY - 58)
+    expandAllButton:SetPoint("TOPLEFT", teamsHeader, "BOTTOMLEFT", -2, searchY)
     expandAllButton:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
     expandAllButton.Icon = expandAllButton:CreateTexture(nil, "ARTWORK")
     expandAllButton.Icon:SetSize(14, 14)
@@ -744,7 +720,7 @@ function TeamsPanel:Setup()
     end)
 
     local inset = CreateFrame("Frame", nil, teamsView, "InsetFrameTemplate")
-    inset:SetPoint("TOPLEFT", 4, buttonsY - 86)
+    inset:SetPoint("TOPLEFT", expandAllButton, "BOTTOMLEFT", -6, -6)
     inset:SetPoint("BOTTOMRIGHT", -6, 26)
 
     emptyText = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
@@ -792,7 +768,7 @@ function TeamsPanel:Setup()
     -- Leveling Queue tab
     queueView = ns.QueueView:Create(panel)
 
-    -- Lineup tab (about and settings)
+    -- Settings tab (settings and info about the addon)
     aboutView = ns.AboutView:Create(panel)
 
     -- Tabs along the bottom edge.
@@ -824,7 +800,6 @@ end
 function TeamsPanel:SelectTab(tab)
     currentTab = tab
     PanelTemplates_SetTab(panel, tab)
-    panel:SetTitle(TAB_TITLES[tab])
     teamsView:SetShown(tab == TAB_TEAMS)
     queueView:SetShown(tab == TAB_QUEUE)
     aboutView:SetShown(tab == TAB_ABOUT)
@@ -853,9 +828,10 @@ function TeamsPanel:RefreshNow()
         return
     end
 
-    ns.TargetPanel:Refresh()
     -- Build the leveling queue up front (it scans the journal) rather than inside row setup.
     ns.LevelingQueue:Get()
+    -- Also on the other tabs: the loadout's health drives the glow on Blizzard's heal button.
+    ns.CurrentSection:Refresh()
 
     if currentTab == TAB_QUEUE then
         ns.QueueView:Refresh()
@@ -865,7 +841,7 @@ function TeamsPanel:RefreshNow()
         return
     end
 
-    UpdateLoadedLine()
+    ns.TargetSection:Refresh()
     UpdateExpandAllButton()
 
     local numTeams = #Teams:GetAll()

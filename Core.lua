@@ -89,6 +89,10 @@ function ns.FindFamilyByName(name)
     end
 end
 
+-- Inline icons for pets that can't fight well: dead (skull) and hurt (warning sign).
+ns.DEAD_ICON = "|TInterface\\TargetingFrame\\UI-TargetingFrame-Skull:14:14|t"
+ns.HURT_ICON = "|TInterface\\DialogFrame\\UI-Dialog-Icon-AlertNew:14:14|t"
+
 -- r, g, b for a battle pet quality (1 = poor ... 4 = rare).
 function ns.GetRarityColor(rarity)
     local color = ITEM_QUALITY_COLORS[(rarity or 1) - 1]
@@ -111,24 +115,31 @@ end
 -- Event dispatch: ns:RegisterEvent("EVENT_NAME", callback) calls callback(...) when it fires.
 -- Without a callback, ns:EVENT_NAME(...) is called. An event can have several callbacks.
 local frame = CreateFrame("Frame")
+-- [event] = { { key = callback or METHOD, run = function(...) } }. Lists are replaced, not changed
+-- in place, so a callback can unregister itself while the event is being dispatched.
 local callbacks = {}
+local METHOD = {} -- key for the ns:EVENT_NAME handler
 
 frame:SetScript("OnEvent", function(_, event, ...)
     local list = callbacks[event]
     if list then
-        for _, callback in ipairs(list) do
-            callback(...)
+        for _, entry in ipairs(list) do
+            entry.run(...)
         end
     end
 end)
 
 local function AddCallback(event, callback)
-    callbacks[event] = callbacks[event] or {}
-    tinsert(callbacks[event], callback or function(...)
-        -- Calls the ns:EVENT_NAME handler; the IDE can't tell which method that is.
-        ---@diagnostic disable-next-line: param-type-mismatch
-        ns[event](ns, ...)
-    end)
+    local list = CopyTable(callbacks[event] or {}, true)
+    tinsert(list, {
+        key = callback or METHOD,
+        run = callback or function(...)
+            -- Calls the ns:EVENT_NAME handler; the IDE can't tell which method that is.
+            ---@diagnostic disable-next-line: param-type-mismatch
+            ns[event](ns, ...)
+        end,
+    })
+    callbacks[event] = list
 end
 
 function ns:RegisterEvent(event, callback)
@@ -143,10 +154,22 @@ function ns:RegisterUnitEvent(event, unit, callback)
     frame:RegisterUnitEvent(event, unit)
 end
 
--- Removes every callback for the event.
-function ns:UnregisterEvent(event)
-    callbacks[event] = nil
-    frame:UnregisterEvent(event)
+-- Removes the callback given to RegisterEvent (without one: the ns:EVENT_NAME handler). Other
+-- callbacks for the event keep running.
+function ns:UnregisterEvent(event, callback)
+    local key = callback or METHOD
+    local list = {}
+    for _, entry in ipairs(callbacks[event] or {}) do
+        if entry.key ~= key then
+            list[#list + 1] = entry
+        end
+    end
+    if #list > 0 then
+        callbacks[event] = list
+    else
+        callbacks[event] = nil
+        frame:UnregisterEvent(event)
+    end
 end
 
 -- Lifecycle
@@ -177,7 +200,7 @@ SlashCmdList.LINEUP = function(msg)
     elseif cmd == "debug" then
         ns.db.debug = not ns.db.debug
         ns:Print(L["Debug"], ns.db.debug and L["enabled"] or L["disabled"])
-        ns.TeamsPanel:Refresh() -- keeps the setting's checkbox on the Lineup tab in sync
+        ns.TeamsPanel:Refresh() -- keeps the setting's checkbox on the Settings tab in sync
     else
         ns:Print(L["Commands:"])
         print(L["  /lineup - open the Pet Journal"])

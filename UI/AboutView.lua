@@ -1,7 +1,7 @@
 local addonName, ns = ...
 local L = ns.L
 
--- The "Lineup" tab of the Teams window: general info about the addon and its settings.
+-- The Settings tab of the Lineup window: the settings and general info about the addon.
 local AboutView = {}
 ns.AboutView = AboutView
 
@@ -42,7 +42,7 @@ local function CreateParagraph(parent, text, anchor, offsetY)
     return paragraph
 end
 
--- Builds the view inside parent (the Teams window) and returns it; it starts hidden.
+-- Builds the view inside parent (the Lineup window) and returns it; it starts hidden.
 function AboutView:Create(parent)
     view = CreateFrame("Frame", nil, parent)
     view:SetAllPoints()
@@ -89,7 +89,22 @@ function AboutView:Create(parent)
     rematchButton:SetText(L["Import Rematch Teams"])
     rematchButton:SetScript("OnClick", ImportFromRematch)
 
-    local settings = CreateHeading(content, L["Settings"], rematchButton, -16)
+    local exportButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+    exportButton:SetPoint("TOPLEFT", rematchButton, "BOTTOMLEFT", 0, -6)
+    exportButton:SetSize(180, 22)
+    exportButton:SetText(L["Export All Teams"])
+    exportButton:SetScript("OnClick", function()
+        ns.ExportDialog:Open(L["Export All Teams"], ns.Export.All())
+    end)
+    exportButton:SetScript("OnEnter", function(button)
+        GameTooltip:SetOwner(button, "ANCHOR_TOP")
+        GameTooltip:SetText(L["Export All Teams"])
+        GameTooltip:AddLine(L["All teams and groups as team strings (with notes and scripts), to back them up or move them to Rematch."], 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    exportButton:SetScript("OnLeave", GameTooltip_Hide)
+
+    local settings = CreateHeading(content, L["Settings"], exportButton, -16)
 
     debugCheck = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
     debugCheck:SetSize(24, 24)

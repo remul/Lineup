@@ -1,7 +1,7 @@
 local _, ns = ...
 local L = ns.L
 
--- The "Leveling Queue" tab of the Teams window: the automatic leveling queue with XP bars.
+-- The "Leveling Queue" tab of the Lineup window: the automatic leveling queue with XP bars.
 local QueueView = {}
 ns.QueueView = QueueView
 
@@ -98,7 +98,7 @@ function QueueRowMixin:OnLeave()
     GameTooltip:Hide()
 end
 
--- Builds the view inside parent (the Teams window) and returns it; it starts hidden.
+-- Builds the view inside parent (the Lineup window) and returns it; it starts hidden.
 function QueueView:Create(parent)
     view = CreateFrame("Frame", nil, parent)
     view:SetAllPoints()
