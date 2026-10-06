@@ -284,8 +284,11 @@ end
 
 -- Hides Blizzard text and buttons in the Pet Journal that sit under the bar, whatever Blizzard
 -- calls them. Text is safe to hide any time; buttons can be protected, so only out of combat.
+local blizzardHidden = false
+
 HideTextBehindBar = function()
-    if not bar or not bar:IsVisible() then
+    -- Anything hidden stays hidden (buttons are hooked), so one successful pass is enough.
+    if blizzardHidden or not bar or not bar:IsVisible() then
         return
     end
     local fontStrings, journalButtons = {}, {}
@@ -297,6 +300,7 @@ HideTextBehindBar = function()
         end
     end
     if not InCombatLockdown() then
+        blizzardHidden = true
         for _, button in ipairs(journalButtons) do
             if button:IsVisible() and Overlaps(button, bar) then
                 ns:Debug("Hiding journal button under the toolbar:", button:GetName() or button:GetDebugName())

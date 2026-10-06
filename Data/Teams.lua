@@ -432,14 +432,23 @@ function Teams:IsCollapsed(groupID)
     return ns.db.ungroupedCollapsed
 end
 
--- True if any group (or "Ungrouped") is collapsed.
+-- True if any group is collapsed, or "Ungrouped" while it has teams (otherwise it isn't shown).
 function Teams:IsAnyCollapsed()
+    local groupExists = {}
     for _, group in ipairs(ns.db.groups) do
         if group.collapsed then
             return true
         end
+        groupExists[group.id] = true
     end
-    return ns.db.ungroupedCollapsed
+    if ns.db.ungroupedCollapsed then
+        for _, team in ipairs(self:GetAll()) do
+            if not groupExists[team.groupID] then
+                return true
+            end
+        end
+    end
+    return false
 end
 
 function Teams:SetAllCollapsed(collapsed)
