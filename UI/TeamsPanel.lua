@@ -27,6 +27,8 @@ local PET_ICON_SPACING = 5
 local PET_ICON_INDENT = 18
 -- Downward chevron; rotated to point right for collapsed groups (plus/minus if the atlas is missing).
 local CHEVRON_ATLAS = "uitools-icon-chevron-down"
+local LOADED_ICON = "Interface\\RaidFrame\\ReadyCheck-Ready"
+local LOADED_PET_ICON_SIZE = 18
 local HAS_CHEVRON = C_Texture.GetAtlasInfo(CHEVRON_ATLAS) ~= nil
 local UNGROUPED = 0
 
@@ -35,9 +37,10 @@ local TAB_TITLES = { "Teams", "Leveling Queue", "Lineup" }
 -- Tab labels; the Lineup tab (info and settings) gets a gear icon.
 local TAB_LABELS = { "Teams", "Leveling Queue", "|TInterface\\Buttons\\UI-OptionsButton:14:14|t Lineup" }
 
-local panel, teamsView, queueView, aboutView, scrollBox, countText, emptyText, searchBox
+local panel, teamsView, queueView, aboutView, scrollBox, countText, emptyText, searchBox, loadedLine
 local currentTab = TAB_TEAMS
 local refreshPending = false
+local UpdateLoadedLine
 
 -- Sorts teams by name, lowercasing each name once instead of on every comparison.
 local function SortTeamsByName(teams)
@@ -207,11 +210,11 @@ function TeamRowMixin:OnLoad()
     -- Loaded team: a gold tint and a gold bar on the left.
     self.Selected = inner:CreateTexture(nil, "BORDER")
     self.Selected:SetAllPoints()
-    self.Selected:SetColorTexture(1, 0.82, 0, 0.12)
+    self.Selected:SetColorTexture(1, 0.82, 0, 0.22)
     self.SelectedBar = inner:CreateTexture(nil, "BORDER", nil, 1)
     self.SelectedBar:SetPoint("TOPLEFT")
     self.SelectedBar:SetPoint("BOTTOMLEFT")
-    self.SelectedBar:SetWidth(3)
+    self.SelectedBar:SetWidth(5)
     self.SelectedBar:SetColorTexture(1, 0.82, 0, 0.9)
 
     self.EditButton = CreateFrame("Button", nil, self)
@@ -241,7 +244,11 @@ function TeamRowMixin:OnLoad()
     self.Tag:SetPoint("RIGHT", self.EditButton, "LEFT", -6, 0)
 
     self.Name = inner:CreateFontString(nil, "ARTWORK", "GameFontHighlightMed2")
-    self.Name:SetPoint("TOPLEFT", 10, -9)
+    -- Check mark in front of the loaded team's name.
+    self.Check = inner:CreateTexture(nil, "ARTWORK")
+    self.Check:SetSize(14, 14)
+    self.Check:SetPoint("TOPLEFT", 10, -10)
+    self.Check:SetTexture(LOADED_ICON)
     self.Name:SetPoint("RIGHT", self.Tag, "LEFT", -8, 0)
     self.Name:SetJustifyH("LEFT")
     self.Name:SetWordWrap(false)
@@ -291,6 +298,10 @@ function TeamRowMixin:Init(data)
 
     local displayName, tag = SplitTeamName(team.name)
     self.Name:SetText(displayName)
+    -- The loaded team: gold name after a check mark; others white.
+    self.Check:SetShown(loaded)
+    self.Name:SetPoint("TOPLEFT", loaded and 28 or 10, -9)
+    self.Name:SetTextColor((loaded and NORMAL_FONT_COLOR or HIGHLIGHT_FONT_COLOR):GetRGB())
     local petType = tag and ns.FindFamilyByName(tag)
     if petType then
         self.Tag:SetText(format("|T%s:12:12|t %s", ns.GetFamilyIcon(petType), ns.GetFamilyColor(petType):WrapTextInColorCode(tag)))
@@ -524,6 +535,43 @@ local function BuildElements(query)
     return elements, numShown
 end
 
+-- The "Loaded: <team>" line above the search box.
+UpdateLoadedLine = function()
+    local team = Teams:GetLoadedTeam()
+    if team and not Teams:IsLoaded(team) then
+        team = nil
+    end
+    loadedLine.team = team
+    loadedLine:SetEnabled(team ~= nil)
+    loadedLine.Background:SetShown(team ~= nil)
+    if team then
+        loadedLine.Label:SetText("Loaded:")
+        loadedLine.Name:SetText((SplitTeamName(team.name)))
+    else
+        loadedLine.Label:SetText("No team loaded")
+        loadedLine.Name:SetText("")
+    end
+    for slot, icon in ipairs(loadedLine.PetIcons) do
+        local texture = team and Teams.GetSlotDisplay(team.pets[slot])
+        icon:SetTexture(texture)
+        icon:SetShown(texture ~= nil)
+    end
+end
+
+-- Puts a team in view: clears the search, opens its group and scrolls it to the middle.
+function TeamsPanel:ShowTeam(team)
+    searchBox:SetText("")
+    if team.groupID and Teams:GetGroup(team.groupID) then
+        Teams:SetCollapsed(team.groupID, false)
+    elseif Teams:IsCollapsed(nil) then
+        Teams:SetCollapsed(nil, false)
+    end
+    self:RefreshNow()
+    scrollBox:ScrollToElementDataByPredicate(function(data)
+        return data.team == team
+    end, ScrollBoxConstants.AlignCenter)
+end
+
 -- Panel
 function TeamsPanel:Setup()
     panel = CreateFrame("Frame", "LineupTeamsPanel", PetJournal, "ButtonFrameTemplate")
@@ -559,9 +607,51 @@ function TeamsPanel:Setup()
         ns.ImportDialog:Open()
     end)
 
+    -- "Loaded: <team>" line; clicking it shows the team in the list.
+    loadedLine = CreateFrame("Button", nil, teamsView)
+    loadedLine:SetPoint("TOPLEFT", 8, buttonsY - 28)
+    loadedLine:SetPoint("RIGHT", -8, 0)
+    loadedLine:SetHeight(24)
+    loadedLine:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+    loadedLine.Background = loadedLine:CreateTexture(nil, "BACKGROUND")
+    loadedLine.Background:SetAllPoints()
+    loadedLine.Background:SetColorTexture(1, 0.82, 0, 0.08)
+
+    loadedLine.Label = loadedLine:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    loadedLine.Label:SetPoint("LEFT", 8, 0)
+
+    loadedLine.PetIcons = {}
+    for slot = 3, 1, -1 do
+        local icon = loadedLine:CreateTexture(nil, "ARTWORK")
+        icon:SetSize(LOADED_PET_ICON_SIZE, LOADED_PET_ICON_SIZE)
+        icon:SetPoint("RIGHT", -6 - (3 - slot) * (LOADED_PET_ICON_SIZE + 3), 0)
+        loadedLine.PetIcons[slot] = icon
+    end
+
+    loadedLine.Name = loadedLine:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    loadedLine.Name:SetPoint("LEFT", loadedLine.Label, "RIGHT", 6, 0)
+    loadedLine.Name:SetPoint("RIGHT", loadedLine.PetIcons[1], "LEFT", -8, 0)
+    loadedLine.Name:SetJustifyH("LEFT")
+    loadedLine.Name:SetWordWrap(false)
+
+    loadedLine:SetScript("OnClick", function(line)
+        if line.team then
+            TeamsPanel:ShowTeam(line.team)
+        end
+    end)
+    loadedLine:SetScript("OnEnter", function(line)
+        if line.team then
+            GameTooltip:SetOwner(line, "ANCHOR_BOTTOM")
+            GameTooltip:SetText(line.team.name)
+            GameTooltip:AddLine("Click to show it in the list.", 1, 1, 1)
+            GameTooltip:Show()
+        end
+    end)
+    loadedLine:SetScript("OnLeave", GameTooltip_Hide)
+
     -- Search (teams, targets and groups) and the Sort button for groups.
     local sortButton = CreateFrame("Button", nil, teamsView, "UIPanelButtonTemplate")
-    sortButton:SetPoint("TOPRIGHT", -10, buttonsY - 30)
+    sortButton:SetPoint("TOPRIGHT", -10, buttonsY - 58)
     sortButton:SetSize(70, 22)
     sortButton:SetText("Sort")
     sortButton:SetScript("OnClick", function()
@@ -576,7 +666,7 @@ function TeamsPanel:Setup()
     sortButton:SetScript("OnLeave", GameTooltip_Hide)
 
     searchBox = CreateFrame("EditBox", nil, teamsView, "SearchBoxTemplate")
-    searchBox:SetPoint("TOPLEFT", 16, buttonsY - 30)
+    searchBox:SetPoint("TOPLEFT", 16, buttonsY - 58)
     searchBox:SetPoint("RIGHT", sortButton, "LEFT", -8, 0)
     searchBox:SetHeight(22)
     searchBox:SetAutoFocus(false)
@@ -586,7 +676,7 @@ function TeamsPanel:Setup()
     end)
 
     local inset = CreateFrame("Frame", nil, teamsView, "InsetFrameTemplate")
-    inset:SetPoint("TOPLEFT", 4, buttonsY - 58)
+    inset:SetPoint("TOPLEFT", 4, buttonsY - 86)
     inset:SetPoint("BOTTOMRIGHT", -6, 26)
 
     emptyText = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
@@ -706,6 +796,8 @@ function TeamsPanel:RefreshNow()
         ns.AboutView:Refresh()
         return
     end
+
+    UpdateLoadedLine()
 
     local numTeams = #Teams:GetAll()
     local query = strtrim(searchBox:GetText()):lower()
