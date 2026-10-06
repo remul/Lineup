@@ -111,7 +111,10 @@ function AboutView:Refresh()
 
     local version = C_AddOns.GetAddOnMetadata(addonName, "Version") or ""
     -- The packager replaces @project-version@ on release; until then this is a development copy.
-    versionText:SetText(version:find("^@") and L["Development version"] or (L["Version "] .. version))
+    local versionLabel = version:find("^@") and L["Development version"] or (L["Version "] .. version)
+    -- The author comes from the TOC (## Author), the same value addon managers show.
+    local author = C_AddOns.GetAddOnMetadata(addonName, "Author")
+    versionText:SetText(author and format(L["%s · by %s"], versionLabel, author) or versionLabel)
 
     statsText:SetText(format(L["%d teams in %d groups\n%d pets in the leveling queue"],
         #ns.Teams:GetAll(), #ns.Teams:GetGroups(), #ns.LevelingQueue:Get()))

@@ -205,4 +205,5 @@ ns.RegisterLocale("deDE", {
     ["Paste a tdBattlePetScript script, e.g. from Xu-Fu's Pet Guides"] = "Füge ein tdBattlePetScript-Skript ein, z. B. von Xu-Fu's Pet Guides",
     ["Expand all groups"] = "Alle Gruppen ausklappen",
     ["Collapse all groups"] = "Alle Gruppen einklappen",
+    ["%s · by %s"] = "%s · von %s",
 })
