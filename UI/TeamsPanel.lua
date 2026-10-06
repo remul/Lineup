@@ -57,11 +57,14 @@ _G.LineupGroupHeaderMixin = GroupHeaderMixin
 function GroupHeaderMixin:OnLoad()
     self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
-    -- A warm band so headers stand apart from the team rows.
+    -- A calm neutral band; the warm one (see UpdateState) marks open, hovered or "active" groups.
     self.Background = self:CreateTexture(nil, "BACKGROUND")
     self.Background:SetAllPoints()
-    self.Background:SetColorTexture(1, 1, 1)
-    self.Background:SetGradient("HORIZONTAL", CreateColor(0.32, 0.25, 0.10, 0.85), CreateColor(0.14, 0.11, 0.05, 0.45))
+    self.Background:SetColorTexture(1, 1, 1, 0.06)
+    self.WarmBackground = self:CreateTexture(nil, "BACKGROUND", nil, 1)
+    self.WarmBackground:SetAllPoints()
+    self.WarmBackground:SetColorTexture(1, 1, 1)
+    self.WarmBackground:SetGradient("HORIZONTAL", CreateColor(0.32, 0.25, 0.10, 0.85), CreateColor(0.14, 0.11, 0.05, 0.45))
     self:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
 
     -- Chevron pointing down when open, right when collapsed.
@@ -87,27 +90,32 @@ function GroupHeaderMixin:OnLoad()
         self:ShowGroupMenu()
     end)
     self.EditButton:SetScript("OnEnter", function(button)
-        self:UpdateEditButton()
+        self:UpdateState()
         GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
         GameTooltip:SetText("Group options")
         GameTooltip:Show()
     end)
     self.EditButton:SetScript("OnLeave", function()
         GameTooltip:Hide()
-        self:UpdateEditButton()
+        self:UpdateState()
     end)
 
-    self:SetScript("OnEnter", self.UpdateEditButton)
-    self:SetScript("OnLeave", self.UpdateEditButton)
+    self:SetScript("OnEnter", self.UpdateState)
+    self:SetScript("OnLeave", self.UpdateState)
 end
 
--- Like on team rows, the gear is dimmed to keep the list calm, and in full colour while the group
--- is open or hovered.
-function GroupHeaderMixin:UpdateEditButton()
-    local active = (self.data and not self.data.collapsed) or self:IsMouseOver()
+-- To keep the list calm, the warm band and a full-colour gear only show while the group is open,
+-- hovered, or holds the loaded team (so you can find it even while the group is collapsed).
+function GroupHeaderMixin:UpdateState()
+    local data = self.data
+    local hovered = self:IsMouseOver()
+    local open = data and not data.collapsed
+    self.WarmBackground:SetShown(open or hovered or (data and data.hasLoaded))
+
+    local gearActive = open or hovered
     local texture = self.EditButton:GetNormalTexture()
-    texture:SetDesaturated(not active)
-    texture:SetAlpha(active and 1 or 0.35)
+    texture:SetDesaturated(not gearActive)
+    texture:SetAlpha(gearActive and 1 or 0.35)
 end
 
 function GroupHeaderMixin:Init(data)
@@ -125,7 +133,7 @@ function GroupHeaderMixin:Init(data)
     else
         self.ExpandIcon:SetTexture(data.collapsed and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
     end
-    self:UpdateEditButton()
+    self:UpdateState()
 end
 
 -- Options for a group; the "Ungrouped" header (no group) only offers importing.
@@ -465,6 +473,12 @@ local function BuildElements(query)
         return matches
     end
 
+    -- The loaded team, if its pets are still slotted; its group header is highlighted.
+    local loadedTeam = Teams:GetLoadedTeam()
+    if loadedTeam and not Teams:IsLoaded(loadedTeam) then
+        loadedTeam = nil
+    end
+
     local elements, numShown = {}, 0
     local function AddTeams(teams, indented)
         SortTeamsByName(teams)
@@ -483,7 +497,8 @@ local function BuildElements(query)
         local groupID = group and group.id
         -- While searching, groups with matches are shown open (without changing the saved state).
         local collapsed = not query and Teams:IsCollapsed(groupID)
-        tinsert(elements, { isHeader = true, group = group, name = name, count = #teams, collapsed = collapsed })
+        tinsert(elements, { isHeader = true, group = group, name = name, count = #teams, collapsed = collapsed,
+                            hasLoaded = loadedTeam ~= nil and tIndexOf(teams, loadedTeam) ~= nil })
         if not collapsed then
             tinsert(elements, { isSpacer = true, height = GROUP_INNER_SPACING })
             if #teams == 0 then
