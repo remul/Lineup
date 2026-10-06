@@ -75,6 +75,10 @@ function QueueRowMixin:Init(data)
     self.Family:SetTexture(ns.GetFamilyIcon(pet.petType))
 end
 
+function QueueRowMixin:OnClick()
+    ns:SelectPetInJournal(self.pet.petID)
+end
+
 function QueueRowMixin:OnEnter()
     local pet = self.pet
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -83,7 +87,9 @@ function QueueRowMixin:OnEnter()
     GameTooltip:AddLine(format("%d / %d XP", self.xp, self.maxXp), 0.8, 0.8, 0.8)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine("The queue lists your battle pets below level 25 automatically; Options decides whether duplicates and pets you already have at 25 are included.", 0.8, 0.8, 0.8, true)
-    GameTooltip:AddLine("Leveling slots in your teams use the first pet that fits, in this order.", 0, 1, 0, true)
+    GameTooltip:AddLine("Leveling slots in your teams use the first pet that fits, in this order.", 0.8, 0.8, 0.8, true)
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("Click to show it in the Pet Journal.", 0, 1, 0)
     GameTooltip:Show()
 end
 

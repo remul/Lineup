@@ -19,6 +19,7 @@
     <Button name="LineupQueueRowTemplate" mixin="LineupQueueRowMixin" virtual="true">
         <Scripts>
             <OnLoad method="OnLoad"/>
+            <OnClick method="OnClick"/>
             <OnEnter method="OnEnter"/>
             <OnLeave method="OnLeave"/>
         </Scripts>
