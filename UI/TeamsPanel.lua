@@ -361,6 +361,12 @@ function TeamRowMixin:ShowTeamMenu()
         root:CreateButton("Edit Team", function()
             ns.TeamEditor:Open(team)
         end)
+        root:CreateButton("Update with Current Pets", function()
+            ns.Dialogs.Confirm(format("Replace the pets of \"%s\" with the pets and abilities in your journal?", team.name), function()
+                Teams:UpdateFromLoadout(team)
+                TeamsPanel:Refresh()
+            end)
+        end)
         root:CreateButton("Pop Out Notes", function()
             ns.NotesWindow:Open(team)
         end):SetEnabled(ns.NotesWindow.HasContent(team))
@@ -484,11 +490,8 @@ local function BuildElements(query)
         return matches
     end
 
-    -- The loaded team, if its pets are still slotted; its group header is highlighted.
+    -- The loaded team's group header is highlighted.
     local loadedTeam = Teams:GetLoadedTeam()
-    if loadedTeam and not Teams:IsLoaded(loadedTeam) then
-        loadedTeam = nil
-    end
 
     local elements, numShown = {}, 0
     local function AddTeams(teams, indented)
@@ -538,18 +541,21 @@ end
 -- The "Loaded: <team>" line above the search box.
 UpdateLoadedLine = function()
     local team = Teams:GetLoadedTeam()
-    if team and not Teams:IsLoaded(team) then
-        team = nil
-    end
+    local changed = team ~= nil and Teams:HasChanges(team)
     loadedLine.team = team
     loadedLine:SetEnabled(team ~= nil)
     if team then
+        local name = SplitTeamName(team.name)
         loadedLine.Label:SetText("Loaded:")
-        loadedLine.Name:SetText((SplitTeamName(team.name)))
+        loadedLine.Name:SetText(changed and (name .. ORANGE_FONT_COLOR:WrapTextInColorCode("  · changed")) or name)
     else
         loadedLine.Label:SetText("No team loaded")
         loadedLine.Name:SetText("")
     end
+    -- Save and Revert only while the journal differs from the saved team; the pet icons move aside.
+    loadedLine.SaveButton:SetShown(changed)
+    loadedLine.RevertButton:SetShown(changed)
+    loadedLine.PetIcons[3]:SetPoint("RIGHT", changed and loadedLine.SaveButton or loadedLine, changed and "LEFT" or "RIGHT", changed and -8 or -6, 0)
     for slot, icon in ipairs(loadedLine.PetIcons) do
         local texture = team and Teams.GetSlotDisplay(team.pets[slot])
         icon:SetTexture(texture)
@@ -616,11 +622,43 @@ function TeamsPanel:Setup()
     loadedLine.Label = loadedLine:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     loadedLine.Label:SetPoint("LEFT", 8, 0)
 
+    -- Save / Revert, shown while the loadout differs from the saved team.
+    local function CreateLineButton(text, tooltip, onClick)
+        local button = CreateFrame("Button", nil, loadedLine, "UIPanelButtonTemplate")
+        button:SetSize(58, 20)
+        button:SetText(text)
+        button:SetScript("OnClick", function()
+            onClick(loadedLine.team)
+        end)
+        button:SetScript("OnEnter", function()
+            GameTooltip:SetOwner(button, "ANCHOR_BOTTOM")
+            GameTooltip:SetText(text)
+            GameTooltip:AddLine(tooltip, 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        button:SetScript("OnLeave", GameTooltip_Hide)
+        return button
+    end
+    loadedLine.RevertButton = CreateLineButton("Revert", "Load the saved version of this team again.", function(team)
+        Teams:Load(team)
+    end)
+    loadedLine.RevertButton:SetPoint("RIGHT", -2, 0)
+    loadedLine.SaveButton = CreateLineButton(SAVE, "Save the pets and abilities in your journal into this team.", function(team)
+        Teams:UpdateFromLoadout(team)
+        ns:Print(format("Saved changes to \"%s\".", team.name))
+        TeamsPanel:Refresh()
+    end)
+    loadedLine.SaveButton:SetPoint("RIGHT", loadedLine.RevertButton, "LEFT", -4, 0)
+
     loadedLine.PetIcons = {}
     for slot = 3, 1, -1 do
         local icon = loadedLine:CreateTexture(nil, "ARTWORK")
         icon:SetSize(LOADED_PET_ICON_SIZE, LOADED_PET_ICON_SIZE)
-        icon:SetPoint("RIGHT", -6 - (3 - slot) * (LOADED_PET_ICON_SIZE + 3), 0)
+        if slot == 3 then
+            icon:SetPoint("RIGHT", -6, 0)
+        else
+            icon:SetPoint("RIGHT", loadedLine.PetIcons[slot + 1], "LEFT", -3, 0)
+        end
         loadedLine.PetIcons[slot] = icon
     end
 

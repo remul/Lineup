@@ -13,6 +13,13 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_Collections", function()
     ns:RegisterEvent("PET_JOURNAL_LIST_UPDATE")
 end)
 
+-- Pets or abilities changed in the journal (by anyone): the loaded team may now show "changed".
+for _, name in ipairs({ "SetAbility", "SetPetLoadOutInfo" }) do
+    hooksecurefunc(C_PetJournal, name, function()
+        ns.TeamsPanel:Refresh()
+    end)
+end
+
 function ns:PET_JOURNAL_LIST_UPDATE()
     -- Our own pet scans change the journal filters, which fires this event too.
     if self.Roster:IsScanning() then

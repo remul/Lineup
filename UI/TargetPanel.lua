@@ -59,7 +59,7 @@ local function SaveForTarget(button)
         root:CreateTitle("Save current pets")
         for _, team in ipairs(teams) do
             root:CreateButton(format("Update \"%s\"", team.name), function()
-                Teams:Overwrite(team)
+                Teams:UpdateFromLoadout(team)
                 ns:Print(format("Updated team \"%s\".", team.name))
                 RefreshAll()
             end)

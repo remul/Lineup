@@ -77,10 +77,34 @@ local function LoadoutMatches(team)
     return true
 end
 
--- True for the team you loaded last, while its pets are still in the journal. (Matching the
--- loadout alone isn't enough: with random slots, several teams can fit the same pets.)
+-- True for the team you loaded last. (Matching the loadout alone isn't enough: with random slots,
+-- several teams can fit the same pets.) It stays loaded when you change pets or abilities;
+-- HasChanges() tells whether it still matches.
 function Teams:IsLoaded(team)
-    return team == self:GetLoadedTeam() and LoadoutMatches(team)
+    return team ~= nil and team == self:GetLoadedTeam()
+end
+
+-- True if a fixed pet's saved ability differs from the one selected in the journal.
+local function AbilitiesDiffer(team)
+    for slot = 1, NUM_SLOTS do
+        local entry = team.pets[slot]
+        if not entry.random and not entry.leveling and entry.petID then
+            local _, ability1, ability2, ability3 = C_PetJournal.GetPetLoadOutInfo(slot)
+            local loaded = { ability1, ability2, ability3 }
+            for index = 1, 3 do
+                local saved = entry.abilities and entry.abilities[index]
+                if saved and saved ~= loaded[index] then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- True if the journal's pets or abilities no longer match the saved team.
+function Teams:HasChanges(team)
+    return not LoadoutMatches(team) or AbilitiesDiffer(team)
 end
 
 -- A draft is an editable copy of a team; Save() writes it back (or creates a new team).
@@ -155,8 +179,20 @@ function Teams.GetSlotDisplay(entry)
     return nil
 end
 
-function Teams:Overwrite(team)
-    team.pets = self:CaptureLoadout()
+-- Saves the journal's current pets and abilities into the team. Random and leveling slots stay
+-- random/leveling while the slotted pet still fits them; other slots take the slotted pet.
+function Teams:UpdateFromLoadout(team)
+    local captured = self:CaptureLoadout()
+    for slot = 1, NUM_SLOTS do
+        local entry = team.pets[slot]
+        local current = captured[slot]
+        local petType = current.petID and select(10, C_PetJournal.GetPetInfoByPetID(current.petID))
+        local keepRandom = entry.random and petType and Teams.MatchesRandomSlot(entry, petType)
+        local keepLeveling = entry.leveling and current.petID
+        if not keepRandom and not keepLeveling then
+            team.pets[slot] = current
+        end
+    end
 end
 
 -- New team from the current loadout, aimed at the given NPC.
