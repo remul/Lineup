@@ -19,4 +19,6 @@ First release.
 - **Pet toolbar**: Revive Battle Pets, Battle Pet Bandage, Safari Hat, pet treats and Summon Random
   Favorite Pet.
 - **Notes window** to follow a team's strategy during battles.
+- Works alongside Rematch: Lineup hides while Rematch replaces the Pet Journal, and loading a
+  Lineup team releases Rematch's team so its leveling queue doesn't swap your pets.
 - Languages: English and German.
