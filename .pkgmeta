@@ -3,6 +3,7 @@ package-as: Lineup_PetBattles
 ignore:
   - .gitignore
   - .pkgmeta
+  - .github
   # Logo sources for GitHub and CurseForge; only Media/Icon.tga is used in game.
   - Media/Emblem.svg
   - Media/Emblem.png
