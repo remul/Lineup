@@ -87,11 +87,27 @@ function GroupHeaderMixin:OnLoad()
         self:ShowGroupMenu()
     end)
     self.EditButton:SetScript("OnEnter", function(button)
+        self:UpdateEditButton()
         GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
         GameTooltip:SetText("Group options")
         GameTooltip:Show()
     end)
-    self.EditButton:SetScript("OnLeave", GameTooltip_Hide)
+    self.EditButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+        self:UpdateEditButton()
+    end)
+
+    self:SetScript("OnEnter", self.UpdateEditButton)
+    self:SetScript("OnLeave", self.UpdateEditButton)
+end
+
+-- Like on team rows, the gear is dimmed to keep the list calm, and in full colour while the group
+-- is open or hovered.
+function GroupHeaderMixin:UpdateEditButton()
+    local active = (self.data and not self.data.collapsed) or self:IsMouseOver()
+    local texture = self.EditButton:GetNormalTexture()
+    texture:SetDesaturated(not active)
+    texture:SetAlpha(active and 1 or 0.35)
 end
 
 function GroupHeaderMixin:Init(data)
@@ -109,6 +125,7 @@ function GroupHeaderMixin:Init(data)
     else
         self.ExpandIcon:SetTexture(data.collapsed and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
     end
+    self:UpdateEditButton()
 end
 
 -- Options for a group; the "Ungrouped" header (no group) only offers importing.
