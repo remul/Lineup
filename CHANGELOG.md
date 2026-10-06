@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1
+
+- **Settings tab** redesigned to match the Teams tab: sections with header lines for Settings,
+  Import & Export (Import Rematch Teams and Export All Teams side by side), Overview and Commands.
+
 ## 1.1.0
 
 - **One Lineup window** instead of the Target and Teams windows, split into sections:

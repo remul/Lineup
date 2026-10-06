@@ -25,37 +25,41 @@ local function ImportFromRematch()
     end)
 end
 
-local function CreateHeading(parent, text, anchor, offsetY)
-    local heading = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalMed2")
-    heading:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, offsetY)
-    heading:SetText(text)
-    return heading
-end
+-- Space between a section's header and its content, and between sections.
+local HEADER_GAP = 6
+local SECTION_GAP = 16
 
 local function CreateParagraph(parent, text, anchor, offsetY)
     local paragraph = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     paragraph:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, offsetY)
-    paragraph:SetPoint("RIGHT", -12, 0)
+    paragraph:SetPoint("RIGHT")
     paragraph:SetJustifyH("LEFT")
     paragraph:SetSpacing(2)
     paragraph:SetText(text)
     return paragraph
 end
 
--- Builds the view inside parent (the Lineup window) and returns it; it starts hidden.
+-- A section header like the Teams tab's, below anchor.
+local function CreateSection(parent, text, anchor)
+    local header = ns.TeamsPanel.CreateSectionHeader(parent, text)
+    header:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -SECTION_GAP)
+    header:SetPoint("RIGHT")
+    return header
+end
+
+-- Builds the view inside parent (the Lineup window) and returns it; it starts hidden. Laid out
+-- like the Teams tab: sections with a header line, without a box around them.
 function AboutView:Create(parent)
     view = CreateFrame("Frame", nil, parent)
     view:SetAllPoints()
     view:Hide()
 
-    local inset = CreateFrame("Frame", nil, view, "InsetFrameTemplate")
-    inset:SetPoint("TOPLEFT", 4, -26)
-    inset:SetPoint("BOTTOMRIGHT", -6, 26)
+    local inset = ns.TeamsPanel.SECTION_INSET
+    local content = CreateFrame("Frame", nil, view)
+    content:SetPoint("TOPLEFT", inset, -32)
+    content:SetPoint("BOTTOMRIGHT", -inset, 30)
 
-    local content = CreateFrame("Frame", nil, inset)
-    content:SetPoint("TOPLEFT", 12, -12)
-    content:SetPoint("BOTTOMRIGHT", -12, 12)
-
+    -- Header: icon, name, version and what Lineup does.
     local icon = content:CreateTexture(nil, "ARTWORK")
     icon:SetSize(40, 40)
     icon:SetPoint("TOPLEFT")
@@ -70,28 +74,38 @@ function AboutView:Create(parent)
 
     local about = CreateParagraph(content,
         L["Pet battle teams for Blizzard's Pet Journal: save and load teams, group them, import Rematch team strings (e.g. from Xu-Fu's Pet Guides) and keep an automatic leveling queue."],
-        icon, -12)
+        icon, -10)
 
-    local overview = CreateHeading(content, L["Overview"], about, -16)
-    statsText = CreateParagraph(content, "", overview, -6)
+    -- Settings
+    local settings = CreateSection(content, L["Settings"], about)
 
-    local commands = CreateHeading(content, L["Commands"], statsText, -16)
-    local commandList = CreateParagraph(content,
-        L["|cffffd100/lineup|r  open the Pet Journal\n|cffffd100/lineup debug|r  toggle debug messages"],
-        commands, -6)
+    debugCheck = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
+    debugCheck:SetSize(24, 24)
+    debugCheck:SetPoint("TOPLEFT", settings, "BOTTOMLEFT", -4, -HEADER_GAP + 2)
+    debugCheck.Label = debugCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    debugCheck.Label:SetPoint("LEFT", debugCheck, "RIGHT", 2, 0)
+    debugCheck.Label:SetText(L["Debug messages in chat"])
+    debugCheck:SetScript("OnClick", function(button)
+        ns.db.debug = button:GetChecked()
+    end)
 
-    local rematch = CreateHeading(content, L["Rematch"], commandList, -16)
-    rematchText = CreateParagraph(content, "", rematch, -6)
+    -- Import & Export: teams from Rematch, and all teams as text.
+    local transfer = CreateSection(content, L["Import & Export"], debugCheck)
+    transfer:SetPoint("TOPLEFT", debugCheck, "BOTTOMLEFT", 4, -SECTION_GAP + 2)
+    rematchText = CreateParagraph(content, "", transfer, -HEADER_GAP)
 
     rematchButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
     rematchButton:SetPoint("TOPLEFT", rematchText, "BOTTOMLEFT", 0, -8)
-    rematchButton:SetSize(180, 22)
+    rematchButton:SetPoint("RIGHT", content, "CENTER", -4, 0)
+    rematchButton:SetHeight(22)
     rematchButton:SetText(L["Import Rematch Teams"])
     rematchButton:SetScript("OnClick", ImportFromRematch)
 
     local exportButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
-    exportButton:SetPoint("TOPLEFT", rematchButton, "BOTTOMLEFT", 0, -6)
-    exportButton:SetSize(180, 22)
+    exportButton:SetPoint("LEFT", content, "CENTER", 4, 0)
+    exportButton:SetPoint("TOP", rematchButton)
+    exportButton:SetPoint("RIGHT")
+    exportButton:SetHeight(22)
     exportButton:SetText(L["Export All Teams"])
     exportButton:SetScript("OnClick", function()
         ns.ExportDialog:Open(L["Export All Teams"], ns.Export.All())
@@ -104,17 +118,15 @@ function AboutView:Create(parent)
     end)
     exportButton:SetScript("OnLeave", GameTooltip_Hide)
 
-    local settings = CreateHeading(content, L["Settings"], exportButton, -16)
+    -- Overview
+    local overview = CreateSection(content, L["Overview"], rematchButton)
+    statsText = CreateParagraph(content, "", overview, -HEADER_GAP)
 
-    debugCheck = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
-    debugCheck:SetSize(24, 24)
-    debugCheck:SetPoint("TOPLEFT", settings, "BOTTOMLEFT", -4, -4)
-    debugCheck.Label = debugCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    debugCheck.Label:SetPoint("LEFT", debugCheck, "RIGHT", 2, 0)
-    debugCheck.Label:SetText(L["Debug messages in chat"])
-    debugCheck:SetScript("OnClick", function(button)
-        ns.db.debug = button:GetChecked()
-    end)
+    -- Commands
+    local commands = CreateSection(content, L["Commands"], statsText)
+    CreateParagraph(content,
+        L["|cffffd100/lineup|r  open the Pet Journal\n|cffffd100/lineup debug|r  toggle debug messages"],
+        commands, -HEADER_GAP)
 
     return view
 end

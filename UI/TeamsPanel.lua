@@ -15,6 +15,7 @@ local WINDOW_OFFSET_X = 9
 -- Space between the window's edge and the sections, and between sections.
 local SECTION_INSET = 12
 local SECTION_SPACING = 8
+TeamsPanel.SECTION_INSET = SECTION_INSET
 local SECTION_HEADER_HEIGHT = 18
 local HEADER_HEIGHT = 28
 local ROW_HEIGHT = 64
