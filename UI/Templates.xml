@@ -24,6 +24,12 @@
         </Scripts>
     </Button>
 
+    <Button name="LineupGroupSortRowTemplate" mixin="LineupGroupSortRowMixin" virtual="true">
+        <Scripts>
+            <OnLoad method="OnLoad"/>
+        </Scripts>
+    </Button>
+
     <!-- Grid views need a sized template. -->
     <Button name="LineupIconButtonTemplate" mixin="LineupIconButtonMixin" virtual="true">
         <Size x="36" y="36"/>

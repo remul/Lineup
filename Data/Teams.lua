@@ -370,6 +370,12 @@ function Teams:MoveGroup(group, delta)
     end
 end
 
+function Teams:SortGroupsByName()
+    table.sort(ns.db.groups, function(a, b)
+        return a.name:lower() < b.name:lower()
+    end)
+end
+
 -- Teams in a deleted group become ungrouped.
 function Teams:DeleteGroup(group)
     for _, team in ipairs(self:GetAll()) do

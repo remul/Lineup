@@ -35,7 +35,7 @@ local TAB_TITLES = { "Teams", "Leveling Queue", "Lineup" }
 -- Tab labels; the Lineup tab (info and settings) gets a gear icon.
 local TAB_LABELS = { "Teams", "Leveling Queue", "|TInterface\\Buttons\\UI-OptionsButton:14:14|t Lineup" }
 
-local panel, teamsView, queueView, aboutView, scrollBox, countText, emptyText
+local panel, teamsView, queueView, aboutView, scrollBox, countText, emptyText, searchBox
 local currentTab = TAB_TEAMS
 local refreshPending = false
 
@@ -410,9 +410,18 @@ local function InitEmptyGroupRow(row)
     end
 end
 
+-- True if the team's name or target contains the (lowercase) search text.
+local function TeamMatches(team, query)
+    return team.name:lower():find(query, 1, true) ~= nil
+        or (team.targetName and team.targetName:lower():find(query, 1, true) ~= nil)
+end
+
 -- List building: headers followed by their (sorted) teams unless collapsed, with a little space
 -- between groups. Team rows alternate stripes within each group and are indented under headers.
-local function BuildElements()
+-- With a search (lowercase query), only matching teams are listed (all teams of a group whose name
+-- matches), groups without matches are left out, and the rest are shown open.
+-- Returns the elements and the number of teams listed.
+local function BuildElements(query)
     local groups = Teams:GetGroups()
     local groupExists = {}
     for _, group in ipairs(groups) do
@@ -426,19 +435,37 @@ local function BuildElements()
         tinsert(teamsByGroup[key], team)
     end
 
-    local elements = {}
+    local function Filter(teams, groupName)
+        if not query or (groupName and groupName:lower():find(query, 1, true)) then
+            return teams
+        end
+        local matches = {}
+        for _, team in ipairs(teams) do
+            if TeamMatches(team, query) then
+                matches[#matches + 1] = team
+            end
+        end
+        return matches
+    end
+
+    local elements, numShown = {}, 0
     local function AddTeams(teams, indented)
         SortTeamsByName(teams)
         for index, team in ipairs(teams) do
             tinsert(elements, { team = team, indented = indented, stripe = index % 2 == 1 })
         end
+        numShown = numShown + #teams
     end
     local function AddGroup(group, name, teams)
+        if query and #teams == 0 then
+            return
+        end
         if #elements > 0 then
             tinsert(elements, { isSpacer = true, height = GROUP_SPACING })
         end
         local groupID = group and group.id
-        local collapsed = Teams:IsCollapsed(groupID)
+        -- While searching, groups with matches are shown open (without changing the saved state).
+        local collapsed = not query and Teams:IsCollapsed(groupID)
         tinsert(elements, { isHeader = true, group = group, name = name, count = #teams, collapsed = collapsed })
         if not collapsed then
             tinsert(elements, { isSpacer = true, height = GROUP_INNER_SPACING })
@@ -452,17 +479,17 @@ local function BuildElements()
     end
 
     for _, group in ipairs(groups) do
-        AddGroup(group, group.name, teamsByGroup[group.id] or {})
+        AddGroup(group, group.name, Filter(teamsByGroup[group.id] or {}, group.name))
     end
 
-    local ungrouped = teamsByGroup[UNGROUPED] or {}
+    local ungrouped = Filter(teamsByGroup[UNGROUPED] or {}, nil)
     if #groups == 0 then
         -- No groups yet: a plain list without headers.
         AddTeams(ungrouped, false)
     elseif #ungrouped > 0 then
         AddGroup(nil, "Ungrouped", ungrouped)
     end
-    return elements
+    return elements, numShown
 end
 
 -- Panel
@@ -500,14 +527,39 @@ function TeamsPanel:Setup()
         ns.ImportDialog:Open()
     end)
 
+    -- Search (teams, targets and groups) and the Sort button for groups.
+    local sortButton = CreateFrame("Button", nil, teamsView, "UIPanelButtonTemplate")
+    sortButton:SetPoint("TOPRIGHT", -10, buttonsY - 30)
+    sortButton:SetSize(70, 22)
+    sortButton:SetText("Sort")
+    sortButton:SetScript("OnClick", function()
+        ns.GroupSorter:Open()
+    end)
+    sortButton:SetScript("OnEnter", function(button)
+        GameTooltip:SetOwner(button, "ANCHOR_TOP")
+        GameTooltip:SetText("Sort groups")
+        GameTooltip:AddLine("Change the order of your groups.", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    sortButton:SetScript("OnLeave", GameTooltip_Hide)
+
+    searchBox = CreateFrame("EditBox", nil, teamsView, "SearchBoxTemplate")
+    searchBox:SetPoint("TOPLEFT", 16, buttonsY - 30)
+    searchBox:SetPoint("RIGHT", sortButton, "LEFT", -8, 0)
+    searchBox:SetHeight(22)
+    searchBox:SetAutoFocus(false)
+    searchBox.Instructions:SetText("Search teams and groups")
+    searchBox:HookScript("OnTextChanged", function()
+        TeamsPanel:RefreshNow()
+    end)
+
     local inset = CreateFrame("Frame", nil, teamsView, "InsetFrameTemplate")
-    inset:SetPoint("TOPLEFT", 4, buttonsY - 30)
+    inset:SetPoint("TOPLEFT", 4, buttonsY - 58)
     inset:SetPoint("BOTTOMRIGHT", -6, 26)
 
     emptyText = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     emptyText:SetPoint("TOPLEFT", 16, -16)
     emptyText:SetPoint("TOPRIGHT", -16, -16)
-    emptyText:SetText("No teams yet.\n\nPick three pets in the journal, then click \"New Team\".")
 
     scrollBox = CreateFrame("Frame", nil, inset, "WowScrollBoxList")
     scrollBox:SetPoint("TOPLEFT", 4, -4)
@@ -624,7 +676,24 @@ function TeamsPanel:RefreshNow()
     end
 
     local numTeams = #Teams:GetAll()
-    scrollBox:SetDataProvider(CreateDataProvider(BuildElements()), ScrollBoxConstants.RetainScrollPosition)
-    emptyText:SetShown(numTeams == 0 and #Teams:GetGroups() == 0)
-    countText:SetFormattedText(numTeams == 1 and "%d team" or "%d teams", numTeams)
+    local query = strtrim(searchBox:GetText()):lower()
+    query = query ~= "" and query or nil
+    local elements, numShown = BuildElements(query)
+    scrollBox:SetDataProvider(CreateDataProvider(elements), ScrollBoxConstants.RetainScrollPosition)
+
+    if query and #elements == 0 then
+        emptyText:SetText(format("Nothing matches \"%s\".", strtrim(searchBox:GetText())))
+        emptyText:Show()
+    elseif not query and numTeams == 0 and #Teams:GetGroups() == 0 then
+        emptyText:SetText("No teams yet.\n\nPick three pets in the journal, then click \"New Team\".")
+        emptyText:Show()
+    else
+        emptyText:Hide()
+    end
+
+    if query then
+        countText:SetFormattedText("%d of %d teams", numShown, numTeams)
+    else
+        countText:SetFormattedText(numTeams == 1 and "%d team" or "%d teams", numTeams)
+    end
 end

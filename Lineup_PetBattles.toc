@@ -22,6 +22,7 @@ UI\TeamsPanel.lua
 UI\Dialogs\IconPicker.lua
 UI\QueueView.lua
 UI\AboutView.lua
+UI\Dialogs\GroupSorter.lua
 UI\Templates.xml
 UI\Dialogs\GroupEditor.lua
 UI\Dialogs\TeamEditor.lua
