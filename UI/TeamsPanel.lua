@@ -564,14 +564,14 @@ UpdateLoadedLine = function()
     end
 end
 
--- Points the chevron down ("expand all") while any group is collapsed, otherwise right
--- ("collapse all"); hidden without groups.
+-- Shows the state like the group headers: right while any group is collapsed, down when all are
+-- open. A click toggles (the tooltip says which way); hidden without groups.
 UpdateExpandAllButton = function()
     expandAllButton:SetShown(#Teams:GetGroups() > 0)
     local anyCollapsed = Teams:IsAnyCollapsed()
     if HAS_CHEVRON then
         expandAllButton.Icon:SetAtlas(CHEVRON_ATLAS)
-        expandAllButton.Icon:SetRotation(anyCollapsed and 0 or math.pi / 2)
+        expandAllButton.Icon:SetRotation(anyCollapsed and math.pi / 2 or 0)
     else
         expandAllButton.Icon:SetTexture(anyCollapsed and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
     end
@@ -714,7 +714,7 @@ function TeamsPanel:Setup()
     sortButton:SetScript("OnLeave", GameTooltip_Hide)
 
     searchBox = CreateFrame("EditBox", nil, teamsView, "SearchBoxTemplate")
-    -- Expand / collapse all groups; the chevron points the way a click goes.
+    -- Expand / collapse all groups; the chevron shows the state, like the group headers.
     expandAllButton = CreateFrame("Button", nil, teamsView)
     expandAllButton:SetSize(22, 22)
     expandAllButton:SetPoint("TOPLEFT", 10, buttonsY - 58)
