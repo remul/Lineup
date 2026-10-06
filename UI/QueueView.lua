@@ -82,7 +82,7 @@ function QueueRowMixin:OnEnter()
     GameTooltip:AddLine(format("Level %d %s", pet.level, ns.GetFamilyName(pet.petType)), 1, 1, 1)
     GameTooltip:AddLine(format("%d / %d XP", self.xp, self.maxXp), 0.8, 0.8, 0.8)
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("The queue lists your battle pets below level 25 automatically, without duplicates or pets you already have at 25.", 0.8, 0.8, 0.8, true)
+    GameTooltip:AddLine("The queue lists your battle pets below level 25 automatically; Options decides whether duplicates and pets you already have at 25 are included.", 0.8, 0.8, 0.8, true)
     GameTooltip:AddLine("Leveling slots in your teams use the first pet that fits, in this order.", 0, 1, 0, true)
     GameTooltip:Show()
 end
@@ -101,9 +101,31 @@ function QueueView:Create(parent)
     sortLabel:SetPoint("TOPLEFT", 14, -38)
     sortLabel:SetText("Sort by")
 
+    -- Options: which pets the queue includes.
+    local optionsDropdown = CreateFrame("DropdownButton", nil, view, "WowStyle1DropdownTemplate")
+    optionsDropdown:SetPoint("TOPRIGHT", -12, -30)
+    optionsDropdown:SetWidth(100)
+    optionsDropdown:SetDefaultText("Options")
+    -- Keep the label "Options" instead of listing the ticked entries.
+    if optionsDropdown.SetSelectionText then
+        optionsDropdown:SetSelectionText(function()
+            return "Options"
+        end)
+    end
+    optionsDropdown:SetupMenu(function(_, root)
+        local function IsChecked(key)
+            return ns.LevelingQueue:GetOption(key)
+        end
+        local function Toggle(key)
+            ns.LevelingQueue:SetOption(key, not ns.LevelingQueue:GetOption(key))
+        end
+        root:CreateCheckbox("Include duplicates", IsChecked, Toggle, "queueIncludeDuplicates")
+        root:CreateCheckbox("Include pets you have at 25", IsChecked, Toggle, "queueIncludeMaxedSpecies")
+    end)
+
     local sortDropdown = CreateFrame("DropdownButton", nil, view, "WowStyle1DropdownTemplate")
     sortDropdown:SetPoint("LEFT", sortLabel, "RIGHT", 8, 0)
-    sortDropdown:SetPoint("RIGHT", -12, 0)
+    sortDropdown:SetPoint("RIGHT", optionsDropdown, "LEFT", -6, 0)
     sortDropdown:SetupMenu(function(_, root)
         local function IsSelected(key)
             return ns.LevelingQueue:GetSort() == key
@@ -123,7 +145,7 @@ function QueueView:Create(parent)
     emptyText = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     emptyText:SetPoint("TOPLEFT", 16, -16)
     emptyText:SetPoint("TOPRIGHT", -16, -16)
-    emptyText:SetText("Nothing to level.\n\nYou already have every battle pet you own at level 25.")
+    emptyText:SetText("Nothing to level.\n\nNo battle pets below level 25 match your queue options.")
 
     scrollBox = CreateFrame("Frame", nil, inset, "WowScrollBoxList")
     scrollBox:SetPoint("TOPLEFT", 4, -4)

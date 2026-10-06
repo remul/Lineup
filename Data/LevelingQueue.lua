@@ -1,7 +1,8 @@
 local _, ns = ...
 
--- The leveling queue is built automatically: every battle pet below level 25, one per species
--- (your highest), skipping species you already have at level 25. Its order is the chosen sort.
+-- The leveling queue is built automatically from your battle pets below level 25. By default it
+-- has one per species (your highest) and skips species you already have at level 25; options
+-- include duplicates and those species too. Its order is the chosen sort.
 -- Teams can have leveling slots, which are filled from the front of the queue when loaded.
 -- A leveling slot can carry Rematch-style preferences:
 --   { minHP, allowMM, expectedDD, maxHP, minXP, maxXP }
@@ -77,6 +78,17 @@ function LevelingQueue:GetSort()
     return ns.db.queueSort
 end
 
+-- Options: "queueIncludeDuplicates" and "queueIncludeMaxedSpecies".
+function LevelingQueue:GetOption(key)
+    return ns.db[key]
+end
+
+function LevelingQueue:SetOption(key, value)
+    ns.db[key] = value
+    queue = nil -- rebuilt from the cached pet list on the next Get()
+    ns.TeamsPanel:Refresh()
+end
+
 function LevelingQueue:SetSort(key)
     ns.db.queueSort = key
     if queue then
@@ -92,24 +104,31 @@ function LevelingQueue:Get()
     end
 
     owned = ns.Roster:GetOwnedPets()
-    local maxedSpecies = {}
-    for _, pet in ipairs(owned) do
-        if pet.level >= 25 then
-            maxedSpecies[pet.speciesID] = true
-        end
-    end
+    local includeDuplicates = ns.db.queueIncludeDuplicates
+    local includeMaxed = ns.db.queueIncludeMaxedSpecies
 
-    local bestBySpecies = {}
-    for _, pet in ipairs(owned) do
-        if pet.canBattle and pet.level < 25 and not maxedSpecies[pet.speciesID] then
-            local best = bestBySpecies[pet.speciesID]
-            if not best or IsBetter(pet, best) then
-                bestBySpecies[pet.speciesID] = pet
+    local maxedSpecies = {}
+    if not includeMaxed then
+        for _, pet in ipairs(owned) do
+            if pet.level >= 25 then
+                maxedSpecies[pet.speciesID] = true
             end
         end
     end
 
-    local result = {}
+    local result, bestBySpecies = {}, {}
+    for _, pet in ipairs(owned) do
+        if pet.canBattle and pet.level < 25 and not maxedSpecies[pet.speciesID] then
+            if includeDuplicates then
+                result[#result + 1] = pet
+            else
+                local best = bestBySpecies[pet.speciesID]
+                if not best or IsBetter(pet, best) then
+                    bestBySpecies[pet.speciesID] = pet
+                end
+            end
+        end
+    end
     for _, pet in pairs(bestBySpecies) do
         result[#result + 1] = pet
     end

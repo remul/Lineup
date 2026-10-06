@@ -13,6 +13,8 @@ local DEFAULTS = {
     nextGroupID = 1,
     ungroupedCollapsed = false,
     queueSort = "levelDesc",
+    queueIncludeDuplicates = false,
+    queueIncludeMaxedSpecies = false,
 }
 
 local CHAR_DEFAULTS = {}
