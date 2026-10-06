@@ -543,7 +543,6 @@ UpdateLoadedLine = function()
     end
     loadedLine.team = team
     loadedLine:SetEnabled(team ~= nil)
-    loadedLine.Background:SetShown(team ~= nil)
     if team then
         loadedLine.Label:SetText("Loaded:")
         loadedLine.Name:SetText((SplitTeamName(team.name)))
@@ -613,9 +612,6 @@ function TeamsPanel:Setup()
     loadedLine:SetPoint("RIGHT", -8, 0)
     loadedLine:SetHeight(24)
     loadedLine:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
-    loadedLine.Background = loadedLine:CreateTexture(nil, "BACKGROUND")
-    loadedLine.Background:SetAllPoints()
-    loadedLine.Background:SetColorTexture(1, 0.82, 0, 0.08)
 
     loadedLine.Label = loadedLine:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     loadedLine.Label:SetPoint("LEFT", 8, 0)
