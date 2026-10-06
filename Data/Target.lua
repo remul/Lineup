@@ -18,6 +18,13 @@ function Target.GetNpc(unit)
     return tonumber(npcID), UnitName(unit)
 end
 
+-- True if Rematch is set to replace the Pet Journal: then it hides Blizzard's journal (and Lineup,
+-- which is part of it), so Lineup stays quiet.
+local function IsRematchInJournal()
+    local rematch = _G.Rematch
+    return type(rematch) == "table" and type(rematch.settings) == "table" and rematch.settings.UseDefaultJournal == false
+end
+
 function Target:IsCurrent(npcID)
     return npcID ~= nil and npcID == self.npcID
 end
@@ -36,7 +43,7 @@ function ns:PLAYER_TARGET_CHANGED()
             names[i] = team.name
             ns.Teams:SetCollapsed(team.groupID, false)
         end
-        if not C_PetBattles.IsInBattle() then
+        if not C_PetBattles.IsInBattle() and not IsRematchInJournal() then
             ns:Print(format(L["Teams for %s: %s"], name or L["this target"], table.concat(names, ", ")))
         end
     end
