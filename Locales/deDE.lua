@@ -203,4 +203,6 @@ ns.RegisterLocale("deDE", {
     ["Use Current Pets"] = "Aktuelle Haustiere übernehmen",
     ["Replace this team's pets and abilities with the three pets currently in your Pet Journal."] = "Ersetzt die Haustiere und Fähigkeiten dieses Teams durch die drei Haustiere aus deinem Haustierführer.",
     ["Paste a tdBattlePetScript script, e.g. from Xu-Fu's Pet Guides"] = "Füge ein tdBattlePetScript-Skript ein, z. B. von Xu-Fu's Pet Guides",
+    ["Expand all groups"] = "Alle Gruppen ausklappen",
+    ["Collapse all groups"] = "Alle Gruppen einklappen",
 })

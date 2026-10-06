@@ -432,6 +432,23 @@ function Teams:IsCollapsed(groupID)
     return ns.db.ungroupedCollapsed
 end
 
+-- True if any group (or "Ungrouped") is collapsed.
+function Teams:IsAnyCollapsed()
+    for _, group in ipairs(ns.db.groups) do
+        if group.collapsed then
+            return true
+        end
+    end
+    return ns.db.ungroupedCollapsed
+end
+
+function Teams:SetAllCollapsed(collapsed)
+    for _, group in ipairs(ns.db.groups) do
+        group.collapsed = collapsed
+    end
+    ns.db.ungroupedCollapsed = collapsed
+end
+
 function Teams:SetCollapsed(groupID, collapsed)
     local group = groupID and self:GetGroup(groupID)
     if group then

@@ -38,10 +38,10 @@ local TAB_TITLES = { L["Teams"], L["Leveling Queue"], "Lineup" }
 -- Tab labels; the Lineup tab (info and settings) gets a gear icon.
 local TAB_LABELS = { L["Teams"], L["Leveling Queue"], "|TInterface\\Buttons\\UI-OptionsButton:14:14|t Lineup" }
 
-local panel, teamsView, queueView, aboutView, scrollBox, countText, emptyText, searchBox, loadedLine
+local panel, teamsView, queueView, aboutView, scrollBox, countText, emptyText, searchBox, loadedLine, expandAllButton
 local currentTab = TAB_TEAMS
 local refreshPending = false
-local UpdateLoadedLine
+local UpdateLoadedLine, UpdateExpandAllButton
 
 -- Sorts teams by name, lowercasing each name once instead of on every comparison.
 local function SortTeamsByName(teams)
@@ -564,6 +564,19 @@ UpdateLoadedLine = function()
     end
 end
 
+-- Points the chevron down ("expand all") while any group is collapsed, otherwise right
+-- ("collapse all"); hidden without groups.
+UpdateExpandAllButton = function()
+    expandAllButton:SetShown(#Teams:GetGroups() > 0)
+    local anyCollapsed = Teams:IsAnyCollapsed()
+    if HAS_CHEVRON then
+        expandAllButton.Icon:SetAtlas(CHEVRON_ATLAS)
+        expandAllButton.Icon:SetRotation(anyCollapsed and 0 or math.pi / 2)
+    else
+        expandAllButton.Icon:SetTexture(anyCollapsed and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
+    end
+end
+
 -- Puts a team in view: clears the search, opens its group and scrolls it to the middle.
 function TeamsPanel:ShowTeam(team)
     searchBox:SetText("")
@@ -701,7 +714,26 @@ function TeamsPanel:Setup()
     sortButton:SetScript("OnLeave", GameTooltip_Hide)
 
     searchBox = CreateFrame("EditBox", nil, teamsView, "SearchBoxTemplate")
-    searchBox:SetPoint("TOPLEFT", 16, buttonsY - 58)
+    -- Expand / collapse all groups; the chevron points the way a click goes.
+    expandAllButton = CreateFrame("Button", nil, teamsView)
+    expandAllButton:SetSize(22, 22)
+    expandAllButton:SetPoint("TOPLEFT", 10, buttonsY - 58)
+    expandAllButton:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+    expandAllButton.Icon = expandAllButton:CreateTexture(nil, "ARTWORK")
+    expandAllButton.Icon:SetSize(14, 14)
+    expandAllButton.Icon:SetPoint("CENTER")
+    expandAllButton:SetScript("OnClick", function()
+        Teams:SetAllCollapsed(not Teams:IsAnyCollapsed())
+        TeamsPanel:RefreshNow()
+    end)
+    expandAllButton:SetScript("OnEnter", function(button)
+        GameTooltip:SetOwner(button, "ANCHOR_TOP")
+        GameTooltip:SetText(Teams:IsAnyCollapsed() and L["Expand all groups"] or L["Collapse all groups"])
+        GameTooltip:Show()
+    end)
+    expandAllButton:SetScript("OnLeave", GameTooltip_Hide)
+
+    searchBox:SetPoint("TOPLEFT", expandAllButton, "TOPRIGHT", 8, 0)
     searchBox:SetPoint("RIGHT", sortButton, "LEFT", -8, 0)
     searchBox:SetHeight(22)
     searchBox:SetAutoFocus(false)
@@ -833,6 +865,7 @@ function TeamsPanel:RefreshNow()
     end
 
     UpdateLoadedLine()
+    UpdateExpandAllButton()
 
     local numTeams = #Teams:GetAll()
     local query = strtrim(searchBox:GetText()):lower()
