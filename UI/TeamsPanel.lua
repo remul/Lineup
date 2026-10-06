@@ -542,7 +542,8 @@ end
 -- The "Loaded: <team>" line above the search box.
 UpdateLoadedLine = function()
     local team = Teams:GetLoadedTeam()
-    local changed = team ~= nil and Teams:HasChanges(team)
+    -- While a team is loading the journal still holds the previous pets, so don't call it changed.
+    local changed = team ~= nil and not Teams:IsLoading() and Teams:HasChanges(team)
     loadedLine.team = team
     loadedLine:SetEnabled(team ~= nil)
     if team then

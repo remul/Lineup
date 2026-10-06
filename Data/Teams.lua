@@ -238,6 +238,13 @@ end
 local LOAD_RETRY_DELAY = 0.25
 local LOAD_MAX_ATTEMPTS = 5
 local loadToken = 0
+local loading = false
+
+-- True while a team is still being put into the journal (the loadout is in flux, so it shouldn't
+-- be compared with the team yet).
+function Teams:IsLoading()
+    return loading
+end
 
 -- What of this step isn't in the journal yet: { petID, abilities = { [index] = id } }, or nil when done
 -- (or when the slot is locked).
@@ -294,6 +301,7 @@ local function RunPlan(plan, token, attempt)
         end)
         return
     end
+    loading = false
     ns:Debug(IsPlanDone(plan) and "Team loaded." or "Gave up loading; some slots didn't take.")
     -- Blizzard's loadout panel doesn't always redraw after an addon changes the slots.
     if PetJournal_UpdatePetLoadOut and PetJournal and PetJournal:IsShown() then
@@ -365,6 +373,7 @@ function Teams:Load(team)
 
     ns:Debug(format("Loading \"%s\": %d slot(s) planned.", team.name, #plan))
     SetLoadedTeam(team)
+    loading = true
     loadToken = loadToken + 1
     RunPlan(plan, loadToken, 1)
 end
