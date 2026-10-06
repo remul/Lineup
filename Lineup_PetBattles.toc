@@ -1,7 +1,7 @@
 ## Interface: 120100
 ## Title: Lineup
 ## Notes: Simple, clean pet battle team manager.
-## Author: remul
+## Author: Remul
 ## Version: @project-version@
 ## SavedVariables: LineupDB
 ## SavedVariablesPerCharacter: LineupCharDB
