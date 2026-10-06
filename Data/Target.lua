@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 
 -- Tracks the targeted NPC so teams made for it can be suggested.
 local Target = {}
@@ -36,7 +37,7 @@ function ns:PLAYER_TARGET_CHANGED()
             ns.Teams:SetCollapsed(team.groupID, false)
         end
         if not C_PetBattles.IsInBattle() then
-            ns:Print(format("Teams for %s: %s", name or "this target", table.concat(names, ", ")))
+            ns:Print(format(L["Teams for %s: %s"], name or L["this target"], table.concat(names, ", ")))
         end
     end
     ns.TeamsPanel:Refresh()

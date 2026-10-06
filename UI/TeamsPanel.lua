@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 local Teams = ns.Teams
 
 -- A panel docked to the right of the Collections window, shown with the Pet Journal tab.
@@ -33,9 +34,9 @@ local HAS_CHEVRON = C_Texture.GetAtlasInfo(CHEVRON_ATLAS) ~= nil
 local UNGROUPED = 0
 
 local TAB_TEAMS, TAB_QUEUE, TAB_ABOUT = 1, 2, 3
-local TAB_TITLES = { "Teams", "Leveling Queue", "Lineup" }
+local TAB_TITLES = { L["Teams"], L["Leveling Queue"], "Lineup" }
 -- Tab labels; the Lineup tab (info and settings) gets a gear icon.
-local TAB_LABELS = { "Teams", "Leveling Queue", "|TInterface\\Buttons\\UI-OptionsButton:14:14|t Lineup" }
+local TAB_LABELS = { L["Teams"], L["Leveling Queue"], "|TInterface\\Buttons\\UI-OptionsButton:14:14|t Lineup" }
 
 local panel, teamsView, queueView, aboutView, scrollBox, countText, emptyText, searchBox, loadedLine
 local currentTab = TAB_TEAMS
@@ -95,7 +96,7 @@ function GroupHeaderMixin:OnLoad()
     self.EditButton:SetScript("OnEnter", function(button)
         self:UpdateState()
         GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Group options")
+        GameTooltip:SetText(L["Group options"])
         GameTooltip:Show()
     end)
     self.EditButton:SetScript("OnLeave", function()
@@ -145,22 +146,22 @@ function GroupHeaderMixin:ShowGroupMenu()
     MenuUtil.CreateContextMenu(self.EditButton, function(_, root)
         root:CreateTitle(self.data.name)
         if group then
-            root:CreateButton("Edit Group", function()
+            root:CreateButton(L["Edit Group"], function()
                 ns.GroupEditor:Open(group)
             end)
         end
-        root:CreateButton("Import Team", function()
+        root:CreateButton(L["Import Team"], function()
             ns.ImportDialog:Open(group and group.id)
         end)
         if group then
             local groups = Teams:GetGroups()
             local index = tIndexOf(groups, group)
             root:CreateDivider()
-            root:CreateButton("Move Up", function()
+            root:CreateButton(L["Move Up"], function()
                 Teams:MoveGroup(group, -1)
                 TeamsPanel:Refresh()
             end):SetEnabled(index > 1)
-            root:CreateButton("Move Down", function()
+            root:CreateButton(L["Move Down"], function()
                 Teams:MoveGroup(group, 1)
                 TeamsPanel:Refresh()
             end):SetEnabled(index < #groups)
@@ -228,7 +229,7 @@ function TeamRowMixin:OnLoad()
     self.EditButton:SetScript("OnEnter", function(button)
         self:UpdateEditButton()
         GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Team options")
+        GameTooltip:SetText(L["Team options"])
         GameTooltip:Show()
     end)
     self.EditButton:SetScript("OnLeave", function()
@@ -281,7 +282,7 @@ function TeamRowMixin:OnLoad()
     self.Script:SetPoint("TOPRIGHT", self.Target, "BOTTOMRIGHT", 0, -2)
     self.Script:SetJustifyH("RIGHT")
     self.Script:SetTextScale(0.9)
-    self.Script:SetText("Script")
+    self.Script:SetText(L["Script"])
 end
 
 function TeamRowMixin:Init(data)
@@ -326,7 +327,7 @@ function TeamRowMixin:Init(data)
     -- Target, green while you're targeting it.
     local target = ""
     if team.targetNpcID then
-        target = "vs. " .. (team.targetName or ("NPC " .. team.targetNpcID))
+        target = L["vs. "] .. (team.targetName or (L["NPC "] .. team.targetNpcID))
         if ns.Target:IsCurrent(team.targetNpcID) then
             target = GREEN_FONT_COLOR:WrapTextInColorCode(target)
         end
@@ -355,23 +356,23 @@ function TeamRowMixin:ShowTeamMenu()
     local team = self.team
     MenuUtil.CreateContextMenu(self.EditButton, function(_, root)
         root:CreateTitle(team.name)
-        root:CreateButton("Load Team", function()
+        root:CreateButton(L["Load Team"], function()
             Teams:Load(team)
         end)
-        root:CreateButton("Edit Team", function()
+        root:CreateButton(L["Edit Team"], function()
             ns.TeamEditor:Open(team)
         end)
-        root:CreateButton("Update with Current Pets", function()
-            ns.Dialogs.Confirm(format("Replace the pets of \"%s\" with the pets and abilities in your journal?", team.name), function()
+        root:CreateButton(L["Update with Current Pets"], function()
+            ns.Dialogs.Confirm(format(L["Replace the pets of \"%s\" with the pets and abilities in your journal?"], team.name), function()
                 Teams:UpdateFromLoadout(team)
                 TeamsPanel:Refresh()
             end)
         end)
-        root:CreateButton("Pop Out Notes", function()
+        root:CreateButton(L["Pop Out Notes"], function()
             ns.NotesWindow:Open(team)
         end):SetEnabled(ns.NotesWindow.HasContent(team))
 
-        local moveTo = root:CreateButton("Move to Group")
+        local moveTo = root:CreateButton(L["Move to Group"])
         local function IsInGroup(groupID)
             return (team.groupID or 0) == groupID
         end
@@ -379,15 +380,15 @@ function TeamRowMixin:ShowTeamMenu()
             team.groupID = groupID ~= 0 and groupID or nil
             TeamsPanel:Refresh()
         end
-        moveTo:CreateRadio("Ungrouped", IsInGroup, MoveToGroup, 0)
+        moveTo:CreateRadio(L["Ungrouped"], IsInGroup, MoveToGroup, 0)
         for _, group in ipairs(Teams:GetGroups()) do
             local label = group.icon and format("|T%s:16:16|t %s", group.icon, group.name) or group.name
             moveTo:CreateRadio(label, IsInGroup, MoveToGroup, group.id)
         end
 
         root:CreateDivider()
-        root:CreateButton("Delete Team", function()
-            ns.Dialogs.Confirm(format("Delete team \"%s\"?", team.name), function()
+        root:CreateButton(L["Delete Team"], function()
+            ns.Dialogs.Confirm(format(L["Delete team \"%s\"?"], team.name), function()
                 Teams:Delete(team)
                 TeamsPanel:Refresh()
             end)
@@ -402,28 +403,28 @@ function TeamRowMixin:OnEnter()
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(team.name)
     if team.targetNpcID then
-        GameTooltip:AddLine("vs. " .. (team.targetName or ("NPC " .. team.targetNpcID)), 1, 0.82, 0)
+        GameTooltip:AddLine(L["vs. "] .. (team.targetName or (L["NPC "] .. team.targetNpcID)), 1, 0.82, 0)
     end
     for slot = 1, 3 do
         local _, name, level, missing = Teams.GetSlotDisplay(team.pets[slot])
         if missing then
             GameTooltip:AddLine(name, 1, 0.25, 0.25)
         elseif name then
-            GameTooltip:AddDoubleLine(name, level and format("Level %d", level) or "", 1, 1, 1, 0.7, 0.7, 0.7)
+            GameTooltip:AddDoubleLine(name, level and format(L["Level %d"], level) or "", 1, 1, 1, 0.7, 0.7, 0.7)
         else
-            GameTooltip:AddLine("Empty slot", 0.5, 0.5, 0.5)
+            GameTooltip:AddLine(L["Empty slot"], 0.5, 0.5, 0.5)
         end
     end
     if team.script then
         local summary, color = ns.Script.Describe(team.script)
-        GameTooltip:AddLine("Script: " .. summary, color:GetRGB())
+        GameTooltip:AddLine(L["Script: "] .. summary, color:GetRGB())
     end
     if team.notes then
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine(team.notes, 0.8, 0.8, 0.8, true)
     end
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Click to load. Right-click for options.", 0, 1, 0)
+    GameTooltip:AddLine(L["Click to load. Right-click for options."], 0, 1, 0)
     GameTooltip:Show()
 end
 
@@ -448,7 +449,7 @@ local function InitEmptyGroupRow(row)
         row.Text:SetJustifyH("LEFT")
         row.Text:SetJustifyV("MIDDLE")
         row.Text:SetWordWrap(true)
-        row.Text:SetText("No teams in this group yet. Import one from the gear menu, or pick this group in a team's editor.")
+        row.Text:SetText(L["No teams in this group yet. Import one from the gear menu, or pick this group in a team's editor."])
     end
 end
 
@@ -533,7 +534,7 @@ local function BuildElements(query)
         -- No groups yet: a plain list without headers.
         AddTeams(ungrouped, false)
     elseif #ungrouped > 0 then
-        AddGroup(nil, "Ungrouped", ungrouped)
+        AddGroup(nil, L["Ungrouped"], ungrouped)
     end
     return elements, numShown
 end
@@ -546,10 +547,10 @@ UpdateLoadedLine = function()
     loadedLine:SetEnabled(team ~= nil)
     if team then
         local name = SplitTeamName(team.name)
-        loadedLine.Label:SetText("Loaded:")
-        loadedLine.Name:SetText(changed and (name .. ORANGE_FONT_COLOR:WrapTextInColorCode("  · changed")) or name)
+        loadedLine.Label:SetText(L["Loaded:"])
+        loadedLine.Name:SetText(changed and (name .. ORANGE_FONT_COLOR:WrapTextInColorCode(L["  · changed"])) or name)
     else
-        loadedLine.Label:SetText("No team loaded")
+        loadedLine.Label:SetText(L["No team loaded"])
         loadedLine.Name:SetText("")
     end
     -- Save and Revert only while the journal differs from the saved team; the pet icons move aside.
@@ -602,13 +603,13 @@ function TeamsPanel:Setup()
         button:SetText(text)
         button:SetScript("OnClick", onClick)
     end
-    CreateTopButton(1, "New Team", function()
+    CreateTopButton(1, L["New Team"], function()
         ns.TeamEditor:Open(nil)
     end)
-    CreateTopButton(2, "New Group", function()
+    CreateTopButton(2, L["New Group"], function()
         ns.GroupEditor:Open(nil)
     end)
-    CreateTopButton(3, "Import", function()
+    CreateTopButton(3, L["Import"], function()
         ns.ImportDialog:Open()
     end)
 
@@ -639,13 +640,13 @@ function TeamsPanel:Setup()
         button:SetScript("OnLeave", GameTooltip_Hide)
         return button
     end
-    loadedLine.RevertButton = CreateLineButton("Revert", "Load the saved version of this team again.", function(team)
+    loadedLine.RevertButton = CreateLineButton(L["Revert"], L["Load the saved version of this team again."], function(team)
         Teams:Load(team)
     end)
     loadedLine.RevertButton:SetPoint("RIGHT", -2, 0)
-    loadedLine.SaveButton = CreateLineButton(SAVE, "Save the pets and abilities in your journal into this team.", function(team)
+    loadedLine.SaveButton = CreateLineButton(SAVE, L["Save the pets and abilities in your journal into this team."], function(team)
         Teams:UpdateFromLoadout(team)
-        ns:Print(format("Saved changes to \"%s\".", team.name))
+        ns:Print(format(L["Saved changes to \"%s\"."], team.name))
         TeamsPanel:Refresh()
     end)
     loadedLine.SaveButton:SetPoint("RIGHT", loadedLine.RevertButton, "LEFT", -4, 0)
@@ -677,7 +678,7 @@ function TeamsPanel:Setup()
         if line.team then
             GameTooltip:SetOwner(line, "ANCHOR_BOTTOM")
             GameTooltip:SetText(line.team.name)
-            GameTooltip:AddLine("Click to show it in the list.", 1, 1, 1)
+            GameTooltip:AddLine(L["Click to show it in the list."], 1, 1, 1)
             GameTooltip:Show()
         end
     end)
@@ -687,14 +688,14 @@ function TeamsPanel:Setup()
     local sortButton = CreateFrame("Button", nil, teamsView, "UIPanelButtonTemplate")
     sortButton:SetPoint("TOPRIGHT", -10, buttonsY - 58)
     sortButton:SetSize(70, 22)
-    sortButton:SetText("Sort")
+    sortButton:SetText(L["Sort"])
     sortButton:SetScript("OnClick", function()
         ns.GroupSorter:Open()
     end)
     sortButton:SetScript("OnEnter", function(button)
         GameTooltip:SetOwner(button, "ANCHOR_TOP")
-        GameTooltip:SetText("Sort groups")
-        GameTooltip:AddLine("Change the order of your groups.", 1, 1, 1)
+        GameTooltip:SetText(L["Sort groups"])
+        GameTooltip:AddLine(L["Change the order of your groups."], 1, 1, 1)
         GameTooltip:Show()
     end)
     sortButton:SetScript("OnLeave", GameTooltip_Hide)
@@ -704,7 +705,7 @@ function TeamsPanel:Setup()
     searchBox:SetPoint("RIGHT", sortButton, "LEFT", -8, 0)
     searchBox:SetHeight(22)
     searchBox:SetAutoFocus(false)
-    searchBox.Instructions:SetText("Search teams and groups")
+    searchBox.Instructions:SetText(L["Search teams and groups"])
     searchBox:HookScript("OnTextChanged", function()
         TeamsPanel:RefreshNow()
     end)
@@ -840,18 +841,18 @@ function TeamsPanel:RefreshNow()
     scrollBox:SetDataProvider(CreateDataProvider(elements), ScrollBoxConstants.RetainScrollPosition)
 
     if query and #elements == 0 then
-        emptyText:SetText(format("Nothing matches \"%s\".", strtrim(searchBox:GetText())))
+        emptyText:SetText(format(L["Nothing matches \"%s\"."], strtrim(searchBox:GetText())))
         emptyText:Show()
     elseif not query and numTeams == 0 and #Teams:GetGroups() == 0 then
-        emptyText:SetText("No teams yet.\n\nPick three pets in the journal, then click \"New Team\".")
+        emptyText:SetText(L["No teams yet.\n\nPick three pets in the journal, then click \"New Team\"."])
         emptyText:Show()
     else
         emptyText:Hide()
     end
 
     if query then
-        countText:SetFormattedText("%d of %d teams", numShown, numTeams)
+        countText:SetFormattedText(L["%d of %d teams"], numShown, numTeams)
     else
-        countText:SetFormattedText(numTeams == 1 and "%d team" or "%d teams", numTeams)
+        countText:SetFormattedText(numTeams == 1 and L["%d team"] or L["%d teams"], numTeams)
     end
 end

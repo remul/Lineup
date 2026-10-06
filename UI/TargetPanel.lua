@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 local Teams = ns.Teams
 
 -- Small window above the Teams window: the current target with quick Load / Save for it.
@@ -31,7 +32,7 @@ local function LoadForTarget(button)
         return
     end
     MenuUtil.CreateContextMenu(button, function(_, root)
-        root:CreateTitle("Load team")
+        root:CreateTitle(L["Load team"])
         for _, team in ipairs(teams) do
             root:CreateButton(team.name, function()
                 Teams:Load(team)
@@ -46,7 +47,7 @@ local function SaveForTarget(button)
     local npcID, name = ns.Target.npcID, ns.Target.name
     local function SaveNew()
         local team = Teams:CreateForTarget(npcID, name)
-        ns:Print(format("Saved team \"%s\".", team.name))
+        ns:Print(format(L["Saved team \"%s\"."], team.name))
         RefreshAll()
     end
 
@@ -56,16 +57,16 @@ local function SaveForTarget(button)
         return
     end
     MenuUtil.CreateContextMenu(button, function(_, root)
-        root:CreateTitle("Save current pets")
+        root:CreateTitle(L["Save current pets"])
         for _, team in ipairs(teams) do
-            root:CreateButton(format("Update \"%s\"", team.name), function()
+            root:CreateButton(format(L["Update \"%s\""], team.name), function()
                 Teams:UpdateFromLoadout(team)
-                ns:Print(format("Updated team \"%s\".", team.name))
+                ns:Print(format(L["Updated team \"%s\"."], team.name))
                 RefreshAll()
             end)
         end
         root:CreateDivider()
-        root:CreateButton("Save as New Team", SaveNew)
+        root:CreateButton(L["Save as New Team"], SaveNew)
     end)
 end
 
@@ -86,7 +87,7 @@ function TargetPanel:Setup()
     panel:SetSize(PANEL_WIDTH, PANEL_HEIGHT)
     panel.Inset:Hide()
     panel.CloseButton:Hide()
-    panel:SetTitle("Target")
+    panel:SetTitle(L["Target"])
 
     panel.Name = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     panel.Name:SetPoint("TOPLEFT", CONTENT_LEFT, -32)
@@ -103,16 +104,16 @@ function TargetPanel:Setup()
     panel.LoadButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
     panel.LoadButton:SetPoint("BOTTOMLEFT", CONTENT_LEFT, 10)
     panel.LoadButton:SetSize(100, 22)
-    panel.LoadButton:SetText("Load")
+    panel.LoadButton:SetText(L["Load"])
     panel.LoadButton:SetScript("OnClick", LoadForTarget)
-    SetButtonTooltip(panel.LoadButton, "Load for target", "Load this target's team into your journal.")
+    SetButtonTooltip(panel.LoadButton, L["Load for target"], L["Load this target's team into your journal."])
 
     panel.SaveButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
     panel.SaveButton:SetPoint("LEFT", panel.LoadButton, "RIGHT", 6, 0)
     panel.SaveButton:SetSize(100, 22)
     panel.SaveButton:SetText(SAVE)
     panel.SaveButton:SetScript("OnClick", SaveForTarget)
-    SetButtonTooltip(panel.SaveButton, "Save for target", "Save the pets currently in your journal as a team for this target.")
+    SetButtonTooltip(panel.SaveButton, L["Save for target"], L["Save the pets currently in your journal as a team for this target."])
 
     panel:SetScript("OnShow", function()
         TargetPanel:Refresh()
@@ -132,23 +133,23 @@ function TargetPanel:Refresh()
     local npcID = ns.Target.npcID
     if not npcID or not UnitExists("target") then
         panel:SetPortraitToAsset("Interface\\CharacterFrame\\TempPortrait")
-        panel.Name:SetText("No target")
+        panel.Name:SetText(L["No target"])
         panel.Name:SetTextColor(GRAY_FONT_COLOR:GetRGB())
-        panel.Status:SetText("Target a tamer or wild pet.")
+        panel.Status:SetText(L["Target a tamer or wild pet."])
         panel.LoadButton:Disable()
         panel.SaveButton:Disable()
         return
     end
 
     panel:SetPortraitToUnit("target")
-    panel.Name:SetText(ns.Target.name or ("NPC " .. npcID))
+    panel.Name:SetText(ns.Target.name or (L["NPC "] .. npcID))
     panel.Name:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
 
     local numTeams = #Teams:GetForTarget(npcID)
     if numTeams == 0 then
-        panel.Status:SetText("No teams for this target yet.")
+        panel.Status:SetText(L["No teams for this target yet."])
     else
-        panel.Status:SetText(GREEN_FONT_COLOR:WrapTextInColorCode(format(numTeams == 1 and "%d team" or "%d teams", numTeams)))
+        panel.Status:SetText(GREEN_FONT_COLOR:WrapTextInColorCode(format(numTeams == 1 and L["%d team"] or L["%d teams"], numTeams)))
     end
     panel.LoadButton:SetEnabled(numTeams > 0)
     panel.SaveButton:Enable()

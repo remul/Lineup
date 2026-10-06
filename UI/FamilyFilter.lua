@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 
 -- A row of family icons above the Pet Journal list. It drives Blizzard's own family filter,
 -- so it stays in sync with the journal's filter dropdown.
@@ -49,8 +50,8 @@ end
 local function Button_OnEnter(button)
     GameTooltip:SetOwner(button, "ANCHOR_TOP")
     GameTooltip:SetText(ns.GetFamilyName(button.petType))
-    GameTooltip:AddLine("Click to filter by this family.", 1, 1, 1)
-    GameTooltip:AddLine("Right-click to show all families.", 1, 1, 1)
+    GameTooltip:AddLine(L["Click to filter by this family."], 1, 1, 1)
+    GameTooltip:AddLine(L["Right-click to show all families."], 1, 1, 1)
     GameTooltip:Show()
 end
 
@@ -71,7 +72,7 @@ end
 function FamilyFilter:Setup()
     local scrollBox = PetJournal.ScrollBox
     if not scrollBox then
-        ns:Print("Couldn't find the Pet Journal list; the family filter is disabled.")
+        ns:Print(L["Couldn't find the Pet Journal list; the family filter is disabled."])
         return
     end
 

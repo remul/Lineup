@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 
 -- Imports Rematch team strings, as published by Xu-Fu's Pet Guides and others:
 --   Name:npcIDs:petTag1:petTag2:petTag3:[P:minHP:allowMM:expectedDD:maxHP:minXP:maxXP:][N:notes]
@@ -46,7 +47,7 @@ function Import.Parse(text)
 
     local name, npcIDs, tag1, tag2, tag3, extras = text:match("^(.-):([%w,]*):(%w*):(%w*):(%w*):(.*)$")
     if not name or strtrim(name) == "" then
-        return nil, "Not a team string. Paste the whole line, starting with the team name."
+        return nil, L["Not a team string. Paste the whole line, starting with the team name."]
     end
 
     local result = { name = strtrim(name), targets = {}, slots = {} }
@@ -56,7 +57,7 @@ function Import.Parse(text)
     for slot, tag in ipairs({ tag1, tag2, tag3 }) do
         result.slots[slot] = ParseTag(tag)
         if not result.slots[slot] then
-            return nil, format("Pet %d has an unreadable tag \"%s\".", slot, tag)
+            return nil, format(L["Pet %d has an unreadable tag \"%s\"."], slot, tag)
         end
     end
 
@@ -117,15 +118,15 @@ function Import.BuildDraft(parsed)
             local pet = ns.Roster.PickBest(owned, function(p)
                 return p.speciesID == info.speciesID
             end, used)
-            local speciesName = ns.GetSpeciesInfo(info.speciesID) or ("species " .. info.speciesID)
+            local speciesName = ns.GetSpeciesInfo(info.speciesID) or format(L["species %d"], info.speciesID)
             if pet then
                 entry.petID = pet.petID
                 used[pet.petID] = true
                 if pet.level < 25 then
-                    Warn(format("Slot %d: your %s is only level %d.", slot, speciesName, pet.level), true)
+                    Warn(format(L["Slot %d: your %s is only level %d."], slot, speciesName, pet.level), true)
                 end
             else
-                Warn(format("Slot %d: you don't have a battle-ready %s.", slot, speciesName), true)
+                Warn(format(L["Slot %d: you don't have a battle-ready %s."], slot, speciesName), true)
             end
             local abilityList = C_PetJournal.GetPetAbilityList(info.speciesID)
             for i, choice in ipairs(info.choices) do
@@ -135,7 +136,7 @@ function Import.BuildDraft(parsed)
             end
         elseif info.kind == "random" then
             entry = { random = true, petType = info.petType }
-            local family = info.petType > 0 and ns.GetFamilyName(info.petType) or "any"
+            local family = info.petType > 0 and ns.GetFamilyName(info.petType) or L["any"]
             local count = 0
             for _, pet in ipairs(owned) do
                 if pet.canBattle and pet.level >= 25 and ns.Teams.MatchesRandomSlot(entry, pet.petType) then
@@ -143,27 +144,27 @@ function Import.BuildDraft(parsed)
                 end
             end
             if count > 0 then
-                Warn(format("Slot %d: a random level 25 %s pet, picked each time you load the team (you have %d).", slot, family, count))
+                Warn(format(L["Slot %d: a random level 25 %s pet, picked each time you load the team (you have %d)."], slot, family, count))
             else
-                Warn(format("Slot %d: a random %s pet, but you have none at level 25; your highest one is used.", slot, family), true)
+                Warn(format(L["Slot %d: a random %s pet, but you have none at level 25; your highest one is used."], slot, family), true)
             end
         elseif info.kind == "leveling" then
             entry = { leveling = true, preferences = parsed.preferences }
             local requirement = ns.LevelingQueue.DescribePreferences(parsed.preferences)
-            local label = requirement and format("Slot %d is a leveling slot (%s)", slot, requirement) or format("Slot %d is a leveling slot", slot)
+            local label = requirement and format(L["Slot %d is a leveling slot (%s)"], slot, requirement) or format(L["Slot %d is a leveling slot"], slot)
             local nextPet = ns.LevelingQueue:GetNext(used, parsed.preferences)
             if nextPet then
                 used[nextPet.petID] = true
-                Warn(format("%s: uses your leveling queue, now %s (level %d).", label, nextPet.name, nextPet.level))
+                Warn(format(L["%s: uses your leveling queue, now %s (level %d)."], label, nextPet.name, nextPet.level))
             else
-                Warn(format("%s: no pet in your leveling queue qualifies yet, so a level 25 pet is used instead.", label))
+                Warn(format(L["%s: no pet in your leveling queue qualifies yet, so a level 25 pet is used instead."], label))
             end
         end
         pets[slot] = entry
     end
 
     if #parsed.targets > 1 then
-        Warn("This team lists several targets; only the first is used.")
+        Warn(L["This team lists several targets; only the first is used."])
     end
 
     local npcID = parsed.targets[1]
@@ -288,14 +289,14 @@ function Import.DescribeImportAll(result, replace, ungroupedName)
         end
     end
 
-    local lines = { format(result.numTeams == 1 and "Import %d team?" or "Import %d teams?", result.numTeams) }
+    local lines = { format(result.numTeams == 1 and L["Import %d team?"] or L["Import %d teams?"], result.numTeams) }
     if numReplaced > 0 then
-        lines[#lines + 1] = format(numReplaced == 1 and "%d replaces a team you already have." or "%d replace teams you already have.", numReplaced)
+        lines[#lines + 1] = format(numReplaced == 1 and L["%d replaces a team you already have."] or L["%d replace teams you already have."], numReplaced)
     end
     if #newGroups == 1 then
-        lines[#lines + 1] = format("Creates the group \"%s\".", newGroups[1])
+        lines[#lines + 1] = format(L["Creates the group \"%s\"."], newGroups[1])
     elseif #newGroups > 1 then
-        lines[#lines + 1] = format("Creates %d groups.", #newGroups)
+        lines[#lines + 1] = format(L["Creates %d groups."], #newGroups)
     end
     return table.concat(lines, "\n")
 end
@@ -313,13 +314,13 @@ end
 function Import.Describe(parsed)
     local parts = { parsed.name }
     if parsed.targets[1] then
-        parts[#parts + 1] = format("NPC %d", parsed.targets[1])
+        parts[#parts + 1] = format(L["NPC %d"], parsed.targets[1])
     end
     if parsed.script then
-        parts[#parts + 1] = "script: " .. ns.Script.Describe(parsed.script)
+        parts[#parts + 1] = L["script: "] .. ns.Script.Describe(parsed.script)
     end
     if parsed.notes then
-        parts[#parts + 1] = "notes"
+        parts[#parts + 1] = L["notes"]
     end
     return table.concat(parts, "  ·  ")
 end
@@ -328,19 +329,19 @@ local MAX_REPORTED_PROBLEMS = 10
 
 -- Prints the outcome of ImportAll to chat (problems are capped so big imports don't flood chat).
 function Import.Report(numImported, numReplaced, problems)
-    ns:Print(format("Imported %d teams%s.", numImported, numReplaced > 0 and format(" (%d replaced)", numReplaced) or ""))
+    ns:Print(format(L["Imported %d teams%s."], numImported, numReplaced > 0 and format(L[" (%d replaced)"], numReplaced) or ""))
     local printed, total = 0, 0
     for _, team in ipairs(problems) do
         for _, problem in ipairs(team.problems) do
             total = total + 1
             if printed < MAX_REPORTED_PROBLEMS then
-                ns:Print(format("%s: %s", team.teamName, problem))
+                ns:Print(format(L["%s: %s"], team.teamName, problem))
                 printed = printed + 1
             end
         end
     end
     if total > printed then
-        ns:Print(format("...and %d more problems. Hover a team to see its pets.", total - printed))
+        ns:Print(format(L["...and %d more problems. Hover a team to see its pets."], total - printed))
     end
 end
 

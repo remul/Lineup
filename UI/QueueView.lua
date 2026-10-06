@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 
 -- The "Leveling Queue" tab of the Teams window: the automatic leveling queue with XP bars.
 local QueueView = {}
@@ -69,7 +70,7 @@ function QueueRowMixin:Init(data)
     self.Position:SetText(data.position)
     self.Name:SetText(pet.name)
     self.Name:SetTextColor(r, g, b)
-    self.Level:SetFormattedText("Level %d", level or pet.level)
+    self.Level:SetFormattedText(L["Level %d"], level or pet.level)
     self.XPBar:SetMinMaxValues(0, self.maxXp)
     self.XPBar:SetValue(self.xp)
     self.Family:SetTexture(ns.GetFamilyIcon(pet.petType))
@@ -83,13 +84,13 @@ function QueueRowMixin:OnEnter()
     local pet = self.pet
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(pet.name, GetRarityColor(pet.rarity))
-    GameTooltip:AddLine(format("Level %d %s", pet.level, ns.GetFamilyName(pet.petType)), 1, 1, 1)
-    GameTooltip:AddLine(format("%d / %d XP", self.xp, self.maxXp), 0.8, 0.8, 0.8)
+    GameTooltip:AddLine(format(L["Level %d %s"], pet.level, ns.GetFamilyName(pet.petType)), 1, 1, 1)
+    GameTooltip:AddLine(format(L["%d / %d XP"], self.xp, self.maxXp), 0.8, 0.8, 0.8)
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("The queue lists your battle pets below level 25 automatically; Options decides whether duplicates and pets you already have at 25 are included.", 0.8, 0.8, 0.8, true)
-    GameTooltip:AddLine("Leveling slots in your teams use the first pet that fits, in this order.", 0.8, 0.8, 0.8, true)
+    GameTooltip:AddLine(L["The queue lists your battle pets below level 25 automatically; Options decides whether duplicates and pets you already have at 25 are included."], 0.8, 0.8, 0.8, true)
+    GameTooltip:AddLine(L["Leveling slots in your teams use the first pet that fits, in this order."], 0.8, 0.8, 0.8, true)
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Click to show it in the Pet Journal.", 0, 1, 0)
+    GameTooltip:AddLine(L["Click to show it in the Pet Journal."], 0, 1, 0)
     GameTooltip:Show()
 end
 
@@ -105,17 +106,17 @@ function QueueView:Create(parent)
 
     local sortLabel = view:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     sortLabel:SetPoint("TOPLEFT", 14, -38)
-    sortLabel:SetText("Sort by")
+    sortLabel:SetText(L["Sort by"])
 
     -- Options: which pets the queue includes.
     local optionsDropdown = CreateFrame("DropdownButton", nil, view, "WowStyle1DropdownTemplate")
     optionsDropdown:SetPoint("TOPRIGHT", -12, -30)
     optionsDropdown:SetWidth(100)
-    optionsDropdown:SetDefaultText("Options")
+    optionsDropdown:SetDefaultText(L["Options"])
     -- Keep the label "Options" instead of listing the ticked entries.
     if optionsDropdown.SetSelectionText then
         optionsDropdown:SetSelectionText(function()
-            return "Options"
+            return L["Options"]
         end)
     end
     optionsDropdown:SetupMenu(function(_, root)
@@ -125,8 +126,8 @@ function QueueView:Create(parent)
         local function Toggle(key)
             ns.LevelingQueue:SetOption(key, not ns.LevelingQueue:GetOption(key))
         end
-        root:CreateCheckbox("Include duplicates", IsChecked, Toggle, "queueIncludeDuplicates")
-        root:CreateCheckbox("Include pets you have at 25", IsChecked, Toggle, "queueIncludeMaxedSpecies")
+        root:CreateCheckbox(L["Include duplicates"], IsChecked, Toggle, "queueIncludeDuplicates")
+        root:CreateCheckbox(L["Include pets you have at 25"], IsChecked, Toggle, "queueIncludeMaxedSpecies")
     end)
 
     local sortDropdown = CreateFrame("DropdownButton", nil, view, "WowStyle1DropdownTemplate")
@@ -151,7 +152,7 @@ function QueueView:Create(parent)
     emptyText = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     emptyText:SetPoint("TOPLEFT", 16, -16)
     emptyText:SetPoint("TOPRIGHT", -16, -16)
-    emptyText:SetText("Nothing to level.\n\nNo battle pets below level 25 match your queue options.")
+    emptyText:SetText(L["Nothing to level.\n\nNo battle pets below level 25 match your queue options."])
 
     scrollBox = CreateFrame("Frame", nil, inset, "WowScrollBoxList")
     scrollBox:SetPoint("TOPLEFT", 4, -4)
@@ -185,5 +186,5 @@ function QueueView:Refresh()
     end
     scrollBox:SetDataProvider(CreateDataProvider(elements), ScrollBoxConstants.RetainScrollPosition)
     emptyText:SetShown(#elements == 0)
-    countText:SetFormattedText(#elements == 1 and "%d pet to level" or "%d pets to level", #elements)
+    countText:SetFormattedText(#elements == 1 and L["%d pet to level"] or L["%d pets to level"], #elements)
 end

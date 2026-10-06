@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 local Teams = ns.Teams
 
 -- Window to put groups in order: up/down per group, or A-Z. Changes apply right away.
@@ -92,14 +93,14 @@ local function CreateWindow()
     window:SetScript("OnDragStart", window.StartMoving)
     window:SetScript("OnDragStop", window.StopMovingOrSizing)
     ButtonFrameTemplate_HidePortrait(window)
-    window:SetTitle("Sort Groups")
+    window:SetTitle(L["Sort Groups"])
     tinsert(UISpecialFrames, window:GetName())
 
     local hint = window:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     hint:SetPoint("TOPLEFT", 16, -32)
     hint:SetPoint("RIGHT", -16, 0)
     hint:SetJustifyH("LEFT")
-    hint:SetText("Use the arrows to move a group. \"Ungrouped\" always comes last.")
+    hint:SetText(L["Use the arrows to move a group. \"Ungrouped\" always comes last."])
 
     local inset = window.Inset
     inset:ClearAllPoints()
@@ -109,7 +110,7 @@ local function CreateWindow()
     emptyText = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     emptyText:SetPoint("TOPLEFT", 16, -16)
     emptyText:SetPoint("TOPRIGHT", -16, -16)
-    emptyText:SetText("No groups yet.")
+    emptyText:SetText(L["No groups yet."])
 
     scrollBox = CreateFrame("Frame", nil, inset, "WowScrollBoxList")
     scrollBox:SetPoint("TOPLEFT", 4, -4)
@@ -138,7 +139,7 @@ local function CreateWindow()
     local alphabeticalButton = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
     alphabeticalButton:SetPoint("BOTTOMLEFT", 8, 6)
     alphabeticalButton:SetSize(110, 22)
-    alphabeticalButton:SetText("Sort A-Z")
+    alphabeticalButton:SetText(L["Sort A-Z"])
     alphabeticalButton:SetScript("OnClick", function()
         Teams:SortGroupsByName()
         Refresh()

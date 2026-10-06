@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 
 -- A row of pet utility buttons replacing the Pet Journal's own "Revive Battle Pets" and "Summon
 -- Random Favorite Pet" buttons, in the same spot. Spells, items and toys use secure action buttons,
@@ -27,7 +28,7 @@ local BUTTONS = {
     { key = "lesserPetTreat", group = 2, itemID = LESSER_PET_TREAT_ITEM_ID, showCount = true },
     { key = "petTreat", group = 2, itemID = PET_TREAT_ITEM_ID, showCount = true },
     { key = "summon", group = 3, icon = "Interface\\Icons\\INV_Pet_Achievement_CaptureAWildPet",
-      title = "Summon Random Favorite Pet", hint = "Right-click to summon a random pet from your whole collection." },
+      title = L["Summon Random Favorite Pet"], hint = L["Right-click to summon a random pet from your whole collection."] },
 }
 
 -- x offset of each button from the bar's left edge, x centers of the dividers between groups,
@@ -141,7 +142,7 @@ local function Button_OnEnter(button)
         GameTooltip:AddLine(info.hint, 1, 1, 1, true)
     end
     if info.cancelBuff and button.Cancel:IsShown() then
-        GameTooltip:AddLine("Click to remove it.", 0, 1, 0)
+        GameTooltip:AddLine(L["Click to remove it."], 0, 1, 0)
     end
     GameTooltip:Show()
 end

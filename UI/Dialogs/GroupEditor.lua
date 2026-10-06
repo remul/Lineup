@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 local Teams = ns.Teams
 
 -- Window for creating and editing a group, with a "Group" tab (name) and an "Icon" tab.
@@ -15,7 +16,7 @@ local function UpdatePreview()
     previewIcon:SetTexture(draft.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
     previewIcon:SetDesaturated(draft.icon == nil)
     local name = strtrim(nameBox:GetText())
-    previewName:SetText(name ~= "" and name or "New Group")
+    previewName:SetText(name ~= "" and name or L["New Group"])
 end
 
 local function SelectTab(tab)
@@ -27,7 +28,7 @@ end
 local function Save()
     local name = strtrim(nameBox:GetText())
     if name == "" then
-        ns:Print("A group needs a name.")
+        ns:Print(L["A group needs a name."])
         SelectTab(TAB_GROUP)
         nameBox:SetFocus()
         return
@@ -50,7 +51,7 @@ end
 
 local function Delete()
     local group = editingGroup
-    ns.Dialogs.Confirm(format("Delete group \"%s\"?\nIts teams become ungrouped.", group.name), function()
+    ns.Dialogs.Confirm(format(L["Delete group \"%s\"?\nIts teams become ungrouped."], group.name), function()
         Teams:DeleteGroup(group)
         editor:Hide()
         ns.TeamsPanel:Refresh()
@@ -85,7 +86,7 @@ local function CreateEditor()
     tinsert(UISpecialFrames, editor:GetName())
 
     -- Tabs along the bottom edge, like other Blizzard windows.
-    editor.Tabs = { CreateTab(TAB_GROUP, "Group"), CreateTab(TAB_ICON, "Icon") }
+    editor.Tabs = { CreateTab(TAB_GROUP, L["Group"]), CreateTab(TAB_ICON, L["Icon"]) }
     editor.Tabs[1]:SetPoint("TOPLEFT", editor, "BOTTOMLEFT", 11, 2)
     editor.Tabs[2]:SetPoint("LEFT", editor.Tabs[1], "RIGHT", 3, 0)
     PanelTemplates_SetNumTabs(editor, #editor.Tabs)
@@ -109,7 +110,7 @@ local function CreateEditor()
     end)
     previewButton:SetScript("OnEnter", function(button)
         GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Click to choose an icon")
+        GameTooltip:SetText(L["Click to choose an icon"])
         GameTooltip:Show()
     end)
     previewButton:SetScript("OnLeave", GameTooltip_Hide)
@@ -124,7 +125,7 @@ local function CreateEditor()
 
     local nameLabel = groupTab:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     nameLabel:SetPoint("TOPLEFT", previewInset, "BOTTOMLEFT", 4, -20)
-    nameLabel:SetText("Name")
+    nameLabel:SetText(L["Name"])
 
     nameBox = CreateFrame("EditBox", nil, groupTab, "InputBoxTemplate")
     nameBox:SetPoint("TOPLEFT", nameLabel, "BOTTOMLEFT", 4, -4)
@@ -138,7 +139,7 @@ local function CreateEditor()
     local chooseIconButton = CreateFrame("Button", nil, groupTab, "UIPanelButtonTemplate")
     chooseIconButton:SetPoint("TOPLEFT", nameBox, "BOTTOMLEFT", -6, -14)
     chooseIconButton:SetSize(140, 24)
-    chooseIconButton:SetText("Choose Icon...")
+    chooseIconButton:SetText(L["Choose Icon..."])
     chooseIconButton:SetScript("OnClick", function()
         SelectTab(TAB_ICON)
     end)
@@ -188,13 +189,13 @@ function GroupEditor.SetupGroupDropdown(dropdown, getGroupID, setGroupID)
     end
 
     dropdown:SetupMenu(function(_, root)
-        root:CreateRadio("Ungrouped", IsSelected, SetSelected, UNGROUPED)
+        root:CreateRadio(L["Ungrouped"], IsSelected, SetSelected, UNGROUPED)
         for _, group in ipairs(Teams:GetGroups()) do
             local label = group.icon and format("|T%s:16:16|t %s", group.icon, group.name) or group.name
             root:CreateRadio(label, IsSelected, SetSelected, group.id)
         end
         root:CreateDivider()
-        root:CreateButton("New Group...", function()
+        root:CreateButton(L["New Group..."], function()
             GroupEditor:Open(nil, function(group)
                 setGroupID(group.id)
                 dropdown:GenerateMenu()
@@ -214,7 +215,7 @@ function GroupEditor:Open(group, callback)
     onSaved = callback
     draft = { icon = group and group.icon }
 
-    editor:SetTitle(group and "Edit Group" or "New Group")
+    editor:SetTitle(group and L["Edit Group"] or L["New Group"])
     nameBox:SetText(group and group.name or "")
     iconPicker:ClearSearch()
     iconPicker:SetSelected(draft.icon)

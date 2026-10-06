@@ -1,4 +1,5 @@
 local addonName, ns = ...
+local L = ns.L
 
 -- The display name. The folder (addonName) is "Lineup_PetBattles", since "Lineup" is taken on CurseForge.
 ns.TITLE = "Lineup"
@@ -175,11 +176,11 @@ SlashCmdList.LINEUP = function(msg)
         ns:ToggleJournal()
     elseif cmd == "debug" then
         ns.db.debug = not ns.db.debug
-        ns:Print("Debug", ns.db.debug and "enabled" or "disabled")
+        ns:Print(L["Debug"], ns.db.debug and L["enabled"] or L["disabled"])
         ns.TeamsPanel:Refresh() -- keeps the setting's checkbox on the Lineup tab in sync
     else
-        ns:Print("Commands:")
-        print("  /lineup - open the Pet Journal")
-        print("  /lineup debug - toggle debug output")
+        ns:Print(L["Commands:"])
+        print(L["  /lineup - open the Pet Journal"])
+        print(L["  /lineup debug - toggle debug output"])
     end
 end

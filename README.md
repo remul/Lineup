@@ -29,6 +29,12 @@ family filter, a toolbar, and two windows next to the journal for your current t
 Copy the `Lineup_PetBattles` folder into `World of Warcraft/_retail_/Interface/AddOns/` and restart
 the game. (The folder isn't just "Lineup" because another, unrelated addon already uses that name.) Open the Pet Journal (`Shift+P`, Pets tab) or type `/lineup`.
 
+## Languages
+
+Lineup follows the language of your game client: **English** (default) and **German**.
+Translations live in `Locales/`; to add a language, copy `Locales/deDE.lua`, change the locale
+code (e.g. `frFR`), translate the right-hand side of each line and add the file to the TOC.
+
 ## Commands
 
 | Command         | Description                 |

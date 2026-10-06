@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 
 -- The leveling queue is built automatically from your battle pets below level 25. By default it
 -- has one per species (your highest) and skips species you already have at level 25; options
@@ -32,19 +33,19 @@ end
 
 -- Sort orders for the queue; each falls back to further criteria for ties.
 LevelingQueue.SORTS = {
-    { key = "levelDesc", label = "Highest level first", compare = function(a, b)
+    { key = "levelDesc", label = L["Highest level first"], compare = function(a, b)
         if a.level ~= b.level then
             return a.level > b.level
         end
         return ByName(a, b)
     end },
-    { key = "levelAsc", label = "Lowest level first", compare = function(a, b)
+    { key = "levelAsc", label = L["Lowest level first"], compare = function(a, b)
         if a.level ~= b.level then
             return a.level < b.level
         end
         return ByName(a, b)
     end },
-    { key = "family", label = "Family", compare = function(a, b)
+    { key = "family", label = L["Family"], compare = function(a, b)
         if a.petType ~= b.petType then
             return ns.GetFamilyName(a.petType) < ns.GetFamilyName(b.petType)
         end
@@ -53,7 +54,7 @@ LevelingQueue.SORTS = {
         end
         return ByName(a, b)
     end },
-    { key = "rarity", label = "Quality", compare = function(a, b)
+    { key = "rarity", label = L["Quality"], compare = function(a, b)
         if a.rarity ~= b.rarity then
             return a.rarity > b.rarity
         end
@@ -62,7 +63,7 @@ LevelingQueue.SORTS = {
         end
         return ByName(a, b)
     end },
-    { key = "name", label = "Name", compare = ByName },
+    { key = "name", label = L["Name"], compare = ByName },
 }
 
 local function GetSortCompare()
@@ -166,20 +167,20 @@ function LevelingQueue.DescribePreferences(preferences)
     end
     local p, parts = preferences, {}
     if p.minXP and p.maxXP then
-        parts[#parts + 1] = format("level %g-%g", p.minXP, p.maxXP)
+        parts[#parts + 1] = format(L["level %g-%g"], p.minXP, p.maxXP)
     elseif p.minXP then
-        parts[#parts + 1] = format("level %g+", p.minXP)
+        parts[#parts + 1] = format(L["level %g+"], p.minXP)
     elseif p.maxXP then
-        parts[#parts + 1] = format("level %g or lower", p.maxXP)
+        parts[#parts + 1] = format(L["level %g or lower"], p.maxXP)
     end
     if p.minHP then
-        parts[#parts + 1] = format("at least %d health%s", p.minHP, p.allowMM and " (Magic/Mechanical exempt)" or "")
+        parts[#parts + 1] = format(L["at least %d health%s"], p.minHP, p.allowMM and L[" (Magic/Mechanical exempt)"] or "")
     end
     if p.maxHP then
-        parts[#parts + 1] = format("at most %d health", p.maxHP)
+        parts[#parts + 1] = format(L["at most %d health"], p.maxHP)
     end
     if p.expectedDD then
-        parts[#parts + 1] = format("not weak to %s", ns.GetFamilyName(p.expectedDD))
+        parts[#parts + 1] = format(L["not weak to %s"], ns.GetFamilyName(p.expectedDD))
     end
     return #parts > 0 and table.concat(parts, ", ") or nil
 end

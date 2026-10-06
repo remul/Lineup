@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 
 -- Light validation of tdBattlePetScript text, e.g.
 --   use(Explode:282) [enemy.hp<619]
@@ -36,7 +37,7 @@ function Script.Parse(text)
     local lineNumber = 0
 
     local function AddError(message)
-        result.errors[#result.errors + 1] = format("Line %d: %s", lineNumber, message)
+        result.errors[#result.errors + 1] = format(L["Line %d: %s"], lineNumber, message)
     end
 
     for line in (text .. "\n"):gmatch("(.-)\r?\n") do
@@ -46,30 +47,30 @@ function Script.Parse(text)
         if line == "" then
             -- Blank or comment-only line.
         elseif not IsBalanced(line, "(", ")") or not IsBalanced(line, "[", "]") then
-            AddError("unbalanced brackets")
+            AddError(L["unbalanced brackets"])
         elseif line:match("^if[%s%[]") then
             ifDepth = ifDepth + 1
         elseif line == "else" then
             if ifDepth == 0 then
-                AddError("'else' without 'if'")
+                AddError(L["'else' without 'if'"])
             end
         elseif line == "endif" then
             if ifDepth == 0 then
-                AddError("'endif' without 'if'")
+                AddError(L["'endif' without 'if'"])
             else
                 ifDepth = ifDepth - 1
             end
         else
             local command = (line:match("^(%a+)") or ""):lower()
             if not COMMANDS[command] then
-                AddError(format("unknown command '%s'", line:match("^(%S+)") or line))
+                AddError(format(L["unknown command '%s'"], line:match("^(%S+)") or line))
             else
                 result.actions = result.actions + 1
                 if command == "use" or command == "ability" then
                     local argument = line:match("^%a+%s*%((.-)%)")
                     local name = argument and (argument:match("^(.-):%d+$") or argument)
                     if not name or name == "" then
-                        AddError("missing ability")
+                        AddError(L["missing ability"])
                     elseif not seenAbilities[name] then
                         seenAbilities[name] = true
                         result.abilities[#result.abilities + 1] = name
@@ -81,7 +82,7 @@ function Script.Parse(text)
 
     if ifDepth > 0 then
         lineNumber = lineNumber + 1
-        AddError("missing 'endif'")
+        AddError(L["missing 'endif'"])
     end
     return result
 end
@@ -89,11 +90,11 @@ end
 -- One-line summary for the UI.
 function Script.Describe(text)
     if not text or strtrim(text) == "" then
-        return "No script", GRAY_FONT_COLOR
+        return L["No script"], GRAY_FONT_COLOR
     end
     local result = Script.Parse(text)
     if #result.errors > 0 then
-        return result.errors[1] .. (#result.errors > 1 and format(" (+%d more)", #result.errors - 1) or ""), RED_FONT_COLOR
+        return result.errors[1] .. (#result.errors > 1 and format(L[" (+%d more)"], #result.errors - 1) or ""), RED_FONT_COLOR
     end
-    return format("%d actions, %d abilities", result.actions, #result.abilities), GREEN_FONT_COLOR
+    return format(L["%d actions, %d abilities"], result.actions, #result.abilities), GREEN_FONT_COLOR
 end

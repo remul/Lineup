@@ -8,6 +8,8 @@
 ## IconTexture: Interface\AddOns\Lineup_PetBattles\Media\Icon
 ## AddonCompartmentFunc: Lineup_OnAddonCompartmentClick
 
+Locales\Locales.lua
+Locales\deDE.lua
 Core.lua
 Data\Teams.lua
 Data\Script.lua

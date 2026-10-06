@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 
 -- An embeddable icon chooser. Without a search it lists pet family icons and then every macro/item
 -- icon in the game. Icons have no names in the API, so search matches pet families, pet species and
@@ -18,7 +19,7 @@ local function GetFamilyIcons()
     local result = {}
     for petType = 1, ns.NUM_FAMILIES do
         local name = ns.GetFamilyName(petType)
-        result[petType] = { icon = ns.GetFamilyIcon(petType), label = "Family: " .. name, search = name:lower() }
+        result[petType] = { icon = ns.GetFamilyIcon(petType), label = L["Family: "] .. name, search = name:lower() }
     end
     return result
 end
@@ -50,13 +51,13 @@ local function GetNamedIcons()
     for speciesID = 1, MAX_SPECIES_ID do
         local name, icon = ns.GetSpeciesInfo(speciesID)
         if name and icon then
-            list[#list + 1] = { icon = icon, label = "Pet: " .. name, search = name:lower() }
+            list[#list + 1] = { icon = icon, label = L["Pet: "] .. name, search = name:lower() }
         end
     end
     for abilityID = 1, MAX_ABILITY_ID do
         local id, name, icon = C_PetBattles.GetAbilityInfoByID(abilityID)
         if id and type(name) == "string" and icon then
-            list[#list + 1] = { icon = icon, label = "Ability: " .. name, search = name:lower() }
+            list[#list + 1] = { icon = icon, label = L["Ability: "] .. name, search = name:lower() }
         end
     end
     namedIcons = list
@@ -85,7 +86,7 @@ local function Search(text)
     local results, seen = {}, {}
     local typedIcon = ParseIconText(text)
     if typedIcon then
-        results[1] = { icon = typedIcon, label = "Icon: " .. text }
+        results[1] = { icon = typedIcon, label = L["Icon: "] .. text }
         seen[typedIcon] = true
     end
 
@@ -175,7 +176,7 @@ function IconPicker.Create(parent, onSelect)
     searchBox:SetPoint("RIGHT", -92, 0)
     searchBox:SetHeight(24)
     searchBox:SetAutoFocus(false)
-    searchBox.Instructions:SetText("Pet, ability, or icon ID")
+    searchBox.Instructions:SetText(L["Pet, ability, or icon ID"])
     searchBox:HookScript("OnTextChanged", function()
         picker:Refresh()
     end)
@@ -218,7 +219,7 @@ function IconPicker.Create(parent, onSelect)
 
     picker.NoResults = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     picker.NoResults:SetPoint("TOP", 0, -24)
-    picker.NoResults:SetText("No icons found")
+    picker.NoResults:SetText(L["No icons found"])
 
     picker:Refresh()
     return picker

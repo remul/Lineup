@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 local Teams = ns.Teams
 
 -- Window for creating and editing a team: name, group, target NPC, pets and script.
@@ -24,10 +25,10 @@ end
 
 local function UpdateTarget()
     if draft.targetNpcID then
-        targetNameText:SetText(draft.targetName or "Unknown name")
+        targetNameText:SetText(draft.targetName or L["Unknown name"])
         targetNameText:SetTextColor(HIGHLIGHT_FONT_COLOR:GetRGB())
     else
-        targetNameText:SetText("No target")
+        targetNameText:SetText(L["No target"])
         targetNameText:SetTextColor(GRAY_FONT_COLOR:GetRGB())
     end
 end
@@ -49,7 +50,7 @@ end
 local function Save()
     local name = strtrim(nameBox:GetText())
     if name == "" then
-        ns:Print("A team needs a name.")
+        ns:Print(L["A team needs a name."])
         nameBox:SetFocus()
         return
     end
@@ -61,7 +62,7 @@ end
 
 local function Delete()
     local team = editingTeam
-    ns.Dialogs.Confirm(format("Delete team \"%s\"?", team.name), function()
+    ns.Dialogs.Confirm(format(L["Delete team \"%s\"?"], team.name), function()
         Teams:Delete(team)
         editor:Hide()
         ns.TeamsPanel:Refresh()
@@ -84,7 +85,7 @@ local function CreateEditor()
     tinsert(UISpecialFrames, editor:GetName())
 
     -- Name
-    CreateLabel("Name", editor, -40)
+    CreateLabel(L["Name"], editor, -40)
     nameBox = CreateFrame("EditBox", nil, editor, "InputBoxTemplate")
     nameBox:SetPoint("TOPLEFT", 16 + LABEL_WIDTH + 6, -34)
     nameBox:SetPoint("RIGHT", -20, 0)
@@ -94,7 +95,7 @@ local function CreateEditor()
     nameBox:SetScript("OnEnterPressed", EditBox_ClearFocus)
 
     -- Group
-    CreateLabel("Group", editor, -76)
+    CreateLabel(L["Group"], editor, -76)
     groupDropdown = CreateFrame("DropdownButton", nil, editor, "WowStyle1DropdownTemplate")
     groupDropdown:SetPoint("TOPLEFT", 16 + LABEL_WIDTH, -70)
     groupDropdown:SetWidth(220)
@@ -106,7 +107,7 @@ local function CreateEditor()
     end)
 
     -- Target
-    CreateLabel("Target", editor, -112)
+    CreateLabel(L["Target"], editor, -112)
     npcIDBox = CreateFrame("EditBox", nil, editor, "InputBoxTemplate")
     npcIDBox:SetPoint("TOPLEFT", 16 + LABEL_WIDTH + 6, -106)
     npcIDBox:SetSize(70, 24)
@@ -123,8 +124,8 @@ local function CreateEditor()
     end)
     npcIDBox:SetScript("OnEnter", function(box)
         GameTooltip:SetOwner(box, "ANCHOR_TOP")
-        GameTooltip:SetText("NPC ID")
-        GameTooltip:AddLine("Target the NPC and click \"Use Target\", or type its ID.", 1, 1, 1, true)
+        GameTooltip:SetText(L["NPC ID"])
+        GameTooltip:AddLine(L["Target the NPC and click \"Use Target\", or type its ID."], 1, 1, 1, true)
         GameTooltip:Show()
     end)
     npcIDBox:SetScript("OnLeave", GameTooltip_Hide)
@@ -132,11 +133,11 @@ local function CreateEditor()
     local useTargetButton = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
     useTargetButton:SetPoint("TOPRIGHT", -16, -106)
     useTargetButton:SetSize(90, 24)
-    useTargetButton:SetText("Use Target")
+    useTargetButton:SetText(L["Use Target"])
     useTargetButton:SetScript("OnClick", function()
         local npcID, name = ns.Target.GetNpc("target")
         if not npcID then
-            ns:Print("Target an NPC first.")
+            ns:Print(L["Target an NPC first."])
             return
         end
         draft.targetNpcID, draft.targetName = npcID, name
@@ -151,7 +152,7 @@ local function CreateEditor()
     targetNameText:SetWordWrap(false)
 
     -- Pets
-    CreateLabel("Pets", editor, -156)
+    CreateLabel(L["Pets"], editor, -156)
     petIcons = {}
     for slot = 1, 3 do
         local icon = CreateFrame("Frame", nil, editor)
@@ -168,7 +169,7 @@ local function CreateEditor()
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
                 GameTooltip:SetText(name, missing and 1 or nil, missing and 0.25 or nil, missing and 0.25 or nil)
                 if level then
-                    GameTooltip:AddLine(format("Level %d", level), 1, 1, 1)
+                    GameTooltip:AddLine(format(L["Level %d"], level), 1, 1, 1)
                 end
                 GameTooltip:Show()
             end
@@ -180,24 +181,24 @@ local function CreateEditor()
     local usePetsButton = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
     usePetsButton:SetPoint("TOPRIGHT", -16, -150)
     usePetsButton:SetSize(150, 24)
-    usePetsButton:SetText("Use Current Pets")
+    usePetsButton:SetText(L["Use Current Pets"])
     usePetsButton:SetScript("OnClick", function()
         draft.pets = Teams:CaptureLoadout()
         UpdatePets()
     end)
     usePetsButton:SetScript("OnEnter", function(button)
         GameTooltip:SetOwner(button, "ANCHOR_TOP")
-        GameTooltip:SetText("Use Current Pets")
-        GameTooltip:AddLine("Replace this team's pets and abilities with the three pets currently in your Pet Journal.", 1, 1, 1, true)
+        GameTooltip:SetText(L["Use Current Pets"])
+        GameTooltip:AddLine(L["Replace this team's pets and abilities with the three pets currently in your Pet Journal."], 1, 1, 1, true)
         GameTooltip:Show()
     end)
     usePetsButton:SetScript("OnLeave", GameTooltip_Hide)
 
     -- Script
-    local scriptLabel = CreateLabel("Script", editor, -198)
+    local scriptLabel = CreateLabel(L["Script"], editor, -198)
     local scriptHint = editor:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     scriptHint:SetPoint("LEFT", scriptLabel, "RIGHT", 0, 0)
-    scriptHint:SetText("Paste a tdBattlePetScript script, e.g. from Xu-Fu's Pet Guides")
+    scriptHint:SetText(L["Paste a tdBattlePetScript script, e.g. from Xu-Fu's Pet Guides"])
 
     local scriptInset = CreateFrame("Frame", nil, editor, "InsetFrameTemplate")
     scriptInset:SetPoint("TOPLEFT", 14, -216)
@@ -248,7 +249,7 @@ function TeamEditor:Open(team, initialDraft)
     editingTeam = team
     draft = initialDraft or Teams:CreateDraft(team)
 
-    editor:SetTitle(team and "Edit Team" or (initialDraft and "Import Team") or "New Team")
+    editor:SetTitle(team and L["Edit Team"] or (initialDraft and L["Import Team"]) or L["New Team"])
     nameBox:SetText(draft.name)
     npcIDBox:SetText(draft.targetNpcID and tostring(draft.targetNpcID) or "")
     scriptBox:SetText(draft.script)

@@ -1,4 +1,5 @@
 local addonName, ns = ...
+local L = ns.L
 
 -- The "Lineup" tab of the Teams window: general info about the addon and its settings.
 local AboutView = {}
@@ -10,15 +11,15 @@ local view, versionText, statsText, debugCheck, rematchText, rematchButton
 local function ImportFromRematch()
     local text, ungroupedName = ns.Import.ExportFromRematch()
     if not text then
-        ns:Print("Couldn't read Rematch's teams: " .. tostring(ungroupedName))
+        ns:Print(L["Couldn't read Rematch's teams: "] .. tostring(ungroupedName))
         return
     end
     local result = ns.Import.ParseAll(text)
     if result.numTeams == 0 then
-        ns:Print("Rematch has no teams to import.")
+        ns:Print(L["Rematch has no teams to import."])
         return
     end
-    ns.Import.ConfirmImportAll(result, true, ungroupedName, "From Rematch: ", function()
+    ns.Import.ConfirmImportAll(result, true, ungroupedName, L["From Rematch: "], function()
         ns.Import.Report(ns.Import.ImportAll(result, nil, true, ungroupedName))
         ns.TeamsPanel:Refresh()
     end)
@@ -68,35 +69,34 @@ function AboutView:Create(parent)
     versionText:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
 
     local about = CreateParagraph(content,
-        "Pet battle teams for Blizzard's Pet Journal: save and load teams, group them, import Rematch "
-            .. "team strings (e.g. from Xu-Fu's Pet Guides) and keep an automatic leveling queue.",
+        L["Pet battle teams for Blizzard's Pet Journal: save and load teams, group them, import Rematch team strings (e.g. from Xu-Fu's Pet Guides) and keep an automatic leveling queue."],
         icon, -12)
 
-    local overview = CreateHeading(content, "Overview", about, -16)
+    local overview = CreateHeading(content, L["Overview"], about, -16)
     statsText = CreateParagraph(content, "", overview, -6)
 
-    local commands = CreateHeading(content, "Commands", statsText, -16)
+    local commands = CreateHeading(content, L["Commands"], statsText, -16)
     local commandList = CreateParagraph(content,
-        "|cffffd100/lineup|r  open the Pet Journal\n|cffffd100/lineup debug|r  toggle debug messages",
+        L["|cffffd100/lineup|r  open the Pet Journal\n|cffffd100/lineup debug|r  toggle debug messages"],
         commands, -6)
 
-    local rematch = CreateHeading(content, "Rematch", commandList, -16)
+    local rematch = CreateHeading(content, L["Rematch"], commandList, -16)
     rematchText = CreateParagraph(content, "", rematch, -6)
 
     rematchButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
     rematchButton:SetPoint("TOPLEFT", rematchText, "BOTTOMLEFT", 0, -8)
     rematchButton:SetSize(180, 22)
-    rematchButton:SetText("Import Rematch Teams")
+    rematchButton:SetText(L["Import Rematch Teams"])
     rematchButton:SetScript("OnClick", ImportFromRematch)
 
-    local settings = CreateHeading(content, "Settings", rematchButton, -16)
+    local settings = CreateHeading(content, L["Settings"], rematchButton, -16)
 
     debugCheck = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
     debugCheck:SetSize(24, 24)
     debugCheck:SetPoint("TOPLEFT", settings, "BOTTOMLEFT", -4, -4)
     debugCheck.Label = debugCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     debugCheck.Label:SetPoint("LEFT", debugCheck, "RIGHT", 2, 0)
-    debugCheck.Label:SetText("Debug messages in chat")
+    debugCheck.Label:SetText(L["Debug messages in chat"])
     debugCheck:SetScript("OnClick", function(button)
         ns.db.debug = button:GetChecked()
     end)
@@ -111,15 +111,15 @@ function AboutView:Refresh()
 
     local version = C_AddOns.GetAddOnMetadata(addonName, "Version") or ""
     -- The packager replaces @project-version@ on release; until then this is a development copy.
-    versionText:SetText(version:find("^@") and "Development version" or ("Version " .. version))
+    versionText:SetText(version:find("^@") and L["Development version"] or (L["Version "] .. version))
 
-    statsText:SetText(format("%d teams in %d groups\n%d pets in the leveling queue",
+    statsText:SetText(format(L["%d teams in %d groups\n%d pets in the leveling queue"],
         #ns.Teams:GetAll(), #ns.Teams:GetGroups(), #ns.LevelingQueue:Get()))
     debugCheck:SetChecked(ns.db.debug)
 
     local rematchLoaded = ns.Import.IsRematchAvailable()
     rematchButton:SetEnabled(rematchLoaded)
     rematchText:SetText(rematchLoaded
-        and "Copy all your Rematch teams and groups into Lineup, including pet battle scripts from tdBattlePetScript."
-        or "Enable Rematch and reload to import its teams here. Or use Rematch's \"Export All Teams\" and paste the text into Import.")
+        and L["Copy all your Rematch teams and groups into Lineup, including pet battle scripts from tdBattlePetScript."]
+        or L["Enable Rematch and reload to import its teams here. Or use Rematch's \"Export All Teams\" and paste the text into Import."])
 end

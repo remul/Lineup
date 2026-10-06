@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 
 -- A team is:
 --   name        "Major Payne"
@@ -121,7 +122,7 @@ function Teams:CreateDraft(team)
         }
     end
     return {
-        name = format("Team %d", #self:GetAll() + 1),
+        name = format(L["Team %d"], #self:GetAll() + 1),
         pets = self:CaptureLoadout(),
         script = "",
     }
@@ -150,20 +151,20 @@ end
 function Teams.GetSlotDisplay(entry)
     if entry.random then
         if entry.petType == 0 then
-            return "Interface\\Icons\\INV_Misc_QuestionMark", "Random level 25 pet", nil, false
+            return "Interface\\Icons\\INV_Misc_QuestionMark", L["Random level 25 pet"], nil, false
         end
-        return ns.GetFamilyIcon(entry.petType), format("Random level 25 %s pet", ns.GetFamilyName(entry.petType)), nil, false
+        return ns.GetFamilyIcon(entry.petType), format(L["Random level 25 %s pet"], ns.GetFamilyName(entry.petType)), nil, false
     end
     if entry.leveling then
         local pet = ns.LevelingQueue:GetNext(nil, entry.preferences)
         if pet then
             local _, _, _, _, _, _, _, _, icon = C_PetJournal.GetPetInfoByPetID(pet.petID)
-            return icon, "Leveling: " .. pet.name, pet.level, false, pet.rarity
+            return icon, L["Leveling: "] .. pet.name, pet.level, false, pet.rarity
         end
         -- The substitute is picked at random on load, so show the slot generically.
         local requirement = ns.LevelingQueue.DescribePreferences(entry.preferences)
-        local reason = requirement and format("no leveling pet is %s", requirement) or "leveling queue is empty"
-        return "Interface\\Icons\\INV_Pet_BattlePetTraining", format("Any level 25 pet (%s)", reason), nil, false
+        local reason = requirement and format(L["no leveling pet is %s"], requirement) or L["leveling queue is empty"]
+        return "Interface\\Icons\\INV_Pet_BattlePetTraining", format(L["Any level 25 pet (%s)"], reason), nil, false
     end
     if entry.petID then
         local _, customName, level, _, _, _, _, speciesName, icon = C_PetJournal.GetPetInfoByPetID(entry.petID)
@@ -174,7 +175,7 @@ function Teams.GetSlotDisplay(entry)
     end
     if entry.speciesID then
         local speciesName, icon = ns.GetSpeciesInfo(entry.speciesID)
-        return icon, (speciesName or "Unknown pet") .. " (not collected)", nil, true
+        return icon, (speciesName or L["Unknown pet"]) .. L[" (not collected)"], nil, true
     end
     return nil
 end
@@ -223,10 +224,10 @@ end
 
 function Teams:CanLoad()
     if C_PetBattles.IsInBattle() then
-        return false, "You can't change pets during a battle."
+        return false, L["You can't change pets during a battle."]
     end
     if not C_PetJournal.IsJournalUnlocked() then
-        return false, "The Pet Journal is locked."
+        return false, L["The Pet Journal is locked."]
     end
     return true
 end
@@ -333,18 +334,18 @@ function Teams:Load(team)
             if pet then
                 petID = pet.petID
             else
-                local family = entry.petType > 0 and ns.GetFamilyName(entry.petType) or "battle"
-                ns:Print(format("Slot %d of \"%s\": you have no %s pet.", slot, team.name, family))
+                local family = entry.petType > 0 and ns.GetFamilyName(entry.petType) or L["battle"]
+                ns:Print(format(L["Slot %d of \"%s\": you have no %s pet."], slot, team.name, family))
             end
         elseif entry.leveling then
             local pet, isSubstitute = ns.LevelingQueue:PickForSlot(exclude, entry.preferences)
             if pet then
                 petID = pet.petID
                 if isSubstitute then
-                    ns:Print(format("Slot %d: no leveling pet qualifies yet, using %s.", slot, pet.name))
+                    ns:Print(format(L["Slot %d: no leveling pet qualifies yet, using %s."], slot, pet.name))
                 end
             else
-                ns:Print(format("Slot %d of \"%s\": no leveling pet or suitable level 25 pet found.", slot, team.name))
+                ns:Print(format(L["Slot %d of \"%s\": no leveling pet or suitable level 25 pet found."], slot, team.name))
             end
         elseif entry.petID and C_PetJournal.GetPetInfoByPetID(entry.petID) then
             petID = entry.petID
@@ -353,7 +354,7 @@ function Teams:Load(team)
             end
         elseif entry.petID or entry.speciesID then
             local _, name = Teams.GetSlotDisplay(entry)
-            ns:Print(format("Slot %d of \"%s\": %s isn't in your collection.", slot, team.name, name))
+            ns:Print(format(L["Slot %d of \"%s\": %s isn't in your collection."], slot, team.name, name))
         end
 
         if petID then

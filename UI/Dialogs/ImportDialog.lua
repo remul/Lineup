@@ -1,4 +1,5 @@
 local _, ns = ...
+local L = ns.L
 
 -- Window to paste Rematch team strings into. A single team opens in the team editor to review
 -- before saving; several teams (one per line, as Xu-Fu exports them) are saved directly.
@@ -27,12 +28,12 @@ local function UpdateStatus()
     result = nil
     local text = textBox:GetText()
     if strtrim(text) == "" then
-        statusText:SetText("Paste a team to import.")
+        statusText:SetText(L["Paste a team to import."])
         statusText:SetTextColor(GRAY_FONT_COLOR:GetRGB())
     else
         local all = ns.Import.ParseAll(text)
         if all.numTeams == 0 then
-            statusText:SetText(all.errors[1] or "Not a team string.")
+            statusText:SetText(all.errors[1] or L["Not a team string."])
             statusText:SetTextColor(RED_FONT_COLOR:GetRGB())
         else
             result = all
@@ -42,10 +43,10 @@ local function UpdateStatus()
             else
                 local names = GetTeamNames()
                 local listed = table.concat(names, ", ", 1, math.min(#names, MAX_LISTED_NAMES))
-                summary = format("%d teams: %s%s", #names, listed, #names > MAX_LISTED_NAMES and ", ..." or "")
+                summary = format(L["%d teams: %s%s"], #names, listed, #names > MAX_LISTED_NAMES and ", ..." or "")
             end
             if #all.errors > 0 then
-                summary = summary .. format("  |cffff2020(%d unreadable)|r", #all.errors)
+                summary = summary .. format(L["  |cffff2020(%d unreadable)|r"], #all.errors)
             end
             statusText:SetText(summary)
             statusText:SetTextColor(GREEN_FONT_COLOR:GetRGB())
@@ -99,14 +100,14 @@ local function CreateDialog()
     dialog:SetScript("OnDragStop", dialog.StopMovingOrSizing)
     ButtonFrameTemplate_HidePortrait(dialog)
     dialog.Inset:Hide()
-    dialog:SetTitle("Import Team")
+    dialog:SetTitle(L["Import Team"])
     tinsert(UISpecialFrames, dialog:GetName())
 
     -- Addons can't read the clipboard, so pasting is up to the player; the box is focused on open.
     local clearButton = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
     clearButton:SetPoint("TOPRIGHT", -12, -30)
     clearButton:SetSize(80, 22)
-    clearButton:SetText("Clear")
+    clearButton:SetText(L["Clear"])
     clearButton:SetScript("OnClick", function()
         textBox:SetText("")
         textBox:SetFocus()
@@ -116,7 +117,7 @@ local function CreateDialog()
     hint:SetPoint("TOPLEFT", 16, -32)
     hint:SetPoint("RIGHT", clearButton, "LEFT", -10, 0)
     hint:SetJustifyH("LEFT")
-    hint:SetText("Paste one or more Rematch team strings, e.g. from Xu-Fu's Pet Guides.")
+    hint:SetText(L["Paste one or more Rematch team strings, e.g. from Xu-Fu's Pet Guides."])
 
     local textInset = CreateFrame("Frame", nil, dialog, "InsetFrameTemplate")
     textInset:SetPoint("TOPLEFT", 14, -66)
@@ -144,7 +145,7 @@ local function CreateDialog()
     importButton = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
     importButton:SetPoint("BOTTOMRIGHT", -8, 6)
     importButton:SetSize(100, 22)
-    importButton:SetText("Import")
+    importButton:SetText(L["Import"])
     importButton:SetScript("OnClick", DoImport)
 
     local cancelButton = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
@@ -158,7 +159,7 @@ local function CreateDialog()
     -- Group the imported team goes into.
     local groupLabel = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     groupLabel:SetPoint("BOTTOMLEFT", 18, 42)
-    groupLabel:SetText("Group")
+    groupLabel:SetText(L["Group"])
 
     groupDropdown = CreateFrame("DropdownButton", nil, dialog, "WowStyle1DropdownTemplate")
     groupDropdown:SetPoint("LEFT", groupLabel, "RIGHT", 8, 0)
@@ -176,11 +177,11 @@ local function CreateDialog()
     replaceCheck:SetChecked(true)
     replaceCheck.Label = replaceCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     replaceCheck.Label:SetPoint("LEFT", replaceCheck, "RIGHT", 2, 0)
-    replaceCheck.Label:SetText("Replace same names")
+    replaceCheck.Label:SetText(L["Replace same names"])
     replaceCheck:SetScript("OnEnter", function(button)
         GameTooltip:SetOwner(button, "ANCHOR_TOP")
-        GameTooltip:SetText("Replace same names")
-        GameTooltip:AddLine("Teams with the same name as one you already have replace it, instead of being added again. Handy for re-importing an updated list.", 1, 1, 1, true)
+        GameTooltip:SetText(L["Replace same names"])
+        GameTooltip:AddLine(L["Teams with the same name as one you already have replace it, instead of being added again. Handy for re-importing an updated list."], 1, 1, 1, true)
         GameTooltip:Show()
     end)
     replaceCheck:SetScript("OnLeave", GameTooltip_Hide)
