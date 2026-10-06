@@ -267,6 +267,39 @@ function Import.ImportAll(result, groupID, replace, ungroupedName)
     return numImported, numReplaced, problems
 end
 
+-- What ImportAll would do, for a confirmation prompt: "Import 12 teams? 3 replace teams you
+-- already have. Creates the group "Humanoid"."
+function Import.DescribeImportAll(result, replace, ungroupedName)
+    local teamNames, groupNames = {}, {}
+    for _, team in ipairs(ns.Teams:GetAll()) do
+        teamNames[team.name] = true
+    end
+    for _, group in ipairs(ns.Teams:GetGroups()) do
+        groupNames[group.name] = true
+    end
+
+    local numReplaced, newGroups = 0, {}
+    for _, entry in ipairs(result.entries) do
+        if entry.kind == "team" and replace and teamNames[entry.parsed.name] then
+            numReplaced = numReplaced + 1
+        elseif entry.kind == "group" and entry.name ~= ungroupedName and not groupNames[entry.name] then
+            groupNames[entry.name] = true
+            newGroups[#newGroups + 1] = entry.name
+        end
+    end
+
+    local lines = { format(result.numTeams == 1 and "Import %d team?" or "Import %d teams?", result.numTeams) }
+    if numReplaced > 0 then
+        lines[#lines + 1] = format(numReplaced == 1 and "%d replaces a team you already have." or "%d replace teams you already have.", numReplaced)
+    end
+    if #newGroups == 1 then
+        lines[#lines + 1] = format("Creates the group \"%s\".", newGroups[1])
+    elseif #newGroups > 1 then
+        lines[#lines + 1] = format("Creates %d groups.", #newGroups)
+    end
+    return table.concat(lines, "\n")
+end
+
 -- One-line summary for the import window.
 function Import.Describe(parsed)
     local parts = { parsed.name }

@@ -55,7 +55,7 @@ local function UpdateStatus()
     replaceCheck:SetShown(result ~= nil and result.numTeams > 1)
 end
 
--- One team: open it in the editor. Several: save them all and report problems in chat.
+-- One team: open it in the editor. Several: confirm, then save them all and report problems in chat.
 local function DoImport()
     if not result then
         return
@@ -77,8 +77,12 @@ local function DoImport()
         return
     end
 
-    ns.Import.Report(ns.Import.ImportAll(result, importGroupID, replaceCheck:GetChecked()))
-    ns.TeamsPanel:Refresh()
+    local replace = replaceCheck:GetChecked()
+    local toImport, groupID = result, importGroupID
+    ns.Dialogs.Confirm(ns.Import.DescribeImportAll(toImport, replace), function()
+        ns.Import.Report(ns.Import.ImportAll(toImport, groupID, replace))
+        ns.TeamsPanel:Refresh()
+    end)
 end
 
 local function CreateDialog()

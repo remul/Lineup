@@ -198,11 +198,18 @@ function TeamRowMixin:OnLoad()
         self:ShowTeamMenu()
     end)
     self.EditButton:SetScript("OnEnter", function(button)
+        self:UpdateEditButton()
         GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
         GameTooltip:SetText("Team options")
         GameTooltip:Show()
     end)
-    self.EditButton:SetScript("OnLeave", GameTooltip_Hide)
+    self.EditButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+        self:UpdateEditButton()
+        if not self:IsMouseOver() then
+            self.Hover:Hide()
+        end
+    end)
 
     -- Family tag from the team name, e.g. "Humanoid", lined up on the right.
     self.Tag = inner:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
@@ -252,8 +259,10 @@ function TeamRowMixin:Init(data)
     self.Inner:SetPoint("TOPLEFT", data.indented and ROW_INDENT or 0, 0)
     self.Background:SetColorTexture(1, 1, 1, data.stripe and 0.05 or 0.02)
     local loaded = Teams:IsLoaded(team)
+    self.loaded = loaded
     self.Selected:SetShown(loaded)
     self.SelectedBar:SetShown(loaded)
+    self:UpdateEditButton()
 
     local displayName, tag = SplitTeamName(team.name)
     self.Name:SetText(displayName)
@@ -288,6 +297,14 @@ function TeamRowMixin:Init(data)
     end
     self.Target:SetText(target)
     self.Script:SetShown(team.script ~= nil)
+end
+
+-- The gear is dimmed to keep the list calm, and in full colour while the row is hovered or loaded.
+function TeamRowMixin:UpdateEditButton()
+    local active = self.loaded or self:IsMouseOver()
+    local texture = self.EditButton:GetNormalTexture()
+    texture:SetDesaturated(not active)
+    texture:SetAlpha(active and 1 or 0.35)
 end
 
 function TeamRowMixin:OnClick(mouseButton)
@@ -338,6 +355,7 @@ end
 
 function TeamRowMixin:OnEnter()
     self.Hover:Show()
+    self:UpdateEditButton()
     local team = self.team
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(team.name)
@@ -373,6 +391,7 @@ function TeamRowMixin:OnLeave()
     if not self:IsMouseOver() then
         self.Hover:Hide()
     end
+    self:UpdateEditButton()
 end
 
 -- Placeholder under an expanded group that has no teams. (Plain "Button" frames are only used
