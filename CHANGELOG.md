@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.0
+
+- **Breeds** (e.g. P/S), worked out from each pet's stats with Blizzard's own battle pet data, no
+  other addon needed. Shown in the pet picker, the Current Team section and team tooltips; at
+  low levels, where several breeds can fit, as "P/S or S/S".
+- **Imports use breeds**: the breed a team string asks for is preferred (unless your pet of that
+  breed has a lower level) and remembered; exports write breeds too.
+- **Import preview**: pasting a single team shows what you'll get before importing – missing
+  pets, low levels, wrong breeds, abilities a pet can't use yet and script problems, one line per
+  slot – or "Ready to import". Bulk imports list one line per team that needs attention.
+- **Pet Journal filters**: Blizzard's Filter menu gets **Strong vs.**, **Tough vs.**, **Breed**
+  and **Level 25 only**. A button at the end of the family row shows active ones and clears them.
+- **Breed filter** in the pet picker as well.
+- Windows (team editor, import, export, groups) open in the middle of the screen, and reopen
+  where you dragged them.
+
 ## 1.2.0
 
 - **Pet picker** in the team editor: click a pet icon to choose a pet without the Pet Journal.

@@ -4,6 +4,8 @@ ignore:
   - .gitignore
   - .pkgmeta
   - .github
+  # Generates Data/BreedData.lua; not needed in game.
+  - tools
   # Logo sources for GitHub and CurseForge; only Media/Icon.tga is used in game.
   - Media/Emblem.svg
   - Media/Emblem.png

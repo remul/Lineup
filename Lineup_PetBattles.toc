@@ -2,7 +2,7 @@
 ## Title: Lineup
 ## Notes: Simple, clean pet battle team manager.
 ## Author: Remul
-## Version: 1.2.0
+## Version: 1.3.0
 ## OptionalDeps: tdBattlePetScript
 ## SavedVariables: LineupDB
 ## SavedVariablesPerCharacter: LineupCharDB
@@ -24,6 +24,9 @@ Locales\Locales.lua
 Locales\deDE.lua
 Core.lua
 Data\Teams.lua
+Data\BreedData.lua
+Data\Breeds.lua
+Data\PetFilters.lua
 Data\BattleScripts.lua
 Data\Script.lua
 Data\Roster.lua
@@ -32,6 +35,7 @@ Data\Import.lua
 Data\Export.lua
 UI\Dialogs\Dialogs.lua
 UI\FamilyFilter.lua
+UI\JournalFilters.lua
 UI\PetToolbar.lua
 UI\TargetSection.lua
 UI\CurrentSection.lua

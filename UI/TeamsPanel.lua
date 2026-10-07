@@ -458,11 +458,17 @@ function TeamRowMixin:OnEnter()
         GameTooltip:AddLine(L["vs. "] .. (team.targetName or (L["NPC "] .. team.targetNpcID)), 1, 0.82, 0)
     end
     for slot = 1, 3 do
-        local _, name, level, missing = Teams.GetSlotDisplay(team.pets[slot])
+        local entry = team.pets[slot]
+        local _, name, level, missing = Teams.GetSlotDisplay(entry)
+        local breed = ns.Breeds.DescribeSlot(entry)
         if missing then
-            GameTooltip:AddLine(name, 1, 0.25, 0.25)
+            GameTooltip:AddDoubleLine(name, breed or "", 1, 0.25, 0.25, 0.7, 0.7, 0.7)
         elseif name then
-            GameTooltip:AddDoubleLine(name, level and format(L["Level %d"], level) or "", 1, 1, 1, 0.7, 0.7, 0.7)
+            local details = level and format(L["Level %d"], level) or ""
+            if breed then
+                details = details ~= "" and (breed .. " · " .. details) or breed
+            end
+            GameTooltip:AddDoubleLine(name, details, 1, 1, 1, 0.7, 0.7, 0.7)
         else
             GameTooltip:AddLine(L["Empty slot"], 0.5, 0.5, 0.5)
         end

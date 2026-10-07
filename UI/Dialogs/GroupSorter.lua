@@ -153,13 +153,7 @@ function GroupSorter:Open()
     end
     Refresh()
 
-    local teamsPanel = ns.TeamsPanel:GetFrame()
-    window:ClearAllPoints()
-    if teamsPanel and teamsPanel:IsVisible() then
-        window:SetPoint("TOPLEFT", teamsPanel, "TOPRIGHT", 4, 0)
-    else
-        window:SetPoint("CENTER")
-    end
+    ns.Dialogs.PlaceWindow(window)
     window:Show()
     window:Raise()
 end

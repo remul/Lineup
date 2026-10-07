@@ -4,12 +4,12 @@ local L = ns.L
 -- Window next to the team editor for choosing a team pet without the Pet Journal: your battle pets,
 -- highest level first, searchable by name, species or ability (like the journal's search) and
 -- filtered by family, "strong vs." and
--- "tough vs." an enemy family, and level 25. Buttons below set a leveling slot, a random level 25
+-- "tough vs." an enemy family, breed and level 25. Buttons below set a leveling slot, a random level 25
 -- pet (of any or one family), or an empty slot. Filters stay set until the game is reloaded.
 local PetPicker = {}
 ns.PetPicker = PetPicker
 
-local PICKER_WIDTH = 340
+local PICKER_WIDTH = 360
 local PICKER_HEIGHT = 470
 local ROW_HEIGHT = 38
 local ICON_SIZE = 30
@@ -20,7 +20,7 @@ local ABILITY_SPACING = 2
 local FAMILY_BUTTON_SIZE = 20
 local FAMILY_BUTTON_SPACING = 6
 
-local picker, searchBox, scrollBox, noResults, strongButton, toughButton, maxLevelCheck
+local picker, searchBox, scrollBox, noResults, strongButton, toughButton, breedButton, maxLevelCheck
 local familyButtons = {}
 local onSelect, taken
 
@@ -29,50 +29,30 @@ local onSelect, taken
 local families = {}
 local strongVs, toughVs = 0, 0
 local maxLevelOnly = false
+local breeds = {} -- [breedID] = true; none = any breed
 
--- A species' abilities: { ids = { six abilityIDs }, levels = { level each unlocks at },
--- names = { lowercase names }, types = { family of each }, strongAgainst = { [family] = true } }.
--- Fixed game data, so it's kept.
-local abilitiesBySpecies = {}
-
-local function GetSpeciesAbilities(speciesID)
-    local abilities = abilitiesBySpecies[speciesID]
-    if not abilities then
-        local ids, levels = C_PetJournal.GetPetAbilityList(speciesID)
-        abilities = { ids = ids, levels = levels, names = {}, types = {}, strongAgainst = {} }
-        for index, abilityID in ipairs(ids) do
-            local _, name, _, _, _, _, abilityType = C_PetBattles.GetAbilityInfoByID(abilityID)
-            abilities.names[index] = (name or ""):lower()
-            abilities.types[index] = abilityType
-            if ns.STRONG_AGAINST[abilityType] then
-                abilities.strongAgainst[ns.STRONG_AGAINST[abilityType]] = true
-            end
-        end
-        abilitiesBySpecies[speciesID] = abilities
-    end
-    return abilities
-end
-
--- True if the (lowercase) search is part of one of the species' ability names.
-local function HasAbilityMatching(speciesID, query)
-    for _, name in ipairs(GetSpeciesAbilities(speciesID).names) do
-        if name:find(query, 1, true) then
-            return true
-        end
-    end
-    return false
-end
+local GetSpeciesAbilities = ns.GetSpeciesAbilities
 
 local function PassesFilters(pet)
     if next(families) and not families[pet.petType] then
         return false
     elseif maxLevelOnly and pet.level < 25 then
         return false
-    elseif strongVs ~= 0 and not GetSpeciesAbilities(pet.speciesID).strongAgainst[strongVs] then
-        return false
     end
-    -- Tough: attacks of the enemy's family do less damage to the pet's family.
-    return toughVs == 0 or ns.WEAK_AGAINST[toughVs] == pet.petType
+    return ns.PetFilters.IsStrongAgainst(pet.speciesID, strongVs) and ns.PetFilters.IsToughAgainst(pet.petType, toughVs)
+        and ns.PetFilters.HasBreed(pet.petID, breeds)
+end
+
+-- Lowercase species names for the search: [speciesID] = name (they never change).
+local searchNames = {}
+
+local function GetSearchName(speciesID)
+    local name = searchNames[speciesID]
+    if not name then
+        name = (ns.GetSpeciesInfo(speciesID) or ""):lower()
+        searchNames[speciesID] = name
+    end
+    return name
 end
 
 -- Battle pets matching the filters and the (lowercase) search in their name, species name or one
@@ -81,9 +61,8 @@ local function GetPets(query)
     local results = {}
     for _, pet in ipairs(ns.Roster:GetOwnedPets()) do
         if pet.canBattle and PassesFilters(pet) then
-            local speciesName = ns.GetSpeciesInfo(pet.speciesID) or ""
-            if not query or pet.name:lower():find(query, 1, true) or speciesName:lower():find(query, 1, true)
-                or HasAbilityMatching(pet.speciesID, query) then
+            if not query or pet.name:lower():find(query, 1, true) or GetSearchName(pet.speciesID):find(query, 1, true)
+                or ns.PetFilters.HasAbilityMatching(pet.speciesID, query) then
                 results[#results + 1] = pet
             end
         end
@@ -115,6 +94,8 @@ local function UpdateFilterControls()
     UpdateVsButton(strongButton, L["Strong vs."], strongVs)
     UpdateVsButton(toughButton, L["Tough vs."], toughVs)
     maxLevelCheck:SetChecked(maxLevelOnly)
+    local breedNames = ns.PetFilters.DescribeBreeds(breeds)
+    breedButton:SetText(breedNames and (L["Breed: "] .. breedNames) or L["Breed"])
 end
 
 local currentQuery -- the search, lowercase, or nil
@@ -236,8 +217,10 @@ local function InitRow(row, pet)
     row.Border:SetVertexColor(ns.GetRarityColor(pet.rarity))
     row.Name:SetText(pet.name)
     row.Name:SetTextColor((isTaken and GRAY_FONT_COLOR or HIGHLIGHT_FONT_COLOR):GetRGB())
-    row.Details:SetText(format("%s · |T%s:12:12|t %s", format(L["Level %d"], pet.level),
-        ns.GetFamilyIcon(pet.petType), ns.GetFamilyName(pet.petType)))
+    local details = format("%s · |T%s:12:12|t %s", format(L["Level %d"], pet.level),
+        ns.GetFamilyIcon(pet.petType), ns.GetFamilyName(pet.petType))
+    local breed = ns.Breeds.DescribePet(pet.petID)
+    row.Details:SetText(breed and (details .. " · " .. breed) or details)
     UpdateAbilityIcons(row, pet)
     row:SetEnabled(not isTaken)
     row:SetMotionScriptsWhileDisabled(true)
@@ -264,6 +247,7 @@ local function CreatePicker(parent)
     picker = CreateFrame("Frame", "LineupPetPicker", parent, "ButtonFrameTemplate")
     picker:SetSize(PICKER_WIDTH, PICKER_HEIGHT)
     picker:SetToplevel(true)
+    picker:SetClampedToScreen(true)
     picker:EnableMouse(true)
     ButtonFrameTemplate_HidePortrait(picker)
     picker.Inset:Hide()
@@ -311,6 +295,24 @@ local function CreatePicker(parent)
         button:SetScript("OnLeave", GameTooltip_Hide)
         familyButtons[petType] = button
     end
+
+    -- Breed, at the end of the family row.
+    breedButton = CreateFrame("Button", nil, picker, "UIPanelButtonTemplate")
+    breedButton:SetSize(74, 22)
+    breedButton:SetPoint("TOPRIGHT", -12, -59)
+    breedButton:SetScript("OnClick", function(button)
+        MenuUtil.CreateContextMenu(button, function(_, root)
+            root:CreateTitle(L["Breed"])
+            ns.PetFilters.AddBreedOptions(root, breeds, Refresh)
+        end)
+    end)
+    breedButton:SetScript("OnEnter", function(button)
+        GameTooltip:SetOwner(button, "ANCHOR_TOP")
+        GameTooltip:SetText(L["Breed"])
+        GameTooltip:AddLine(L["Only pets of the checked breeds. Breeds are worked out from each pet's stats."], 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    breedButton:SetScript("OnLeave", GameTooltip_Hide)
 
     -- Strong vs. / Tough vs. an enemy family, and level 25 only.
     local function CreateVsButton(label, tooltip, get, set)

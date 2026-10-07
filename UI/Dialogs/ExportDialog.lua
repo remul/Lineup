@@ -68,13 +68,7 @@ function ExportDialog:Open(title, text)
     dialog:SetTitle(title)
     textBox:SetText(text)
 
-    local teamsPanel = ns.TeamsPanel:GetFrame()
-    dialog:ClearAllPoints()
-    if teamsPanel and teamsPanel:IsVisible() then
-        dialog:SetPoint("TOPLEFT", teamsPanel, "TOPRIGHT", 4, 0)
-    else
-        dialog:SetPoint("CENTER")
-    end
+    ns.Dialogs.PlaceWindow(dialog)
     dialog:Show()
     dialog:Raise()
     textBox:SetFocus()

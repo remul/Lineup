@@ -223,13 +223,7 @@ function GroupEditor:Open(group, callback)
     UpdatePreview()
     SelectTab(TAB_GROUP)
 
-    local teamsPanel = ns.TeamsPanel:GetFrame()
-    editor:ClearAllPoints()
-    if teamsPanel and teamsPanel:IsVisible() then
-        editor:SetPoint("TOPLEFT", teamsPanel, "TOPRIGHT", 4, 0)
-    else
-        editor:SetPoint("CENTER")
-    end
+    ns.Dialogs.PlaceWindow(editor)
     editor:Show()
     editor:Raise()
     nameBox:SetFocus()

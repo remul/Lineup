@@ -145,22 +145,9 @@ local function IsAbility(ability, abilityID)
     return ability.name == GetAbilityName(abilityID)
 end
 
--- A species' six abilities, in the journal's order: ability slot n picks list[n] or list[n + 3].
--- (Fixed game data, so it's kept.)
-local speciesAbilities = {}
-
-local function GetSpeciesAbilities(speciesID)
-    local list = speciesAbilities[speciesID]
-    if not list then
-        list = C_PetJournal.GetPetAbilityList(speciesID)
-        speciesAbilities[speciesID] = list
-    end
-    return list
-end
-
 -- Where a species can pick the ability: abilitySlot (1-3), abilityID; nil if it can't learn it.
 local function FindAbilitySlot(speciesID, ability)
-    for position, abilityID in ipairs(GetSpeciesAbilities(speciesID)) do
+    for position, abilityID in ipairs(ns.GetSpeciesAbilities(speciesID).ids) do
         if IsAbility(ability, abilityID) then
             return (position - 1) % 3 + 1, abilityID
         end

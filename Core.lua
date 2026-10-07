@@ -86,14 +86,43 @@ local ENGLISH_FAMILY_NAMES = {
     "Magic", "Elemental", "Beast", "Aquatic", "Mechanical",
 }
 
+-- [lowercase family name, English and the client's language] = pet type; built on first use.
+local familiesByName
+
 -- Pet type for a family name (English or the client's language), or nil.
 function ns.FindFamilyByName(name)
-    name = name:lower()
-    for petType = 1, ns.NUM_FAMILIES do
-        if name == ENGLISH_FAMILY_NAMES[petType]:lower() or name == ns.GetFamilyName(petType):lower() then
-            return petType
+    if not familiesByName then
+        familiesByName = {}
+        for petType = 1, ns.NUM_FAMILIES do
+            familiesByName[ENGLISH_FAMILY_NAMES[petType]:lower()] = petType
+            familiesByName[ns.GetFamilyName(petType):lower()] = petType
         end
     end
+    return familiesByName[name:lower()]
+end
+
+-- A species' abilities: { ids = { six abilityIDs }, levels = { level each unlocks at },
+-- names = { lowercase names }, types = { family of each }, strongAgainst = { [family] = true } }.
+-- In the journal's order: ability slot n picks ids[n] or ids[n + 3]. Fixed game data, so it's
+-- kept; don't change the tables.
+local abilitiesBySpecies = {}
+
+function ns.GetSpeciesAbilities(speciesID)
+    local abilities = abilitiesBySpecies[speciesID]
+    if not abilities then
+        local ids, levels = C_PetJournal.GetPetAbilityList(speciesID)
+        abilities = { ids = ids or {}, levels = levels or {}, names = {}, types = {}, strongAgainst = {} }
+        for index, abilityID in ipairs(abilities.ids) do
+            local _, name, _, _, _, _, abilityType = C_PetBattles.GetAbilityInfoByID(abilityID)
+            abilities.names[index] = (name or ""):lower()
+            abilities.types[index] = abilityType
+            if ns.STRONG_AGAINST[abilityType] then
+                abilities.strongAgainst[ns.STRONG_AGAINST[abilityType]] = true
+            end
+        end
+        abilitiesBySpecies[speciesID] = abilities
+    end
+    return abilities
 end
 
 -- Inline icons for pets that can't fight well: dead (skull) and hurt (warning sign).

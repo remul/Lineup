@@ -4,7 +4,8 @@ local L = ns.L
 -- A team is:
 --   name        "Major Payne"
 --   groupID     number, or nil for ungrouped
---   pets        { [slot] = { petID = "BattlePet-...", speciesID = number, abilities = { id, id, id } } }
+--   pets        { [slot] = { petID = "BattlePet-...", speciesID = number, abilities = { id, id, id },
+--                 breed = 3-12 (optional: the breed the team asks for, e.g. from an import) } }
 --               (petID is nil for a pet you don't own; abilities may be nil for "keep current";
 --               { leveling = true, preferences = {...} } is a leveling slot, filled from the leveling
 --               queue on load; see LevelingQueue for preferences;
@@ -190,7 +191,7 @@ function Teams.GetAbilityChoices(entry)
     if not entry.speciesID then
         return nil
     end
-    local list = C_PetJournal.GetPetAbilityList(entry.speciesID)
+    local list = ns.GetSpeciesAbilities(entry.speciesID).ids
     local choices = {}
     for index = 1, 3 do
         local selected = entry.abilities and entry.abilities[index]

@@ -20,6 +20,24 @@ function Dialogs.Confirm(prompt, onAccept)
     StaticPopup_Show("LINEUP_CONFIRM", prompt, nil, { onAccept = onAccept })
 end
 
+-- Windows the player has dragged somewhere, and those already watched for that ([frame] = true).
+local movedWindows, watchedWindows = {}, {}
+
+-- Positions a window as it opens: centered on the screen, or where the player last dragged it
+-- (until the game is reloaded).
+function Dialogs.PlaceWindow(frame)
+    if not watchedWindows[frame] then
+        watchedWindows[frame] = true
+        frame:HookScript("OnDragStop", function()
+            movedWindows[frame] = true
+        end)
+    end
+    if not movedWindows[frame] then
+        frame:ClearAllPoints()
+        frame:SetPoint("CENTER", UIParent, "CENTER")
+    end
+end
+
 -- A scrolling multi-line text box filling inset (an InsetFrameTemplate frame).
 -- The edit box is only as tall as its text, so clicks on the empty area below it focus the box
 -- and put the cursor at the end. onTextChanged(editBox, userInput) is optional.

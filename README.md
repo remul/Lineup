@@ -36,6 +36,10 @@ all your teams.
   options for duplicates. Leveling slots in teams take the next suitable pet when the team is loaded;
   click a pet to find it in the journal.
 - **Family filter** – a row of family icons above the pet list that drives the journal's own filter.
+  The journal's Filter menu also gets **Strong vs.**, **Tough vs.**, **Breed** and **Level 25 only**.
+- **Breeds** – each pet's breed (e.g. P/S) is worked out from its stats with Blizzard's battle pet
+  data and shown in the pet picker, the current team and team tooltips. Imports prefer the breed a
+  team asks for and warn when yours differs.
 - **Pet toolbar** – Revive Battle Pets, Battle Pet Bandage, Safari Hat, pet treats and Summon Random
   Favorite Pet in one bar.
 - **Notes window** – pop out a team's strategy notes to follow them during a battle.
@@ -67,6 +71,11 @@ AddOns folder so changes are picked up with `/reload`:
 ```sh
 ln -s "$(pwd)" "/Applications/World of Warcraft/_retail_/Interface/AddOns/Lineup_PetBattles"
 ```
+
+Pet breeds are worked out from each pet's stats with Blizzard's battle pet tables, generated into
+`Data/BreedData.lua`. After a patch that adds pets, run `python3 tools/generate_breed_data.py`
+(it downloads the tables of the current live build from [wago.tools](https://wago.tools)) and
+commit the result.
 
 Releases are packaged with the [BigWigs packager](https://github.com/BigWigsMods/packager)
 (see `.pkgmeta`) when a version tag is pushed. Set `## Version` in `Lineup_PetBattles.toc` to the

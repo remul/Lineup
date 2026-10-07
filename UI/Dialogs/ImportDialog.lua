@@ -7,11 +7,25 @@ local ImportDialog = {}
 ns.ImportDialog = ImportDialog
 
 local DIALOG_WIDTH = 460
-local DIALOG_HEIGHT = 360
+local DIALOG_HEIGHT = 440
+-- Lines in the preview below the text box (more are summed up).
+local MAX_PREVIEW_LINES = 5
+
+local NOTE_ICONS = {
+    error = "|TInterface\\RaidFrame\\ReadyCheck-NotReady:14:14|t ",
+    warning = ns.HURT_ICON .. " ",
+    info = "|TInterface\\Common\\help-i:14:14:0:0:64:64:14:50:14:50|t ",
+}
+local NOTE_COLORS = {
+    error = RED_FONT_COLOR,
+    warning = ORANGE_FONT_COLOR,
+    info = GRAY_FONT_COLOR,
+}
+local READY_ICON = "|TInterface\\RaidFrame\\ReadyCheck-Ready:14:14|t "
 
 local MAX_LISTED_NAMES = 3
 
-local dialog, textBox, statusText, importButton, groupDropdown, replaceCheck
+local dialog, textBox, statusText, previewText, importButton, groupDropdown, replaceCheck
 local result, importGroupID
 
 local function GetTeamNames()
@@ -24,8 +38,33 @@ local function GetTeamNames()
     return names
 end
 
+-- What importing a single team will give: its notes (see Import.BuildDraft) with icons, most
+-- important first, or that it's ready.
+local function DescribeTeamPreview(parsed)
+    local _, notes = ns.Import.BuildDraft(parsed)
+    local order = { error = 1, warning = 2, info = 3 }
+    table.sort(notes, function(a, b)
+        return order[a.severity] < order[b.severity]
+    end)
+    local lines, hasProblems = {}, false
+    for index, note in ipairs(notes) do
+        hasProblems = hasProblems or note.severity ~= ns.Import.INFO
+        if index <= MAX_PREVIEW_LINES then
+            lines[#lines + 1] = NOTE_ICONS[note.severity] .. NOTE_COLORS[note.severity]:WrapTextInColorCode(note.text)
+        end
+    end
+    if #notes > MAX_PREVIEW_LINES then
+        lines[#lines + 1] = GRAY_FONT_COLOR:WrapTextInColorCode(format(L["...and %d more"], #notes - MAX_PREVIEW_LINES))
+    end
+    if not hasProblems then
+        tinsert(lines, 1, READY_ICON .. GREEN_FONT_COLOR:WrapTextInColorCode(L["Ready to import: you have all the pets."]))
+    end
+    return table.concat(lines, "\n")
+end
+
 local function UpdateStatus()
     result = nil
+    previewText:SetText("")
     local text = textBox:GetText()
     if strtrim(text) == "" then
         statusText:SetText(L["Paste a team to import."])
@@ -39,24 +78,28 @@ local function UpdateStatus()
             result = all
             local summary
             if all.numTeams == 1 then
-                summary = ns.Import.Describe(all.entries[#all.entries].parsed)
+                local parsed = all.entries[#all.entries].parsed
+                summary = ns.Import.Describe(parsed)
+                previewText:SetText(DescribeTeamPreview(parsed))
             else
                 local names = GetTeamNames()
                 local listed = table.concat(names, ", ", 1, math.min(#names, MAX_LISTED_NAMES))
                 summary = format(L["%d teams: %s%s"], #names, listed, #names > MAX_LISTED_NAMES and ", ..." or "")
+                previewText:SetText(GRAY_FONT_COLOR:WrapTextInColorCode(L["After importing, teams that need attention are listed in chat."]))
             end
             if #all.errors > 0 then
                 summary = summary .. format(L["  |cffff2020(%d unreadable)|r"], #all.errors)
             end
             statusText:SetText(summary)
-            statusText:SetTextColor(GREEN_FONT_COLOR:GetRGB())
+            statusText:SetTextColor(HIGHLIGHT_FONT_COLOR:GetRGB())
         end
     end
     importButton:SetEnabled(result ~= nil)
     replaceCheck:SetShown(result ~= nil and result.numTeams > 1)
 end
 
--- One team: open it in the editor. Several: confirm, then save them all and report problems in chat.
+-- One team: open it in the editor (its notes were in the preview). Several: confirm, then save them
+-- all and list the teams that need attention in chat.
 -- (A single team under a group header is saved directly, without asking.)
 local function DoImport()
     if not result then
@@ -70,12 +113,10 @@ local function DoImport()
     end
 
     if result.numTeams == 1 and not hasGroups then
-        local draft, warnings = ns.Import.BuildDraft(result.entries[1].parsed)
+        -- The notes were in the preview already; the editor shows the pets and the script's check.
+        local draft = ns.Import.BuildDraft(result.entries[1].parsed)
         draft.groupID = importGroupID
         ns.TeamEditor:Open(nil, draft)
-        for _, warning in ipairs(warnings) do
-            ns:Print(warning)
-        end
         return
     end
 
@@ -121,7 +162,7 @@ local function CreateDialog()
 
     local textInset = CreateFrame("Frame", nil, dialog, "InsetFrameTemplate")
     textInset:SetPoint("TOPLEFT", 14, -66)
-    textInset:SetPoint("BOTTOMRIGHT", -14, 82)
+    textInset:SetPoint("BOTTOMRIGHT", -14, 82 + 18 + 14 * MAX_PREVIEW_LINES + 16)
 
     local lastLength = 0
     textBox = ns.Dialogs.CreateMultiLineEditBox(textInset, DIALOG_WIDTH - 80, function(box, userInput)
@@ -141,6 +182,16 @@ local function CreateDialog()
     statusText:SetPoint("RIGHT", -16, 0)
     statusText:SetJustifyH("LEFT")
     statusText:SetWordWrap(false)
+
+    -- The preview: what importing will give (one line per note).
+    previewText = dialog:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    previewText:SetPoint("TOPLEFT", statusText, "BOTTOMLEFT", 0, -6)
+    previewText:SetPoint("RIGHT", -16, 0)
+    previewText:SetJustifyH("LEFT")
+    previewText:SetJustifyV("TOP")
+    previewText:SetSpacing(3)
+    -- A long note can take two lines.
+    previewText:SetMaxLines(MAX_PREVIEW_LINES + 2)
 
     importButton = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
     importButton:SetPoint("BOTTOMRIGHT", -8, 6)
@@ -197,13 +248,7 @@ function ImportDialog:Open(groupID)
     textBox:SetText("")
     UpdateStatus()
 
-    local teamsPanel = ns.TeamsPanel:GetFrame()
-    dialog:ClearAllPoints()
-    if teamsPanel and teamsPanel:IsVisible() then
-        dialog:SetPoint("TOPLEFT", teamsPanel, "TOPRIGHT", 4, 0)
-    else
-        dialog:SetPoint("CENTER")
-    end
+    ns.Dialogs.PlaceWindow(dialog)
     dialog:Show()
     dialog:Raise()
     textBox:SetFocus()

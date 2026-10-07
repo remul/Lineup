@@ -141,7 +141,8 @@ local function CreatePetCard(parent, slot)
         local health, maxHealth, _, _, rarity = C_PetJournal.GetPetStats(petID)
         GameTooltip:SetOwner(card, "ANCHOR_BOTTOM")
         GameTooltip:SetText(customName or speciesName, ns.GetRarityColor(rarity))
-        GameTooltip:AddLine(format(L["Level %d"], level), 1, 1, 1)
+        local breed = ns.Breeds.DescribePet(petID)
+        GameTooltip:AddLine(format(L["Level %d"], level) .. (breed and (" · " .. breed) or ""), 1, 1, 1)
         if health == 0 then
             GameTooltip:AddLine(L["Dead"], RED_FONT_COLOR:GetRGB())
         else

@@ -149,7 +149,8 @@ UpdatePets = function()
 end
 
 -- Puts the pet picker's choice into a slot. A pet of the same species keeps the slot's ability
--- picks; another one starts with its first three abilities (usable at any level). A leveling slot
+-- picks (and the breed the team asks for); another one starts with its first three abilities
+-- (usable at any level). A leveling slot
 -- keeps its leveling preferences when it already was one.
 local function SetSlotPet(slot, pet)
     local entry = draft.pets[slot]
@@ -165,10 +166,11 @@ local function SetSlotPet(slot, pet)
     if entry.speciesID == pet.speciesID and entry.abilities then
         abilities = CopyTable(entry.abilities)
     else
-        local list = C_PetJournal.GetPetAbilityList(pet.speciesID)
+        local list = ns.GetSpeciesAbilities(pet.speciesID).ids
         abilities = { list[1], list[2], list[3] }
     end
-    draft.pets[slot] = { petID = pet.petID, speciesID = pet.speciesID, abilities = abilities }
+    local breed = entry.speciesID == pet.speciesID and entry.breed or nil
+    draft.pets[slot] = { petID = pet.petID, speciesID = pet.speciesID, abilities = abilities, breed = breed }
     UpdatePets()
 end
 
@@ -299,6 +301,10 @@ local function CreateEditor()
                 GameTooltip:SetText(name, missing and 1 or nil, missing and 0.25 or nil, missing and 0.25 or nil)
                 if level then
                     GameTooltip:AddLine(format(L["Level %d"], level), 1, 1, 1)
+                end
+                local breed = ns.Breeds.DescribeSlot(entry)
+                if breed then
+                    GameTooltip:AddLine(L["Breed: "] .. breed, 1, 1, 1)
                 end
                 AddAbilitiesToTooltip(entry)
             else
@@ -462,13 +468,7 @@ function TeamEditor:Open(team, initialDraft)
     UpdateTarget()
     UpdatePets()
 
-    local teamsPanel = ns.TeamsPanel:GetFrame()
-    editor:ClearAllPoints()
-    if teamsPanel and teamsPanel:IsVisible() then
-        editor:SetPoint("TOPLEFT", teamsPanel, "TOPRIGHT", 4, 0)
-    else
-        editor:SetPoint("CENTER")
-    end
+    ns.Dialogs.PlaceWindow(editor)
     editor:Show()
     editor:Raise()
 

@@ -7,8 +7,7 @@ local _, ns = ...
 local Export = {}
 ns.Export = Export
 
-local SCRIPT_BEGIN = "-----BEGIN PET BATTLE SCRIPT-----"
-local SCRIPT_END = "-----END PET BATTLE SCRIPT-----"
+local SCRIPT_BEGIN, SCRIPT_END = ns.Import.SCRIPT_BEGIN, ns.Import.SCRIPT_END
 local BASE32_DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUV"
 
 local function ToBase32(number)
@@ -27,8 +26,9 @@ local function CleanName(name)
     return (name:gsub(":", ""))
 end
 
--- Pet tag: the three ability choices (0 = any, 1 or 2), breed (0 = any; Lineup doesn't track
--- breeds), then the speciesID; or ZL (leveling), ZR<family> (random) and ZI (empty).
+-- Pet tag: the three ability choices (0 = any, 1 or 2), breed (the one the team asks for, else
+-- the pet's own when known, else 0 = any), then the speciesID; or ZL (leveling), ZR<family>
+-- (random) and ZI (empty).
 local function PetTag(entry)
     if entry.leveling then
         return "ZL"
@@ -38,7 +38,9 @@ local function PetTag(entry)
         return "ZI"
     end
     local choices = ns.Teams.GetAbilityChoices(entry) or {}
-    return format("%d%d%d0%s", choices[1] or 0, choices[2] or 0, choices[3] or 0, ToBase32(entry.speciesID))
+    local breed = entry.breed or (entry.petID and ns.Breeds.GetPetBreed(entry.petID)) or 0
+    return format("%d%d%d%s%s", choices[1] or 0, choices[2] or 0, choices[3] or 0, ToBase32(breed),
+        ToBase32(entry.speciesID))
 end
 
 -- P:minHP:allowMM:expectedDD:maxHP:minXP:maxXP: from the first leveling slot with preferences.
