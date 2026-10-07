@@ -19,6 +19,8 @@ TeamsPanel.SECTION_INSET = SECTION_INSET
 local SECTION_HEADER_HEIGHT = 18
 local HEADER_HEIGHT = 28
 local ROW_HEIGHT = 64
+-- Space between team cards.
+local CARD_GAP = 4
 local GROUP_SPACING = 8
 -- Gap between a group header and its first team, and after its last team.
 local GROUP_INNER_SPACING = 4
@@ -222,28 +224,19 @@ TeamsPanel.SplitTeamName = SplitTeamName
 function TeamRowMixin:OnLoad()
     self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
-    -- Everything visible sits on Inner, which is indented under group headers.
+    -- Everything visible sits on Inner: a rounded card, indented under group headers, with a little
+    -- space to the next card.
     self.Inner = CreateFrame("Frame", nil, self)
-    self.Inner:SetPoint("BOTTOMRIGHT")
+    self.Inner:SetPoint("BOTTOMRIGHT", 0, CARD_GAP / 2)
     local inner = self.Inner
 
-    self.Background = inner:CreateTexture(nil, "BACKGROUND")
-    self.Background:SetAllPoints()
-
-    self.Hover = inner:CreateTexture(nil, "BACKGROUND", nil, 1)
-    self.Hover:SetAllPoints()
-    self.Hover:SetColorTexture(1, 1, 1, 0.08)
+    self.Background = ns.CreateRoundedTexture(inner, "BACKGROUND", 0, 1, 1, 1, 0.05)
+    self.Hover = ns.CreateRoundedTexture(inner, "BACKGROUND", 1, 1, 1, 1, 0.08)
     self.Hover:Hide()
 
-    -- Loaded team: a gold tint and a gold bar on the left.
-    self.Selected = inner:CreateTexture(nil, "BORDER")
-    self.Selected:SetAllPoints()
-    self.Selected:SetColorTexture(1, 0.82, 0, 0.22)
-    self.SelectedBar = inner:CreateTexture(nil, "BORDER", nil, 1)
-    self.SelectedBar:SetPoint("TOPLEFT")
-    self.SelectedBar:SetPoint("BOTTOMLEFT")
-    self.SelectedBar:SetWidth(5)
-    self.SelectedBar:SetColorTexture(1, 0.82, 0, 0.9)
+    -- Loaded team: a gold tint and a gold outline.
+    self.Selected = ns.CreateRoundedTexture(inner, "BORDER", 0, 1, 0.82, 0, 0.18)
+    self.SelectedBorder = ns.CreateRoundedTexture(inner, "BORDER", 1, 1, 0.82, 0, 0.9, true)
 
     self.EditButton = CreateFrame("Button", nil, self)
     self.EditButton:SetSize(16, 16)
@@ -338,12 +331,13 @@ function TeamRowMixin:Init(data)
     local team = data.team
     self.team = team
 
-    self.Inner:SetPoint("TOPLEFT", data.indented and ROW_INDENT or 0, 0)
-    self.Background:SetColorTexture(1, 1, 1, data.stripe and 0.05 or 0.02)
+    self.Inner:SetPoint("TOPLEFT", data.indented and ROW_INDENT or 0, -CARD_GAP / 2)
+    -- (A texture's alpha is part of its vertex color, so the stripe is set there, not with SetAlpha.)
+    self.Background:SetVertexColor(1, 1, 1, data.stripe and 0.05 or 0.03)
     local loaded = Teams:IsLoaded(team)
     self.loaded = loaded
     self.Selected:SetShown(loaded)
-    self.SelectedBar:SetShown(loaded)
+    self.SelectedBorder:SetShown(loaded)
     self:UpdateEditButton()
 
     local displayName, tag = SplitTeamName(team.name)

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.1
+
+- Teams are shown as **rounded cards** with a little space between them; the loaded team has a
+  gold outline.
+
 ## 1.3.0
 
 - **Breeds** (e.g. P/S), worked out from each pet's stats with Blizzard's own battle pet data, no

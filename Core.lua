@@ -129,6 +129,23 @@ end
 ns.DEAD_ICON = "|TInterface\\TargetingFrame\\UI-TargetingFrame-Skull:14:14|t"
 ns.HURT_ICON = "|TInterface\\DialogFrame\\UI-Dialog-Icon-AlertNew:14:14|t"
 
+-- Rounded card textures (see tools/generate_rounded_textures.py): white, tinted with
+-- SetVertexColor, and drawn as nine-slices so the corners keep their size at any card size.
+local ROUNDED_FILL = ns.MEDIA .. "RoundedFill"
+local ROUNDED_BORDER = ns.MEDIA .. "RoundedBorder"
+local ROUNDED_MARGIN = 10
+
+-- A rounded rectangle filling parent (or, with border, its outline), colored r, g, b, a.
+function ns.CreateRoundedTexture(parent, layer, subLevel, r, g, b, a, border)
+    local texture = parent:CreateTexture(nil, layer, nil, subLevel)
+    texture:SetTexture(border and ROUNDED_BORDER or ROUNDED_FILL)
+    texture:SetTextureSliceMargins(ROUNDED_MARGIN, ROUNDED_MARGIN, ROUNDED_MARGIN, ROUNDED_MARGIN)
+    texture:SetTextureSliceMode(Enum.UITextureSliceMode.Stretched)
+    texture:SetVertexColor(r, g, b, a)
+    texture:SetAllPoints()
+    return texture
+end
+
 -- The divider line of Blizzard's own Settings panel (thin, fading out at both ends).
 local DIVIDER_ATLAS = "Options_HorizontalDivider"
 local DIVIDER_INFO = C_Texture.GetAtlasInfo(DIVIDER_ATLAS)
