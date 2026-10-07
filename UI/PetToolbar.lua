@@ -342,11 +342,12 @@ local function Setup()
     bar = CreateFrame("Frame", nil, PetJournal)
     local offsets, dividers, width = GetLayout()
     bar:SetSize(width, BUTTON_SIZE)
+    -- Upright versions of the window's section dividers.
     for _, x in ipairs(dividers) do
         local divider = bar:CreateTexture(nil, "ARTWORK")
-        PixelUtil.SetSize(divider, 1, BUTTON_SIZE - 4)
-        PixelUtil.SetPoint(divider, "LEFT", bar, "LEFT", x, 0)
-        divider:SetColorTexture(1, 0.82, 0, 0.8)
+        local thickness = ns.SetDividerTexture(divider, true)
+        PixelUtil.SetSize(divider, thickness, BUTTON_SIZE)
+        PixelUtil.SetPoint(divider, "CENTER", bar, "LEFT", x, 0)
     end
     -- In the spot of the rightmost Blizzard button; the journal's top-right corner if none was found.
     local anchor = summon or heal

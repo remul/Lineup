@@ -11,7 +11,10 @@ ns.CurrentSection = CurrentSection
 CurrentSection.HEIGHT = 110
 local NUM_SLOTS = 3
 local PET_ICON_SIZE = 30
-local HEALTH_BAR_HEIGHT = 6
+-- Health is shown like on Blizzard's pet cards: the heart from the pet battle stat icons.
+local STAT_ICONS = "Interface\\PetBattles\\PetBattle-StatIcons"
+local SKULL_ICON = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull"
+local HEALTH_ICON_SIZE = 12
 local CARD_SPACING = 6
 -- Pets below this much health get an orange warning (dead pets always get a red one).
 local LOW_HEALTH_PERCENT = 50
@@ -94,7 +97,7 @@ local function DescribeHealth()
     return ""
 end
 
--- Pet card: icon, name and a health bar for one loadout slot.
+-- Pet card: icon, name and health ("♥ 1000 / 1000", or a skull and "Dead") for one loadout slot.
 local function CreatePetCard(parent, slot)
     local card = CreateFrame("Button", nil, parent)
     card:SetHeight(PET_ICON_SIZE + 4)
@@ -115,15 +118,14 @@ local function CreatePetCard(parent, slot)
     card.Name:SetJustifyH("LEFT")
     card.Name:SetWordWrap(false)
 
-    card.Health = CreateFrame("StatusBar", nil, card)
-    card.Health:SetPoint("BOTTOMLEFT", card.Icon, "BOTTOMRIGHT", 5, 3)
-    card.Health:SetPoint("RIGHT", -4, 0)
-    card.Health:SetHeight(HEALTH_BAR_HEIGHT)
-    card.Health:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
-    card.Health:SetMinMaxValues(0, 1)
-    local healthBackground = card.Health:CreateTexture(nil, "BACKGROUND")
-    healthBackground:SetAllPoints()
-    healthBackground:SetColorTexture(0, 0, 0, 0.6)
+    card.HealthIcon = card:CreateTexture(nil, "ARTWORK")
+    card.HealthIcon:SetSize(HEALTH_ICON_SIZE, HEALTH_ICON_SIZE)
+    card.HealthIcon:SetPoint("BOTTOMLEFT", card.Icon, "BOTTOMRIGHT", 4, 1)
+    card.HealthText = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    card.HealthText:SetPoint("LEFT", card.HealthIcon, "RIGHT", 3, 0)
+    card.HealthText:SetPoint("RIGHT", -2, 0)
+    card.HealthText:SetJustifyH("LEFT")
+    card.HealthText:SetWordWrap(false)
 
     card:SetScript("OnClick", function()
         if cardPetIDs[slot] then
@@ -169,7 +171,8 @@ local function UpdatePetCard(card, slot)
         card.Level:SetText("")
         card.Name:SetText(L["Empty slot"])
         card.Name:SetTextColor(GRAY_FONT_COLOR:GetRGB())
-        card.Health:Hide()
+        card.HealthIcon:Hide()
+        card.HealthText:SetText("")
         return
     end
 
@@ -184,10 +187,18 @@ local function UpdatePetCard(card, slot)
     card.Name:SetText(customName or speciesName)
     card.Name:SetTextColor((health == 0 and RED_FONT_COLOR or HIGHLIGHT_FONT_COLOR):GetRGB())
 
-    local color = fraction * 100 < LOW_HEALTH_PERCENT and ORANGE_FONT_COLOR or GREEN_FONT_COLOR
-    card.Health:SetStatusBarColor(color.r, color.g, color.b, 0.9)
-    card.Health:SetValue(fraction)
-    card.Health:Show()
+    if health == 0 then
+        card.HealthIcon:SetTexture(SKULL_ICON)
+        card.HealthIcon:SetTexCoord(0, 1, 0, 1)
+        card.HealthText:SetText(L["Dead"])
+        card.HealthText:SetTextColor(RED_FONT_COLOR:GetRGB())
+    else
+        card.HealthIcon:SetTexture(STAT_ICONS)
+        card.HealthIcon:SetTexCoord(0.5, 1, 0.5, 1)
+        card.HealthText:SetText(format("%d / %d", health, maxHealth))
+        card.HealthText:SetTextColor((fraction * 100 < LOW_HEALTH_PERCENT and ORANGE_FONT_COLOR or HIGHLIGHT_FONT_COLOR):GetRGB())
+    end
+    card.HealthIcon:Show()
 end
 
 -- Builds the section inside parent and returns it (CurrentSection.HEIGHT tall; set its width).
@@ -195,7 +206,7 @@ function CurrentSection:Create(parent)
     section = CreateFrame("Frame", nil, parent)
     section:SetHeight(self.HEIGHT)
 
-    local header = ns.TeamsPanel.CreateSectionHeader(section, L["Current"])
+    local header = ns.TeamsPanel.CreateSectionHeader(section, L["Current Team"])
     header:SetPoint("TOPLEFT")
     header:SetPoint("TOPRIGHT")
 
@@ -236,6 +247,11 @@ function CurrentSection:Create(parent)
     section.TeamName:SetPoint("LEFT", 4, 0)
     section.TeamName:SetJustifyH("LEFT")
     section.TeamName:SetWordWrap(false)
+    -- "changed" in small orange after the name; a long name is shortened before this is.
+    section.TeamState = section.TeamLine:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+    section.TeamState:SetPoint("LEFT", section.TeamName, "RIGHT", 6, -1)
+    section.TeamState:SetTextColor(ORANGE_FONT_COLOR:GetRGB())
+    section.TeamState:SetText(L["changed"])
 
     section.TeamLine:SetScript("OnClick", function()
         if currentTeam then
@@ -355,8 +371,7 @@ function CurrentSection:Refresh()
     currentTeam = team
     local changed = team ~= nil and not Teams:IsLoading() and Teams:HasChanges(team)
     if team then
-        local name = ns.TeamsPanel.SplitTeamName(team.name)
-        section.TeamName:SetText(changed and (name .. ORANGE_FONT_COLOR:WrapTextInColorCode(L["  · changed"])) or name)
+        section.TeamName:SetText((ns.TeamsPanel.SplitTeamName(team.name)))
         section.TeamName:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
     else
         section.TeamName:SetText(L["No team loaded"])
@@ -364,7 +379,15 @@ function CurrentSection:Refresh()
     end
     section.SaveButton:SetShown(changed)
     section.RevertButton:SetShown(changed)
-    section.TeamName:SetPoint("RIGHT", changed and section.SaveButton or section.TeamLine, changed and "LEFT" or "RIGHT", -6, 0)
+    section.TeamState:SetShown(changed)
+
+    -- The name gets the room left of Save / Revert and "changed", and is cut short beyond that.
+    local room = section.TeamLine:GetWidth() - 4
+    if changed then
+        room = room - section.SaveButton:GetWidth() - 4 - section.RevertButton:GetWidth() - 6
+            - section.TeamState:GetStringWidth() - 6
+    end
+    section.TeamName:SetWidth(max(1, min(section.TeamName:GetUnboundedStringWidth(), room)))
 
     for slot, card in ipairs(section.Cards) do
         UpdatePetCard(card, slot)

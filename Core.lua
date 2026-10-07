@@ -9,6 +9,7 @@ ns.MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
 -- Defaults are copied into the saved variables on first load and whenever new keys are added.
 local DEFAULTS = {
     debug = false,
+    autoLoadTargetTeam = false,
     teams = {},
     groups = {},
     nextGroupID = 1,
@@ -73,6 +74,12 @@ function ns.GetFamilyColor(petType)
     return FAMILY_COLORS[petType]
 end
 
+-- The pet battle type chart, by family index (1 Humanoid, 2 Dragonkin, 3 Flying, 4 Undead,
+-- 5 Critter, 6 Magic, 7 Elemental, 8 Beast, 9 Aquatic, 10 Mechanical): abilities of a family deal
+-- 50% more damage to STRONG_AGAINST[family] and a third less to WEAK_AGAINST[family].
+ns.STRONG_AGAINST = { 2, 6, 9, 1, 4, 3, 10, 5, 7, 8 }
+ns.WEAK_AGAINST = { 8, 4, 2, 9, 1, 10, 5, 3, 6, 7 }
+
 -- English family names, as used in team names from Xu-Fu's Pet Guides on any client language.
 local ENGLISH_FAMILY_NAMES = {
     "Humanoid", "Dragonkin", "Flying", "Undead", "Critter",
@@ -92,6 +99,30 @@ end
 -- Inline icons for pets that can't fight well: dead (skull) and hurt (warning sign).
 ns.DEAD_ICON = "|TInterface\\TargetingFrame\\UI-TargetingFrame-Skull:14:14|t"
 ns.HURT_ICON = "|TInterface\\DialogFrame\\UI-Dialog-Icon-AlertNew:14:14|t"
+
+-- The divider line of Blizzard's own Settings panel (thin, fading out at both ends).
+local DIVIDER_ATLAS = "Options_HorizontalDivider"
+local DIVIDER_INFO = C_Texture.GetAtlasInfo(DIVIDER_ATLAS)
+
+-- Makes texture a divider line, lying or (vertical) upright, and returns its thickness; the caller
+-- sets the length. Without the atlas it's a thin gold line.
+function ns.SetDividerTexture(texture, vertical)
+    if not DIVIDER_INFO then
+        texture:SetColorTexture(1, 0.82, 0, 0.5)
+        return 1
+    end
+    if vertical then
+        -- The same art turned a quarter (rotating it instead would stretch it): the frame's left
+        -- edge runs along the art's length, its top edge across it.
+        local info = DIVIDER_INFO
+        texture:SetTexture(info.file or info.filename)
+        texture:SetTexCoord(info.leftTexCoord, info.topTexCoord, info.rightTexCoord, info.topTexCoord,
+            info.leftTexCoord, info.bottomTexCoord, info.rightTexCoord, info.bottomTexCoord)
+    else
+        texture:SetAtlas(DIVIDER_ATLAS)
+    end
+    return DIVIDER_INFO.height
+end
 
 -- r, g, b for a battle pet quality (1 = poor ... 4 = rare).
 function ns.GetRarityColor(rarity)

@@ -43,11 +43,25 @@ function ns:PLAYER_TARGET_CHANGED()
             names[i] = team.name
             ns.Teams:SetCollapsed(team.groupID, false)
         end
-        if not C_PetBattles.IsInBattle() and not IsRematchInJournal() then
-            ns:Print(format(L["Teams for %s: %s"], name or L["this target"], table.concat(names, ", ")))
+        if not IsRematchInJournal() then
+            if not Target.AutoLoad(teams, name) and not C_PetBattles.IsInBattle() then
+                ns:Print(format(L["Teams for %s: %s"], name or L["this target"], table.concat(names, ", ")))
+            end
         end
     end
     ns.TeamsPanel:Refresh()
+end
+
+-- With the setting on, a target's only team is loaded when it's targeted (unless it's loaded
+-- already, or loading isn't possible right now). Returns true if it was loaded.
+function Target.AutoLoad(teams, targetName)
+    local team = teams[1]
+    if not ns.db.autoLoadTargetTeam or #teams ~= 1 or ns.Teams:IsLoaded(team) or not ns.Teams:CanLoad() then
+        return false
+    end
+    ns.Teams:Load(team)
+    ns:Print(format(L["Loaded \"%s\" for %s."], team.name, targetName or L["this target"]))
+    return true
 end
 
 ns:RegisterEvent("PLAYER_TARGET_CHANGED")

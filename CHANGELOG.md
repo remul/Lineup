@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.0
+
+- **Pet picker** in the team editor: click a pet icon to choose a pet without the Pet Journal.
+  Search by pet, species or ability name; filter by family, **Strong vs.** and **Tough vs.** an
+  enemy family, and level 25. Each pet shows its six abilities (hover for Blizzard's ability
+  tooltip); abilities strong against the chosen family are marked. Buttons set a **leveling**
+  slot, a **random level 25 pet** (any family or one family) or an **empty** slot.
+- **Auto-load** (Settings, off by default): targeting a tamer or wild pet with exactly one team
+  loads that team.
+- The Lineup window is a little wider; "Current" is now **Current Team**, with health shown as
+  ♥ 1441 / 1441 (a skull for dead pets) and "changed" as its own label.
+- Dividers in Blizzard's style, also between the pet toolbar's button groups.
+- The Settings tab shows the version number, easier to read.
+- Lineup is listed under **Pet Battles** in the in-game AddOns list.
+- Team editor: more space between the pet icons; the ability numbers only show for slots with a
+  specific pet.
+
 ## 1.1.1
 
 - **Settings tab** redesigned to match the Teams tab: sections with header lines for Settings,

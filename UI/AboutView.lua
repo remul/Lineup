@@ -5,7 +5,9 @@ local L = ns.L
 local AboutView = {}
 ns.AboutView = AboutView
 
-local view, versionText, statsText, debugCheck, rematchText, rematchButton
+local view, versionText, statsText, rematchText, rematchButton
+-- Checkboxes for settings: { button, key in ns.db }.
+local checkboxes = {}
 
 -- Imports every Rematch team and group (with tdBattlePetScript scripts), after confirming.
 local function ImportFromRematch()
@@ -69,7 +71,7 @@ function AboutView:Create(parent)
     title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -2)
     title:SetText(ns.TITLE)
 
-    versionText = content:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    versionText = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     versionText:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
 
     local about = CreateParagraph(content,
@@ -79,15 +81,35 @@ function AboutView:Create(parent)
     -- Settings
     local settings = CreateSection(content, L["Settings"], about)
 
-    debugCheck = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
-    debugCheck:SetSize(24, 24)
-    debugCheck:SetPoint("TOPLEFT", settings, "BOTTOMLEFT", -4, -HEADER_GAP + 2)
-    debugCheck.Label = debugCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    debugCheck.Label:SetPoint("LEFT", debugCheck, "RIGHT", 2, 0)
-    debugCheck.Label:SetText(L["Debug messages in chat"])
-    debugCheck:SetScript("OnClick", function(button)
-        ns.db.debug = button:GetChecked()
-    end)
+    -- A checkbox for the setting ns.db[key], below anchor, explained by tooltip.
+    local function CreateCheckbox(key, label, tooltip, anchor, offsetX, offsetY)
+        local check = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
+        check:SetSize(24, 24)
+        check:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", offsetX, offsetY)
+        check.Label = check:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        check.Label:SetPoint("LEFT", check, "RIGHT", 2, 0)
+        check.Label:SetPoint("RIGHT", content, "RIGHT")
+        check.Label:SetJustifyH("LEFT")
+        check.Label:SetText(label)
+        check:SetScript("OnClick", function(button)
+            ns.db[key] = button:GetChecked()
+        end)
+        check:SetScript("OnEnter", function(button)
+            GameTooltip:SetOwner(button, "ANCHOR_TOPLEFT")
+            GameTooltip:SetText(label)
+            GameTooltip:AddLine(tooltip, 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        check:SetScript("OnLeave", GameTooltip_Hide)
+        checkboxes[#checkboxes + 1] = { button = check, key = key }
+        return check
+    end
+
+    local autoLoadCheck = CreateCheckbox("autoLoadTargetTeam", L["Load a target's team automatically"],
+        L["When you target a tamer or wild pet that has exactly one team, that team is loaded right away."],
+        settings, -4, -HEADER_GAP + 2)
+    local debugCheck = CreateCheckbox("debug", L["Debug messages in chat"],
+        L["Shows details about loading teams in chat, to help track down problems."], autoLoadCheck, 0, 0)
 
     -- Import & Export: teams from Rematch, and all teams as text.
     local transfer = CreateSection(content, L["Import & Export"], debugCheck)
@@ -136,16 +158,16 @@ function AboutView:Refresh()
         return
     end
 
-    local version = C_AddOns.GetAddOnMetadata(addonName, "Version") or ""
-    -- The packager replaces @project-version@ on release; until then this is a development copy.
-    local versionLabel = version:find("^@") and L["Development version"] or (L["Version "] .. version)
+    local versionLabel = L["Version "] .. (C_AddOns.GetAddOnMetadata(addonName, "Version") or "?")
     -- The author comes from the TOC (## Author), the same value addon managers show.
     local author = C_AddOns.GetAddOnMetadata(addonName, "Author")
     versionText:SetText(author and format(L["%s · by %s"], versionLabel, author) or versionLabel)
 
     statsText:SetText(format(L["%d teams in %d groups\n%d pets in the leveling queue"],
         #ns.Teams:GetAll(), #ns.Teams:GetGroups(), #ns.LevelingQueue:Get()))
-    debugCheck:SetChecked(ns.db.debug)
+    for _, checkbox in ipairs(checkboxes) do
+        checkbox.button:SetChecked(ns.db[checkbox.key])
+    end
 
     local rematchLoaded = ns.Import.IsRematchAvailable()
     rematchButton:SetEnabled(rematchLoaded)

@@ -10,6 +10,7 @@ local EDITOR_WIDTH = 420
 local EDITOR_HEIGHT = 560
 local LABEL_WIDTH = 70
 local PET_ICON_SIZE = 32
+local PET_ICON_SPACING = 14
 
 local editor, nameBox, groupDropdown, npcIDBox, targetNameText, petIcons, scriptBox, scriptStatus, saveButton, deleteButton
 local fixAbilitiesButton
@@ -141,8 +142,34 @@ UpdatePets = function()
         icon.Texture:SetTexture(texture)
         icon.Texture:SetDesaturated(missing)
         icon.Abilities.Text:SetText(DescribeAbilityChoices(draft.pets[slot]))
+        -- Random, leveling and empty slots have no abilities to pick, so nothing to hover or click.
+        icon.Abilities:SetShown(Teams.GetAbilityChoices(draft.pets[slot]) ~= nil)
     end
     UpdateScriptStatus()
+end
+
+-- Puts the pet picker's choice into a slot. A pet of the same species keeps the slot's ability
+-- picks; another one starts with its first three abilities (usable at any level). A leveling slot
+-- keeps its leveling preferences when it already was one.
+local function SetSlotPet(slot, pet)
+    local entry = draft.pets[slot]
+    if not pet.petID then
+        if pet.leveling and entry.leveling then
+            pet.preferences = entry.preferences
+        end
+        draft.pets[slot] = pet
+        UpdatePets()
+        return
+    end
+    local abilities
+    if entry.speciesID == pet.speciesID and entry.abilities then
+        abilities = CopyTable(entry.abilities)
+    else
+        local list = C_PetJournal.GetPetAbilityList(pet.speciesID)
+        abilities = { list[1], list[2], list[3] }
+    end
+    draft.pets[slot] = { petID = pet.petID, speciesID = pet.speciesID, abilities = abilities }
+    UpdatePets()
 end
 
 local function Save()
@@ -253,29 +280,50 @@ local function CreateEditor()
     CreateLabel(L["Pets"], editor, -156)
     petIcons = {}
     for slot = 1, 3 do
-        local icon = CreateFrame("Frame", nil, editor)
+        -- Clicking the icon opens the pet picker for this slot.
+        local icon = CreateFrame("Button", nil, editor)
         icon:SetSize(PET_ICON_SIZE, PET_ICON_SIZE)
-        icon:SetPoint("TOPLEFT", 16 + LABEL_WIDTH + 6 + (slot - 1) * (PET_ICON_SIZE + 6), -146)
+        icon:SetPoint("TOPLEFT", 16 + LABEL_WIDTH + 6 + (slot - 1) * (PET_ICON_SIZE + PET_ICON_SPACING), -146)
+        icon:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
         icon.Background = icon:CreateTexture(nil, "BACKGROUND")
         icon.Background:SetAllPoints()
         icon.Background:SetColorTexture(0, 0, 0, 0.5)
         icon.Texture = icon:CreateTexture(nil, "ARTWORK")
         icon.Texture:SetAllPoints()
-        local function ShowTooltip(owner)
+        -- The slot's pet and abilities, and what a click does (hint).
+        local function ShowTooltip(owner, hint)
             local entry = draft.pets[slot]
             local _, name, level, missing = Teams.GetSlotDisplay(entry)
+            GameTooltip:SetOwner(owner, "ANCHOR_TOP")
             if name then
-                GameTooltip:SetOwner(owner, "ANCHOR_TOP")
                 GameTooltip:SetText(name, missing and 1 or nil, missing and 0.25 or nil, missing and 0.25 or nil)
                 if level then
                     GameTooltip:AddLine(format(L["Level %d"], level), 1, 1, 1)
                 end
                 AddAbilitiesToTooltip(entry)
-                GameTooltip:Show()
+            else
+                GameTooltip:SetText(L["Empty slot"], GRAY_FONT_COLOR:GetRGB())
             end
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine(hint, 0, 1, 0)
+            GameTooltip:Show()
         end
-        icon:SetScript("OnEnter", ShowTooltip)
+        icon:SetScript("OnEnter", function(button)
+            ShowTooltip(button, L["Click to choose a pet."])
+        end)
         icon:SetScript("OnLeave", GameTooltip_Hide)
+        icon:SetScript("OnClick", function()
+            GameTooltip:Hide()
+            local taken = {}
+            for otherSlot, entry in ipairs(draft.pets) do
+                if otherSlot ~= slot and entry.petID then
+                    taken[entry.petID] = true
+                end
+            end
+            ns.PetPicker:Open(editor, slot, taken, function(pet)
+                SetSlotPet(slot, pet)
+            end)
+        end)
 
         -- The picked abilities under the icon, e.g. "1/1/2"; hovering shows their names, clicking
         -- changes them.
@@ -286,12 +334,7 @@ local function CreateEditor()
         icon.Abilities.Text = icon.Abilities:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         icon.Abilities.Text:SetAllPoints()
         icon.Abilities:SetScript("OnEnter", function(button)
-            ShowTooltip(button)
-            if GameTooltip:IsOwned(button) then
-                GameTooltip:AddLine(" ")
-                GameTooltip:AddLine(L["Click to change the abilities."], 0, 1, 0)
-                GameTooltip:Show()
-            end
+            ShowTooltip(button, L["Click to change the abilities."])
         end)
         icon.Abilities:SetScript("OnLeave", GameTooltip_Hide)
         icon.Abilities:SetScript("OnClick", function(button)
@@ -408,6 +451,7 @@ function TeamEditor:Open(team, initialDraft)
 
     editingTeam = team
     draft = initialDraft or Teams:CreateDraft(team)
+    ns.PetPicker:Hide()
 
     editor:SetTitle(team and L["Edit Team"] or (initialDraft and L["Import Team"]) or L["New Team"])
     nameBox:SetText(draft.name)

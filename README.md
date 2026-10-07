@@ -15,9 +15,13 @@ all your teams.
   The loaded team is marked; change a pet or ability and Lineup offers to **Save** or **Revert**.
 - **Groups** – sort teams into collapsible groups with icons, in your own order. Search teams and
   groups by name or target.
+- **Team editor** – name, target, notes and script, and pets chosen right there: a pet picker
+  searches your pets by name, species or ability and filters by family, strong vs. or tough vs. an
+  enemy family; it also sets leveling, random level 25 and empty slots. Pick abilities per pet.
 - **Lineup window** – next to the journal, in three sections: your **target** (the targeted tamer or
   wild pet, its teams, quick Load / Save), your **current** team (the pets in your journal with
-  their health, whether the script will run) and all your **teams**.
+  their health, whether the script will run) and all your **teams**. Optionally, targeting an NPC
+  with exactly one team loads it.
 - **Scripts** – with [Pet Battle Scripts](https://www.curseforge.com/wow/addons/td-battle-pet-script)
   installed, the loaded team's script runs from its Auto button in battle. Lineup checks each
   script and flags abilities the team doesn't have selected, and can select them for you.
@@ -65,7 +69,8 @@ ln -s "$(pwd)" "/Applications/World of Warcraft/_retail_/Interface/AddOns/Lineup
 ```
 
 Releases are packaged with the [BigWigs packager](https://github.com/BigWigsMods/packager)
-(see `.pkgmeta`), which also fills in the version in `Lineup_PetBattles.toc` from the git tag.
+(see `.pkgmeta`) when a version tag is pushed. Set `## Version` in `Lineup_PetBattles.toc` to the
+same version before tagging; it's shown on the Settings tab.
 Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## License

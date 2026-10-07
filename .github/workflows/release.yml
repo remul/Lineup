@@ -27,5 +27,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The version is written in the TOC (it's shown in game), so it has to match the tag.
+      - name: Check the TOC version matches the tag
+        run: |
+          toc_version=$(sed -n 's/^## Version: *//p' Lineup_PetBattles.toc | tr -d '\r')
+          if [ "$toc_version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Lineup_PetBattles.toc says ## Version: $toc_version, but the tag is $GITHUB_REF_NAME."
+            exit 1
+          fi
+
       - name: Package and release
         uses: BigWigsMods/packager@v2

@@ -9,7 +9,7 @@ local Teams = ns.Teams
 local TeamsPanel = {}
 ns.TeamsPanel = TeamsPanel
 
-local WINDOW_WIDTH = 360
+local WINDOW_WIDTH = 400
 -- Gap to the Collections window.
 local WINDOW_OFFSET_X = 9
 -- Space between the window's edge and the sections, and between sections.
@@ -46,7 +46,7 @@ local currentTab = TAB_TEAMS
 local refreshPending = false
 local UpdateExpandAllButton
 
--- Section header: a gold title and a thin line across the rest of the width (to anchor, or up to
+-- Section header: a gold title and a divider across the rest of the width (to anchor, or up to
 -- the frame given with SetLineEnd). Used by all sections of the window.
 function TeamsPanel.CreateSectionHeader(parent, text)
     local header = CreateFrame("Frame", nil, parent)
@@ -55,10 +55,9 @@ function TeamsPanel.CreateSectionHeader(parent, text)
     header.Text:SetPoint("LEFT")
     header.Text:SetText(text)
     header.Line = header:CreateTexture(nil, "ARTWORK")
-    header.Line:SetHeight(1)
     header.Line:SetPoint("LEFT", header.Text, "RIGHT", 8, 0)
     header.Line:SetPoint("RIGHT")
-    header.Line:SetColorTexture(1, 0.82, 0, 0.3)
+    header.Line:SetHeight(ns.SetDividerTexture(header.Line))
     function header:SetLineEnd(frame)
         self.Line:SetPoint("RIGHT", frame, "LEFT", -8, 0)
     end
