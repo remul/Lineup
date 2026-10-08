@@ -6,14 +6,16 @@ local Teams = ns.Teams
 local GroupEditor = {}
 ns.GroupEditor = GroupEditor
 
+local EXTRA_LEFT = ns.Dialogs.LEFT_BORDER_EXTRA
 local EDITOR_HEIGHT = 460
 local TAB_GROUP, TAB_ICON = 1, 2
+local PREVIEW_ICON_SIZE = 48
 
 local editor, nameBox, previewIcon, previewName, iconPicker, groupTab, iconTab, deleteButton
 local editingGroup, draft, onSaved
 
 local function UpdatePreview()
-    previewIcon:SetTexture(draft.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+    ns.IconPicker.SetIconTexture(previewIcon, draft.icon or "Interface\\Icons\\INV_Misc_QuestionMark", PREVIEW_ICON_SIZE)
     previewIcon:SetDesaturated(draft.icon == nil)
     local name = strtrim(nameBox:GetText())
     previewName:SetText(name ~= "" and name or L["New Group"])
@@ -49,12 +51,29 @@ local function Save()
     end
 end
 
-local function Delete()
-    local group = editingGroup
-    ns.Dialogs.Confirm(format(L["Delete group \"%s\"?\nIts teams become ungrouped."], group.name), function()
-        Teams:DeleteGroup(group)
-        editor:Hide()
+-- Asks, then deletes the group: its teams become ungrouped, or with deleteTeams are deleted too.
+-- onDeleted() runs afterwards (optional).
+function GroupEditor.ConfirmDelete(group, deleteTeams, onDeleted)
+    local prompt
+    if deleteTeams then
+        local numTeams = #Teams:GetGroupTeams(group)
+        prompt = format(numTeams == 1 and L["Delete group \"%s\" and its team?"]
+            or L["Delete group \"%s\" and its %d teams?"], group.name, numTeams)
+    else
+        prompt = format(L["Delete group \"%s\"?\nIts teams become ungrouped."], group.name)
+    end
+    ns.Dialogs.Confirm(prompt, function()
+        Teams:DeleteGroup(group, deleteTeams)
+        if onDeleted then
+            onDeleted()
+        end
         ns.TeamsPanel:Refresh()
+    end)
+end
+
+local function Delete()
+    GroupEditor.ConfirmDelete(editingGroup, false, function()
+        editor:Hide()
     end)
 end
 
@@ -71,19 +90,8 @@ local function CreateTab(index, text)
 end
 
 local function CreateEditor()
-    editor = CreateFrame("Frame", "LineupGroupEditor", UIParent, "ButtonFrameTemplate")
-    editor:SetSize(ns.IconPicker.WIDTH + 24, EDITOR_HEIGHT)
-    editor:SetFrameStrata("DIALOG")
-    editor:SetToplevel(true)
-    editor:SetMovable(true)
-    editor:SetClampedToScreen(true)
-    editor:EnableMouse(true)
-    editor:RegisterForDrag("LeftButton")
-    editor:SetScript("OnDragStart", editor.StartMoving)
-    editor:SetScript("OnDragStop", editor.StopMovingOrSizing)
-    ButtonFrameTemplate_HidePortrait(editor)
+    editor = ns.Dialogs.CreateWindow("LineupGroupEditor", ns.IconPicker.WIDTH + 24 + EXTRA_LEFT, EDITOR_HEIGHT)
     editor.Inset:Hide()
-    tinsert(UISpecialFrames, editor:GetName())
 
     -- Tabs along the bottom edge, like other Blizzard windows.
     editor.Tabs = { CreateTab(TAB_GROUP, L["Group"]), CreateTab(TAB_ICON, L["Icon"]) }
@@ -93,7 +101,7 @@ local function CreateEditor()
 
     -- Group tab: preview and name.
     groupTab = CreateFrame("Frame", nil, editor)
-    groupTab:SetPoint("TOPLEFT", 12, -30)
+    groupTab:SetPoint("TOPLEFT", 12 + EXTRA_LEFT, -30)
     groupTab:SetPoint("BOTTOMRIGHT", -12, 34)
 
     local previewInset = CreateFrame("Frame", nil, groupTab, "InsetFrameTemplate")
@@ -102,7 +110,7 @@ local function CreateEditor()
     previewInset:SetHeight(72)
 
     local previewButton = CreateFrame("Button", nil, previewInset)
-    previewButton:SetSize(48, 48)
+    previewButton:SetSize(PREVIEW_ICON_SIZE, PREVIEW_ICON_SIZE)
     previewButton:SetPoint("LEFT", 12, 0)
     previewButton:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
     previewButton:SetScript("OnClick", function()
@@ -115,7 +123,7 @@ local function CreateEditor()
     end)
     previewButton:SetScript("OnLeave", GameTooltip_Hide)
     previewIcon = previewButton:CreateTexture(nil, "ARTWORK")
-    previewIcon:SetAllPoints()
+    previewIcon:SetPoint("CENTER")
 
     previewName = previewInset:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     previewName:SetPoint("LEFT", previewButton, "RIGHT", 12, 0)
@@ -146,7 +154,7 @@ local function CreateEditor()
 
     -- Icon tab.
     iconTab = CreateFrame("Frame", nil, editor)
-    iconTab:SetPoint("TOPLEFT", 12, -30)
+    iconTab:SetPoint("TOPLEFT", 12 + EXTRA_LEFT, -30)
     iconTab:SetPoint("BOTTOMRIGHT", -12, 34)
     iconPicker = ns.IconPicker.Create(iconTab, function(icon)
         draft.icon = icon
@@ -171,10 +179,15 @@ local function CreateEditor()
     end)
 
     deleteButton = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
-    deleteButton:SetPoint("BOTTOMLEFT", 8, 6)
+    deleteButton:SetPoint("BOTTOMLEFT", 8 + EXTRA_LEFT, 6)
     deleteButton:SetSize(90, 22)
     deleteButton:SetText(DELETE)
     deleteButton:SetScript("OnClick", Delete)
+end
+
+-- The group's name after its icon, for menus.
+function GroupEditor.FormatGroupName(group)
+    return group.icon and (ns.IconPicker.FormatIcon(group.icon, 16) .. " " .. group.name) or group.name
 end
 
 -- Sets up a WowStyle1DropdownTemplate dropdown to choose a group: "Ungrouped", every group, and
@@ -191,8 +204,7 @@ function GroupEditor.SetupGroupDropdown(dropdown, getGroupID, setGroupID)
     dropdown:SetupMenu(function(_, root)
         root:CreateRadio(L["Ungrouped"], IsSelected, SetSelected, UNGROUPED)
         for _, group in ipairs(Teams:GetGroups()) do
-            local label = group.icon and format("|T%s:16:16|t %s", group.icon, group.name) or group.name
-            root:CreateRadio(label, IsSelected, SetSelected, group.id)
+            root:CreateRadio(GroupEditor.FormatGroupName(group), IsSelected, SetSelected, group.id)
         end
         root:CreateDivider()
         root:CreateButton(L["New Group..."], function()

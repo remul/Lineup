@@ -6,9 +6,12 @@ local Teams = ns.Teams
 local TeamEditor = {}
 ns.TeamEditor = TeamEditor
 
-local EDITOR_WIDTH = 420
+local EXTRA_LEFT = ns.Dialogs.LEFT_BORDER_EXTRA
+local EDITOR_WIDTH = 420 + EXTRA_LEFT
 local EDITOR_HEIGHT = 560
 local LABEL_WIDTH = 70
+-- Window edge to the labels on the left.
+local CONTENT_LEFT = 16 + EXTRA_LEFT
 local PET_ICON_SIZE = 32
 local PET_ICON_SPACING = 14
 
@@ -18,7 +21,7 @@ local editingTeam, draft, scriptCheck
 
 local function CreateLabel(text, anchor, offsetY)
     local label = editor:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    label:SetPoint("TOPLEFT", anchor, "TOPLEFT", 16, offsetY)
+    label:SetPoint("TOPLEFT", anchor, "TOPLEFT", CONTENT_LEFT, offsetY)
     label:SetWidth(LABEL_WIDTH)
     label:SetJustifyH("LEFT")
     label:SetText(text)
@@ -100,7 +103,17 @@ local function AddAbilitiesToTooltip(entry)
     end
 end
 
-local UpdatePets
+local function UpdatePets()
+    for slot, icon in ipairs(petIcons) do
+        local texture, _, _, missing = Teams.GetSlotDisplay(draft.pets[slot])
+        icon.Texture:SetTexture(texture)
+        icon.Texture:SetDesaturated(missing)
+        icon.Abilities.Text:SetText(DescribeAbilityChoices(draft.pets[slot]))
+        -- Random, leveling and empty slots have no abilities to pick, so nothing to hover or click.
+        icon.Abilities:SetShown(Teams.GetAbilityChoices(draft.pets[slot]) ~= nil)
+    end
+    UpdateScriptStatus()
+end
 
 -- Menu to pick each ability slot's ability (or leave it open) for a fixed pet in the draft. It
 -- stays open, so all three can be set in one go.
@@ -134,18 +147,6 @@ local function ShowAbilityMenu(owner, slot)
             root:CreateRadio(GRAY_FONT_COLOR:WrapTextInColorCode(L["Keep current"]), IsSelected, Select, { index = index })
         end
     end)
-end
-
-UpdatePets = function()
-    for slot, icon in ipairs(petIcons) do
-        local texture, _, _, missing = Teams.GetSlotDisplay(draft.pets[slot])
-        icon.Texture:SetTexture(texture)
-        icon.Texture:SetDesaturated(missing)
-        icon.Abilities.Text:SetText(DescribeAbilityChoices(draft.pets[slot]))
-        -- Random, leveling and empty slots have no abilities to pick, so nothing to hover or click.
-        icon.Abilities:SetShown(Teams.GetAbilityChoices(draft.pets[slot]) ~= nil)
-    end
-    UpdateScriptStatus()
 end
 
 -- Puts the pet picker's choice into a slot. A pet of the same species keeps the slot's ability
@@ -197,24 +198,13 @@ local function Delete()
 end
 
 local function CreateEditor()
-    editor = CreateFrame("Frame", "LineupTeamEditor", UIParent, "ButtonFrameTemplate")
-    editor:SetSize(EDITOR_WIDTH, EDITOR_HEIGHT)
-    editor:SetFrameStrata("DIALOG")
-    editor:SetToplevel(true)
-    editor:SetMovable(true)
-    editor:SetClampedToScreen(true)
-    editor:EnableMouse(true)
-    editor:RegisterForDrag("LeftButton")
-    editor:SetScript("OnDragStart", editor.StartMoving)
-    editor:SetScript("OnDragStop", editor.StopMovingOrSizing)
-    ButtonFrameTemplate_HidePortrait(editor)
+    editor = ns.Dialogs.CreateWindow("LineupTeamEditor", EDITOR_WIDTH, EDITOR_HEIGHT)
     editor.Inset:Hide()
-    tinsert(UISpecialFrames, editor:GetName())
 
     -- Name
     CreateLabel(L["Name"], editor, -40)
     nameBox = CreateFrame("EditBox", nil, editor, "InputBoxTemplate")
-    nameBox:SetPoint("TOPLEFT", 16 + LABEL_WIDTH + 6, -34)
+    nameBox:SetPoint("TOPLEFT", CONTENT_LEFT + LABEL_WIDTH + 6, -34)
     nameBox:SetPoint("RIGHT", -20, 0)
     nameBox:SetHeight(24)
     nameBox:SetAutoFocus(false)
@@ -224,7 +214,7 @@ local function CreateEditor()
     -- Group
     CreateLabel(L["Group"], editor, -76)
     groupDropdown = CreateFrame("DropdownButton", nil, editor, "WowStyle1DropdownTemplate")
-    groupDropdown:SetPoint("TOPLEFT", 16 + LABEL_WIDTH, -70)
+    groupDropdown:SetPoint("TOPLEFT", CONTENT_LEFT + LABEL_WIDTH, -70)
     groupDropdown:SetWidth(220)
     -- The dropdown reads the selection while it's set up, before Open() has created a draft.
     ns.GroupEditor.SetupGroupDropdown(groupDropdown, function()
@@ -236,7 +226,7 @@ local function CreateEditor()
     -- Target
     CreateLabel(L["Target"], editor, -112)
     npcIDBox = CreateFrame("EditBox", nil, editor, "InputBoxTemplate")
-    npcIDBox:SetPoint("TOPLEFT", 16 + LABEL_WIDTH + 6, -106)
+    npcIDBox:SetPoint("TOPLEFT", CONTENT_LEFT + LABEL_WIDTH + 6, -106)
     npcIDBox:SetSize(70, 24)
     npcIDBox:SetAutoFocus(false)
     npcIDBox:SetNumeric(true)
@@ -249,13 +239,7 @@ local function CreateEditor()
             UpdateTarget()
         end
     end)
-    npcIDBox:SetScript("OnEnter", function(box)
-        GameTooltip:SetOwner(box, "ANCHOR_TOP")
-        GameTooltip:SetText(L["NPC ID"])
-        GameTooltip:AddLine(L["Target the NPC and click \"Use Target\", or type its ID."], 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    npcIDBox:SetScript("OnLeave", GameTooltip_Hide)
+    ns.SetTooltip(npcIDBox, L["NPC ID"], L["Target the NPC and click \"Use Target\", or type its ID."])
 
     local useTargetButton = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
     useTargetButton:SetPoint("TOPRIGHT", -16, -106)
@@ -285,7 +269,7 @@ local function CreateEditor()
         -- Clicking the icon opens the pet picker for this slot.
         local icon = CreateFrame("Button", nil, editor)
         icon:SetSize(PET_ICON_SIZE, PET_ICON_SIZE)
-        icon:SetPoint("TOPLEFT", 16 + LABEL_WIDTH + 6 + (slot - 1) * (PET_ICON_SIZE + PET_ICON_SPACING), -146)
+        icon:SetPoint("TOPLEFT", CONTENT_LEFT + LABEL_WIDTH + 6 + (slot - 1) * (PET_ICON_SIZE + PET_ICON_SPACING), -146)
         icon:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
         icon.Background = icon:CreateTexture(nil, "BACKGROUND")
         icon.Background:SetAllPoints()
@@ -358,13 +342,8 @@ local function CreateEditor()
         draft.pets = Teams:CaptureLoadout()
         UpdatePets()
     end)
-    usePetsButton:SetScript("OnEnter", function(button)
-        GameTooltip:SetOwner(button, "ANCHOR_TOP")
-        GameTooltip:SetText(L["Use Current Pets"])
-        GameTooltip:AddLine(L["Replace this team's pets and abilities with the three pets currently in your Pet Journal."], 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    usePetsButton:SetScript("OnLeave", GameTooltip_Hide)
+    ns.SetTooltip(usePetsButton, L["Use Current Pets"],
+        L["Replace this team's pets and abilities with the pets in your journal."])
 
     -- Script
     local scriptLabel = CreateLabel(L["Script"], editor, -198)
@@ -373,7 +352,7 @@ local function CreateEditor()
     scriptHint:SetText(L["Paste a tdBattlePetScript script, e.g. from Xu-Fu's Pet Guides"])
 
     local scriptInset = CreateFrame("Frame", nil, editor, "InsetFrameTemplate")
-    scriptInset:SetPoint("TOPLEFT", 14, -216)
+    scriptInset:SetPoint("TOPLEFT", 14 + EXTRA_LEFT, -216)
     scriptInset:SetPoint("BOTTOMRIGHT", -14, 56)
 
     scriptBox = ns.Dialogs.CreateMultiLineEditBox(scriptInset, EDITOR_WIDTH - 80, function(box, userInput)
@@ -442,7 +421,7 @@ local function CreateEditor()
     end)
 
     deleteButton = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
-    deleteButton:SetPoint("BOTTOMLEFT", 8, 6)
+    deleteButton:SetPoint("BOTTOMLEFT", 8 + EXTRA_LEFT, 6)
     deleteButton:SetSize(100, 22)
     deleteButton:SetText(DELETE)
     deleteButton:SetScript("OnClick", Delete)

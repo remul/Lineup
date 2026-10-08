@@ -13,8 +13,8 @@ all your teams.
 - **Teams** – save the three pets in your journal (with their abilities) as a team, and load it with
   one click. Teams can have a target NPC, notes and a [tdBattlePetScript](https://www.curseforge.com/wow/addons/td-battle-pet-script) script.
   The loaded team is marked; change a pet or ability and Lineup offers to **Save** or **Revert**.
-- **Groups** – sort teams into collapsible groups with icons, in your own order. Search teams and
-  groups by name or target.
+- **Groups** – sort teams into collapsible groups with icons (including expansion logos), in your
+  own order. Search teams and groups by name or target. Delete a group with or without its teams.
 - **Team editor** – name, target, notes and script, and pets chosen right there: a pet picker
   searches your pets by name, species or ability and filters by family, strong vs. or tough vs. an
   enemy family; it also sets leveling, random level 25 and empty slots. Pick abilities per pet.
@@ -43,6 +43,8 @@ all your teams.
 - **Pet toolbar** – Revive Battle Pets, Battle Pet Bandage, Safari Hat, pet treats and Summon Random
   Favorite Pet in one bar.
 - **Notes window** – pop out a team's strategy notes to follow them during a battle.
+- **Pet Collection** – next to the journal's "Total Pets": how many pets you have, at level 25 and in
+  rare quality, with bars per family or source (e.g. percent collected).
 
 ## Installation
 

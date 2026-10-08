@@ -1,9 +1,10 @@
 local _, ns = ...
 local L = ns.L
 
--- An embeddable icon chooser. Without a search it lists pet family icons and then every macro/item
--- icon in the game. Icons have no names in the API, so search matches pet families, pet species and
--- pet abilities by name; an icon file ID or file name can be typed in as well.
+-- An embeddable icon chooser. Without a search it lists pet family icons, expansion logos and then
+-- every macro/item icon in the game. Icons have no names in the API, so search matches pet families,
+-- expansions, pet species and pet abilities by name; an icon file ID or file name can be typed in
+-- as well.
 local IconPicker = {}
 ns.IconPicker = IconPicker
 
@@ -24,11 +25,50 @@ local function GetFamilyIcons()
     return result
 end
 
+-- Expansion logos, Classic to the current one: entries like the families', and [fileID] = true to
+-- tell them apart from square icons (see SetIconTexture).
+local expansionIcons, isLogo
+
+local function GetExpansionIcons()
+    if not expansionIcons then
+        expansionIcons, isLogo = {}, {}
+        for level = 0, GetServerExpansionLevel() do
+            local info = GetExpansionDisplayInfo(level)
+            local name = _G["EXPANSION_NAME" .. level]
+            if info and info.logo and name then
+                expansionIcons[#expansionIcons + 1] = { icon = info.logo, label = L["Expansion: "] .. name, search = name:lower() }
+                isLogo[info.logo] = true
+            end
+        end
+    end
+    return expansionIcons
+end
+
+-- Logos are about twice as wide as tall, so they're shown at full width and half height.
+function IconPicker.IsLogo(icon)
+    GetExpansionIcons()
+    return icon ~= nil and isLogo[icon] == true
+end
+
+-- Shows icon on texture (anchored by one point) within a size x size square, keeping a logo's shape.
+function IconPicker.SetIconTexture(texture, icon, size)
+    texture:SetTexture(icon)
+    texture:SetSize(size, IconPicker.IsLogo(icon) and size / 2 or size)
+end
+
+-- The icon as inline text, e.g. for menus.
+function IconPicker.FormatIcon(icon, size)
+    return format("|T%s:%d:%d|t", icon, IconPicker.IsLogo(icon) and size / 2 or size, size)
+end
+
 local function GetAllIcons()
     if allIcons then
         return allIcons
     end
     allIcons = GetFamilyIcons()
+    for _, entry in ipairs(GetExpansionIcons()) do
+        allIcons[#allIcons + 1] = entry
+    end
     local fileIDs = {}
     for _, fill in ipairs({ GetMacroIcons, GetMacroItemIcons }) do
         if fill then
@@ -48,6 +88,9 @@ local function GetNamedIcons()
     end
     -- Only cache the list once it's complete.
     local list = GetFamilyIcons()
+    for _, entry in ipairs(GetExpansionIcons()) do
+        list[#list + 1] = entry
+    end
     for speciesID = 1, MAX_SPECIES_ID do
         local name, icon = ns.GetSpeciesInfo(speciesID)
         if name and icon then
@@ -106,7 +149,7 @@ _G.LineupIconButtonMixin = IconButtonMixin
 
 function IconButtonMixin:OnLoad()
     self.Icon = self:CreateTexture(nil, "ARTWORK")
-    self.Icon:SetAllPoints()
+    self.Icon:SetPoint("CENTER")
 
     self.Selected = self:CreateTexture(nil, "OVERLAY")
     self.Selected:SetPoint("TOPLEFT", -4, 4)
@@ -120,7 +163,7 @@ end
 function IconButtonMixin:Init(entry, picker)
     self.entry = entry
     self.picker = picker
-    self.Icon:SetTexture(entry.icon)
+    IconPicker.SetIconTexture(self.Icon, entry.icon, self:GetWidth())
     self.Selected:SetShown(entry.icon == picker.selected)
 end
 
@@ -202,20 +245,11 @@ function IconPicker.Create(parent, onSelect)
     inset:SetPoint("TOPLEFT", 0, -30)
     inset:SetPoint("BOTTOMRIGHT")
 
-    local scrollBox = CreateFrame("Frame", nil, inset, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 6, -6)
-    scrollBox:SetPoint("BOTTOMRIGHT", -22, 6)
-    picker.ScrollBox = scrollBox
-
-    local scrollBar = CreateFrame("EventFrame", nil, inset, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 6, 0)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 6, 0)
-
     local view = CreateScrollBoxListGridView(STRIDE, 0, 0, 0, 0, ICON_SPACING, ICON_SPACING)
     view:SetElementInitializer("LineupIconButtonTemplate", function(button, entry)
         button:Init(entry, picker)
     end)
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
+    picker.ScrollBox = ns.CreateScrollList(inset, view, 6)
 
     picker.NoResults = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     picker.NoResults:SetPoint("TOP", 0, -24)

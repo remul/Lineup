@@ -5,35 +5,25 @@ local L = ns.L
 local ExportDialog = {}
 ns.ExportDialog = ExportDialog
 
-local DIALOG_WIDTH = 460
+local EXTRA_LEFT = ns.Dialogs.LEFT_BORDER_EXTRA
+local DIALOG_WIDTH = 460 + EXTRA_LEFT
 local DIALOG_HEIGHT = 320
 
 local dialog, textBox, exportedText
 
 local function CreateDialog()
-    dialog = CreateFrame("Frame", "LineupExportDialog", UIParent, "ButtonFrameTemplate")
-    dialog:SetSize(DIALOG_WIDTH, DIALOG_HEIGHT)
-    dialog:SetFrameStrata("DIALOG")
-    dialog:SetToplevel(true)
-    dialog:SetMovable(true)
-    dialog:SetClampedToScreen(true)
-    dialog:EnableMouse(true)
-    dialog:RegisterForDrag("LeftButton")
-    dialog:SetScript("OnDragStart", dialog.StartMoving)
-    dialog:SetScript("OnDragStop", dialog.StopMovingOrSizing)
-    ButtonFrameTemplate_HidePortrait(dialog)
+    dialog = ns.Dialogs.CreateWindow("LineupExportDialog", DIALOG_WIDTH, DIALOG_HEIGHT)
     dialog.Inset:Hide()
-    tinsert(UISpecialFrames, dialog:GetName())
 
     -- Addons can't write to the clipboard, so the text is selected for Ctrl+C.
     local hint = dialog:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    hint:SetPoint("TOPLEFT", 16, -32)
+    hint:SetPoint("TOPLEFT", 16 + EXTRA_LEFT, -32)
     hint:SetPoint("RIGHT", -16, 0)
     hint:SetJustifyH("LEFT")
     hint:SetText(L["Press Ctrl+C to copy. Paste it into Import in Lineup or Rematch."])
 
     local textInset = CreateFrame("Frame", nil, dialog, "InsetFrameTemplate")
-    textInset:SetPoint("TOPLEFT", 14, -56)
+    textInset:SetPoint("TOPLEFT", 14 + EXTRA_LEFT, -56)
     textInset:SetPoint("BOTTOMRIGHT", -14, 36)
 
     -- Read-only: typing puts the exported text back, and any click selects all of it again.

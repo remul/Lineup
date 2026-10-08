@@ -523,10 +523,22 @@ function Teams:SortGroupsByName()
     end)
 end
 
--- Teams in a deleted group become ungrouped.
-function Teams:DeleteGroup(group)
+function Teams:GetGroupTeams(group)
+    local teams = {}
     for _, team in ipairs(self:GetAll()) do
         if team.groupID == group.id then
+            teams[#teams + 1] = team
+        end
+    end
+    return teams
+end
+
+-- Teams in a deleted group become ungrouped, or with deleteTeams are deleted along with it.
+function Teams:DeleteGroup(group, deleteTeams)
+    for _, team in ipairs(self:GetGroupTeams(group)) do
+        if deleteTeams then
+            self:Delete(team)
+        else
             team.groupID = nil
         end
     end

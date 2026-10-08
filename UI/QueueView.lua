@@ -87,7 +87,7 @@ function QueueRowMixin:OnEnter()
     GameTooltip:AddLine(format(L["Level %d %s"], pet.level, ns.GetFamilyName(pet.petType)), 1, 1, 1)
     GameTooltip:AddLine(format(L["%d / %d XP"], self.xp, self.maxXp), 0.8, 0.8, 0.8)
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine(L["The queue lists your battle pets below level 25 automatically; Options decides whether duplicates and pets you already have at 25 are included."], 0.8, 0.8, 0.8, true)
+    GameTooltip:AddLine(L["Your battle pets below level 25. Options sets whether duplicates and species you have at 25 are included."], 0.8, 0.8, 0.8, true)
     GameTooltip:AddLine(L["Leveling slots in your teams use the first pet that fits, in this order."], 0.8, 0.8, 0.8, true)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine(L["Click to show it in the Pet Journal."], 0, 1, 0)
@@ -98,69 +98,104 @@ function QueueRowMixin:OnLeave()
     GameTooltip:Hide()
 end
 
+-- Settings at the top of the tab, sunk in like the Teams tab's sections: the sort order on the
+-- left (one radio button per order), which pets are included on the right.
+local SETTING_ROW_HEIGHT = 18
+local Settings = {}
+Settings.HEIGHT = 16 + #ns.LevelingQueue.SORTS * SETTING_ROW_HEIGHT
+-- [key] = radio button / checkbox, updated in QueueView:Refresh.
+local sortRadios, optionChecks = {}, {}
+
+local function CreateColumnTitle(parent, text)
+    local title = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetText(text)
+    return title
+end
+
+-- A radio button with the Blizzard radio art, label on the right.
+local function CreateRadio(parent, label)
+    local radio = CreateFrame("CheckButton", nil, parent)
+    radio:SetSize(16, 16)
+    radio:SetNormalTexture("Interface\\Buttons\\UI-RadioButton")
+    radio:GetNormalTexture():SetTexCoord(0, 0.25, 0, 1)
+    radio:SetCheckedTexture("Interface\\Buttons\\UI-RadioButton")
+    radio:GetCheckedTexture():SetTexCoord(0.25, 0.5, 0, 1)
+    radio:SetHighlightTexture("Interface\\Buttons\\UI-RadioButton", "ADD")
+    radio:GetHighlightTexture():SetTexCoord(0.5, 0.75, 0, 1)
+    radio.Label = radio:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    radio.Label:SetPoint("LEFT", radio, "RIGHT", 4, 0)
+    radio.Label:SetText(label)
+    -- The label is clickable too.
+    radio:SetHitRectInsets(0, -(radio.Label:GetStringWidth() + 4), 0, 0)
+    return radio
+end
+
+function Settings:Create(parent)
+    local frame = CreateFrame("Frame", nil, parent)
+    frame:SetHeight(self.HEIGHT)
+
+    local sortTitle = CreateColumnTitle(frame, L["Sort by"])
+    sortTitle:SetPoint("TOPLEFT")
+    local previous
+    for _, sort in ipairs(ns.LevelingQueue.SORTS) do
+        local radio = CreateRadio(frame, sort.label)
+        if previous then
+            radio:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, 16 - SETTING_ROW_HEIGHT)
+        else
+            radio:SetPoint("TOPLEFT", sortTitle, "BOTTOMLEFT", 0, -4)
+        end
+        radio:SetScript("OnClick", function()
+            ns.LevelingQueue:SetSort(sort.key)
+            QueueView:Refresh()
+        end)
+        sortRadios[sort.key] = radio
+        previous = radio
+    end
+
+    local optionsTitle = CreateColumnTitle(frame, L["Options"])
+    optionsTitle:SetPoint("TOPLEFT", frame, "TOP", 10, 0)
+    previous = nil
+    for _, option in ipairs({
+        { key = "queueIncludeDuplicates", label = L["Include duplicates"] },
+        { key = "queueIncludeMaxedSpecies", label = L["Include pets you have at 25"] },
+    }) do
+        local check = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+        check:SetSize(22, 22)
+        if previous then
+            check:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -2)
+        else
+            check:SetPoint("TOPLEFT", optionsTitle, "BOTTOMLEFT", -4, -1)
+        end
+        check.Label = check:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        check.Label:SetPoint("LEFT", check, "RIGHT", 1, 0)
+        check.Label:SetPoint("RIGHT", frame, "RIGHT")
+        check.Label:SetJustifyH("LEFT")
+        check.Label:SetText(option.label)
+        check:SetScript("OnClick", function(button)
+            ns.LevelingQueue:SetOption(option.key, button:GetChecked())
+        end)
+        optionChecks[option.key] = check
+        previous = check
+    end
+    return frame
+end
+
 -- Builds the view inside parent (the Lineup window) and returns it; it starts hidden.
 function QueueView:Create(parent)
     view = CreateFrame("Frame", nil, parent)
     view:SetAllPoints()
     view:Hide()
 
-    local sortLabel = view:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    sortLabel:SetPoint("TOPLEFT", 14, -38)
-    sortLabel:SetText(L["Sort by"])
-
-    -- Options: which pets the queue includes.
-    local optionsDropdown = CreateFrame("DropdownButton", nil, view, "WowStyle1DropdownTemplate")
-    optionsDropdown:SetPoint("TOPRIGHT", -12, -30)
-    optionsDropdown:SetWidth(100)
-    optionsDropdown:SetDefaultText(L["Options"])
-    -- Keep the label "Options" instead of listing the ticked entries.
-    if optionsDropdown.SetSelectionText then
-        optionsDropdown:SetSelectionText(function()
-            return L["Options"]
-        end)
-    end
-    optionsDropdown:SetupMenu(function(_, root)
-        local function IsChecked(key)
-            return ns.LevelingQueue:GetOption(key)
-        end
-        local function Toggle(key)
-            ns.LevelingQueue:SetOption(key, not ns.LevelingQueue:GetOption(key))
-        end
-        root:CreateCheckbox(L["Include duplicates"], IsChecked, Toggle, "queueIncludeDuplicates")
-        root:CreateCheckbox(L["Include pets you have at 25"], IsChecked, Toggle, "queueIncludeMaxedSpecies")
-    end)
-
-    local sortDropdown = CreateFrame("DropdownButton", nil, view, "WowStyle1DropdownTemplate")
-    sortDropdown:SetPoint("LEFT", sortLabel, "RIGHT", 8, 0)
-    sortDropdown:SetPoint("RIGHT", optionsDropdown, "LEFT", -6, 0)
-    sortDropdown:SetupMenu(function(_, root)
-        local function IsSelected(key)
-            return ns.LevelingQueue:GetSort() == key
-        end
-        local function SetSelected(key)
-            ns.LevelingQueue:SetSort(key)
-        end
-        for _, sort in ipairs(ns.LevelingQueue.SORTS) do
-            root:CreateRadio(sort.label, IsSelected, SetSelected, sort.key)
-        end
-    end)
+    local settingsInset = ns.TeamsPanel.CreateSectionInset(view, Settings)
 
     local inset = CreateFrame("Frame", nil, view, "InsetFrameTemplate")
-    inset:SetPoint("TOPLEFT", 4, -60)
-    inset:SetPoint("BOTTOMRIGHT", -6, 26)
+    inset:SetPoint("TOPLEFT", settingsInset, "BOTTOMLEFT", 0, -ns.TeamsPanel.INSET_GAP)
+    inset:SetPoint("BOTTOMRIGHT", ns.TeamsPanel.INSET_RIGHT, 26)
 
     emptyText = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     emptyText:SetPoint("TOPLEFT", 16, -16)
     emptyText:SetPoint("TOPRIGHT", -16, -16)
     emptyText:SetText(L["Nothing to level.\n\nNo battle pets below level 25 match your queue options."])
-
-    scrollBox = CreateFrame("Frame", nil, inset, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 4, -4)
-    scrollBox:SetPoint("BOTTOMRIGHT", -20, 4)
-
-    local scrollBar = CreateFrame("EventFrame", nil, inset, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 6, 0)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 6, 0)
 
     local listView = CreateScrollBoxListLinearView()
     listView:SetElementExtent(ROW_HEIGHT)
@@ -168,7 +203,7 @@ function QueueView:Create(parent)
         row:Init(data)
     end)
     listView:SetPadding(0, 0, 0, 0, 2)
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, listView)
+    scrollBox = ns.CreateScrollList(inset, listView)
 
     countText = view:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     countText:SetPoint("BOTTOMLEFT", 14, 8)
@@ -180,6 +215,14 @@ function QueueView:Refresh()
     if not view or not view:IsVisible() then
         return
     end
+    local sortKey = ns.LevelingQueue:GetSort()
+    for key, radio in pairs(sortRadios) do
+        radio:SetChecked(key == sortKey)
+    end
+    for key, check in pairs(optionChecks) do
+        check:SetChecked(ns.LevelingQueue:GetOption(key) and true or false)
+    end
+
     local elements = {}
     for position, pet in ipairs(ns.LevelingQueue:Get()) do
         elements[position] = { pet = pet, position = position }

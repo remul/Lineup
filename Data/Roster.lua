@@ -40,13 +40,9 @@ local function IsAnyFilterUsed()
     return false
 end
 
-local function WithAllOwnedPets(callback)
-    -- Changing filters makes the journal rebuild its list (twice), so skip it when nothing is hidden.
-    if not IsAnyFilterUsed() then
-        callback()
-        return
-    end
-
+-- Runs callback with the journal listing every owned pet (and, with includeUncollected, every pet
+-- it knows), then puts its search and filters back.
+local function WithWidenedFilters(includeUncollected, callback)
     local J = C_PetJournal
     local collected = J.IsFilterChecked(LE_PET_JOURNAL_FILTER_COLLECTED)
     local notCollected = J.IsFilterChecked(LE_PET_JOURNAL_FILTER_NOT_COLLECTED)
@@ -61,7 +57,7 @@ local function WithAllOwnedPets(callback)
     expanding = true
     J.ClearSearchFilter()
     J.SetFilterChecked(LE_PET_JOURNAL_FILTER_COLLECTED, true)
-    J.SetFilterChecked(LE_PET_JOURNAL_FILTER_NOT_COLLECTED, false)
+    J.SetFilterChecked(LE_PET_JOURNAL_FILTER_NOT_COLLECTED, includeUncollected)
     J.SetAllPetTypesChecked(true)
     J.SetAllPetSourcesChecked(true)
 
@@ -77,6 +73,15 @@ local function WithAllOwnedPets(callback)
     end
     J.SetSearchFilter(searchText)
     expanding = false
+end
+
+local function WithAllOwnedPets(callback)
+    -- Changing filters makes the journal rebuild its list (twice), so skip it when nothing is hidden.
+    if not IsAnyFilterUsed() then
+        callback()
+        return
+    end
+    WithWidenedFilters(false, callback)
 end
 
 -- True while the journal filters are widened for a scan (its PET_JOURNAL_LIST_UPDATEs can be ignored).
@@ -120,6 +125,35 @@ function Roster:GetOwnedPets()
     end)
     cachedPets = pets
     return pets
+end
+
+-- Every species in the journal, collected or not: [speciesID] = { petType, canBattle, source }.
+-- source is the index of its pet source (BATTLE_PET_SOURCE_n). The journal can't say a pet's source,
+-- only filter by it, so it's listed once per source. Species only change with patches, so the
+-- result is kept for the session.
+local allSpecies
+
+function Roster:GetAllSpecies()
+    if allSpecies then
+        return allSpecies
+    end
+    local species = {}
+    WithWidenedFilters(true, function()
+        local numSources = C_PetJournal.GetNumPetSources()
+        for source = 1, numSources do
+            for index = 1, numSources do
+                C_PetJournal.SetPetSourceChecked(index, index == source)
+            end
+            for index = 1, C_PetJournal.GetNumPets() do
+                local _, speciesID, _, _, _, _, _, _, _, petType, _, _, _, _, canBattle = C_PetJournal.GetPetInfoByIndex(index)
+                if speciesID and not species[speciesID] then
+                    species[speciesID] = { petType = petType, canBattle = canBattle, source = source }
+                end
+            end
+        end
+    end)
+    allSpecies = species
+    return species
 end
 
 -- Random battle-ready level 25 pet matching the predicate (or the best one if none is level 25).

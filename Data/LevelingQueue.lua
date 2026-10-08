@@ -14,8 +14,6 @@ local LevelingQueue = {}
 ns.LevelingQueue = LevelingQueue
 
 local MAGIC, MECHANICAL = 6, 10
--- Pet type -> the pet type its attacks are strong against (and which is therefore weak to it).
-local STRONG_AGAINST = { [1] = 2, [2] = 6, [3] = 9, [4] = 1, [5] = 4, [6] = 3, [7] = 10, [8] = 5, [9] = 7, [10] = 8 }
 
 local queue, owned
 
@@ -154,7 +152,7 @@ function LevelingQueue.MatchesPreferences(pet, preferences, ignoreLevel)
     if p.maxHP and pet.maxHealth > p.maxHP then
         return false
     end
-    if p.expectedDD and STRONG_AGAINST[p.expectedDD] == pet.petType then
+    if p.expectedDD and ns.STRONG_AGAINST[p.expectedDD] == pet.petType then
         return false
     end
     return true

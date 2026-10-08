@@ -12,11 +12,16 @@ ns.TeamsPanel = TeamsPanel
 local WINDOW_WIDTH = 400
 -- Gap to the Collections window.
 local WINDOW_OFFSET_X = 9
--- Space between the window's edge and the sections, and between sections.
-local SECTION_INSET = 12
-local SECTION_SPACING = 8
-TeamsPanel.SECTION_INSET = SECTION_INSET
-local SECTION_HEADER_HEIGHT = 18
+-- Sections are sunk into the window like the Pet Journal's insets, with their content padded
+-- inside. The gaps between them hold the buttons. The window's left border sits further in than
+-- its right one, so the left offset is larger to leave the same strip of frame on both sides.
+local INSET_LEFT, INSET_RIGHT = 6 + ns.Dialogs.LEFT_BORDER_EXTRA, -6
+local INSET_TOP = -26
+local INSET_GAP = 4
+TeamsPanel.INSET_LEFT, TeamsPanel.INSET_RIGHT, TeamsPanel.INSET_GAP = INSET_LEFT, INSET_RIGHT, INSET_GAP
+local SECTION_PADDING = 8
+-- Window edge to section content.
+TeamsPanel.SECTION_INSET = INSET_LEFT + SECTION_PADDING
 local HEADER_HEIGHT = 28
 local ROW_HEIGHT = 64
 -- Space between team cards.
@@ -26,7 +31,7 @@ local GROUP_SPACING = 8
 local GROUP_INNER_SPACING = 4
 -- Width of the target text in the right column (clear of the pet icons on the left).
 local RIGHT_COLUMN_WIDTH = 170
-local EMPTY_GROUP_HEIGHT = 30
+local EMPTY_GROUP_HEIGHT = 36
 -- Team rows are indented under their group header.
 local ROW_INDENT = 12
 local PET_ICON_SIZE = 26
@@ -40,31 +45,31 @@ local HAS_CHEVRON = C_Texture.GetAtlasInfo(CHEVRON_ATLAS) ~= nil
 local UNGROUPED = 0
 
 local TAB_TEAMS, TAB_QUEUE, TAB_ABOUT = 1, 2, 3
--- Tab labels; the Settings tab (settings and info about the addon) gets a gear icon.
-local TAB_LABELS = { L["Teams"], L["Leveling Queue"], "|TInterface\\Buttons\\UI-OptionsButton:14:14|t " .. L["Settings"] }
+local TAB_LABELS = { L["Teams"], L["Leveling Queue"], L["Settings"] }
 
 local panel, teamsView, queueView, aboutView, scrollBox, countText, emptyText, searchBox, expandAllButton
 local currentTab = TAB_TEAMS
 local refreshPending = false
-local UpdateExpandAllButton
 
--- Section header: a gold title and a divider across the rest of the width (to anchor, or up to
--- the frame given with SetLineEnd). Used by all sections of the window.
-function TeamsPanel.CreateSectionHeader(parent, text)
-    local header = CreateFrame("Frame", nil, parent)
-    header:SetHeight(SECTION_HEADER_HEIGHT)
-    header.Text = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    header.Text:SetPoint("LEFT")
-    header.Text:SetText(text)
-    header.Line = header:CreateTexture(nil, "ARTWORK")
-    header.Line:SetPoint("LEFT", header.Text, "RIGHT", 8, 0)
-    header.Line:SetPoint("RIGHT")
-    header.Line:SetHeight(ns.SetDividerTexture(header.Line))
-    function header:SetLineEnd(frame)
-        self.Line:SetPoint("RIGHT", frame, "LEFT", -8, 0)
+-- An inset across the window's width, below anchor (or at the top), holding the section created
+-- by module (e.g. TargetSection: module.HEIGHT and module:Create(parent)) with padding around it.
+local function CreateSectionInset(parent, module, anchor)
+    local inset = CreateFrame("Frame", nil, parent, "InsetFrameTemplate")
+    if anchor then
+        inset:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -INSET_GAP)
+        inset:SetPoint("TOPRIGHT", anchor, "BOTTOMRIGHT", 0, -INSET_GAP)
+    else
+        inset:SetPoint("TOPLEFT", INSET_LEFT, INSET_TOP)
+        inset:SetPoint("TOPRIGHT", INSET_RIGHT, INSET_TOP)
     end
-    return header
+    inset:SetHeight(module.HEIGHT + 2 * SECTION_PADDING)
+
+    local section = module:Create(inset)
+    section:SetPoint("TOPLEFT", SECTION_PADDING, -SECTION_PADDING)
+    section:SetPoint("TOPRIGHT", -SECTION_PADDING, -SECTION_PADDING)
+    return inset
 end
+TeamsPanel.CreateSectionInset = CreateSectionInset
 
 -- Sorts teams by name, lowercasing each name once instead of on every comparison.
 local function SortTeamsByName(teams)
@@ -77,6 +82,51 @@ local function SortTeamsByName(teams)
     end)
 end
 
+-- Points the chevron down when open, right when collapsed (plus / minus without the atlas).
+local function SetChevron(texture, collapsed)
+    if HAS_CHEVRON then
+        texture:SetAtlas(CHEVRON_ATLAS)
+        texture:SetRotation(collapsed and math.pi / 2 or 0)
+    else
+        texture:SetTexture(collapsed and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
+    end
+end
+
+-- The gear button on group headers and team rows, opening their menu. onHoverChanged runs when
+-- the mouse enters or leaves it, so the row can keep its hover state.
+local function CreateGearButton(parent, tooltip, onClick, onHoverChanged)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(16, 16)
+    button:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
+    button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+    button:SetScript("OnClick", onClick)
+    button:SetScript("OnEnter", function()
+        onHoverChanged()
+        GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+        GameTooltip:SetText(tooltip)
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+        onHoverChanged()
+    end)
+    return button
+end
+
+-- The gear is dimmed to keep the list calm, and in full colour only while its row is hovered.
+local function UpdateGearButton(button, hovered)
+    local texture = button:GetNormalTexture()
+    texture:SetDesaturated(not hovered)
+    texture:SetAlpha(hovered and 1 or 0.35)
+end
+
+-- "vs. Zunta", or "vs. NPC 66126" without a name; nil without a target.
+local function DescribeTarget(team)
+    if team.targetNpcID then
+        return L["vs. "] .. (team.targetName or (L["NPC "] .. team.targetNpcID))
+    end
+end
+
 -- Group header (template: LineupGroupHeaderTemplate)
 local GroupHeaderMixin = {}
 _G.LineupGroupHeaderMixin = GroupHeaderMixin
@@ -84,15 +134,9 @@ _G.LineupGroupHeaderMixin = GroupHeaderMixin
 function GroupHeaderMixin:OnLoad()
     self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
-    -- A calm neutral band; the warm one (see UpdateState) marks open, hovered or "active" groups.
-    self.Background = self:CreateTexture(nil, "BACKGROUND")
-    self.Background:SetAllPoints()
-    self.Background:SetColorTexture(1, 1, 1, 0.06)
-    self.WarmBackground = self:CreateTexture(nil, "BACKGROUND", nil, 1)
-    self.WarmBackground:SetAllPoints()
-    self.WarmBackground:SetColorTexture(1, 1, 1)
-    self.WarmBackground:SetGradient("HORIZONTAL", CreateColor(0.32, 0.25, 0.10, 0.85), CreateColor(0.14, 0.11, 0.05, 0.45))
-    self:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+    -- A card like the teams'; see UpdateState for the outline.
+    self.Background = ns.CreateCardFill(self)
+    self.Outline = ns.CreateCardOutline(self)
 
     -- Chevron pointing down when open, right when collapsed.
     self.ExpandIcon = self:CreateTexture(nil, "ARTWORK")
@@ -108,58 +152,37 @@ function GroupHeaderMixin:OnLoad()
     self.Count = self:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     self.Count:SetPoint("LEFT", self.Name, "RIGHT", 6, 0)
 
-    self.EditButton = CreateFrame("Button", nil, self)
-    self.EditButton:SetSize(16, 16)
-    self.EditButton:SetPoint("RIGHT", -6, 0)
-    self.EditButton:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
-    self.EditButton:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
-    self.EditButton:SetScript("OnClick", function()
+    self.EditButton = CreateGearButton(self, L["Group options"], function()
         self:ShowGroupMenu()
-    end)
-    self.EditButton:SetScript("OnEnter", function(button)
-        self:UpdateState()
-        GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
-        GameTooltip:SetText(L["Group options"])
-        GameTooltip:Show()
-    end)
-    self.EditButton:SetScript("OnLeave", function()
-        GameTooltip:Hide()
+    end, function()
         self:UpdateState()
     end)
+    self.EditButton:SetPoint("RIGHT", -6, 0)
 
     self:SetScript("OnEnter", self.UpdateState)
     self:SetScript("OnLeave", self.UpdateState)
 end
 
--- To keep the list calm, the warm band and a full-colour gear only show while the group is open,
--- hovered, or holds the loaded team (so you can find it even while the group is collapsed).
+-- The group holding the loaded team gets a gold outline (so you can find it even while the group
+-- is collapsed). Hovering brightens the outline and puts the gear in full colour; it's done here
+-- rather than with a highlight texture so it stays while the mouse is on the gear.
 function GroupHeaderMixin:UpdateState()
     local data = self.data
     local hovered = self:IsMouseOver()
-    local open = data and not data.collapsed
-    self.WarmBackground:SetShown(open or hovered or (data and data.hasLoaded))
-
-    local gearActive = open or hovered
-    local texture = self.EditButton:GetNormalTexture()
-    texture:SetDesaturated(not gearActive)
-    texture:SetAlpha(gearActive and 1 or 0.35)
+    ns.UpdateCardOutline(self.Outline, data and data.hasLoaded, hovered)
+    UpdateGearButton(self.EditButton, hovered)
 end
 
 function GroupHeaderMixin:Init(data)
     self.data = data
     local icon = data.group and data.group.icon
-    self.Icon:SetTexture(icon)
+    ns.IconPicker.SetIconTexture(self.Icon, icon, 20)
     self.Icon:SetShown(icon ~= nil)
     self.Name:ClearAllPoints()
     self.Name:SetPoint("LEFT", icon and self.Icon or self.ExpandIcon, "RIGHT", 6, 0)
     self.Name:SetText(data.name)
     self.Count:SetFormattedText("(%d)", data.count)
-    if HAS_CHEVRON then
-        self.ExpandIcon:SetAtlas(CHEVRON_ATLAS)
-        self.ExpandIcon:SetRotation(data.collapsed and math.pi / 2 or 0)
-    else
-        self.ExpandIcon:SetTexture(data.collapsed and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
-    end
+    SetChevron(self.ExpandIcon, data.collapsed)
     self:UpdateState()
 end
 
@@ -193,6 +216,14 @@ function GroupHeaderMixin:ShowGroupMenu()
                 Teams:MoveGroup(group, 1)
                 TeamsPanel:Refresh()
             end):SetEnabled(index < #groups)
+
+            root:CreateDivider()
+            root:CreateButton(L["Delete Group"], function()
+                ns.GroupEditor.ConfirmDelete(group, false)
+            end)
+            root:CreateButton(L["Delete Group and Teams"], function()
+                ns.GroupEditor.ConfirmDelete(group, true)
+            end):SetEnabled(#Teams:GetGroupTeams(group) > 0)
         end
     end)
 end
@@ -230,35 +261,19 @@ function TeamRowMixin:OnLoad()
     self.Inner:SetPoint("BOTTOMRIGHT", 0, CARD_GAP / 2)
     local inner = self.Inner
 
-    self.Background = ns.CreateRoundedTexture(inner, "BACKGROUND", 0, 1, 1, 1, 0.05)
-    self.Hover = ns.CreateRoundedTexture(inner, "BACKGROUND", 1, 1, 1, 1, 0.08)
-    self.Hover:Hide()
+    self.Background = ns.CreateCardFill(inner)
+    -- Gold for the loaded team, brighter while hovered otherwise.
+    self.Outline = ns.CreateCardOutline(inner)
 
-    -- Loaded team: a gold tint and a gold outline.
-    self.Selected = ns.CreateRoundedTexture(inner, "BORDER", 0, 1, 0.82, 0, 0.18)
-    self.SelectedBorder = ns.CreateRoundedTexture(inner, "BORDER", 1, 1, 0.82, 0, 0.9, true)
-
-    self.EditButton = CreateFrame("Button", nil, self)
-    self.EditButton:SetSize(16, 16)
-    self.EditButton:SetPoint("TOPRIGHT", -6, -8)
-    self.EditButton:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
-    self.EditButton:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
-    self.EditButton:SetScript("OnClick", function()
+    self.EditButton = CreateGearButton(self, L["Team options"], function()
         self:ShowTeamMenu()
-    end)
-    self.EditButton:SetScript("OnEnter", function(button)
-        self:UpdateEditButton()
-        GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
-        GameTooltip:SetText(L["Team options"])
-        GameTooltip:Show()
-    end)
-    self.EditButton:SetScript("OnLeave", function()
-        GameTooltip:Hide()
+    end, function()
         self:UpdateEditButton()
         if not self:IsMouseOver() then
-            self.Hover:Hide()
+            self:SetHovered(false)
         end
     end)
+    self.EditButton:SetPoint("TOPRIGHT", -6, -8)
 
     -- Family tag from the team name, e.g. "Humanoid", lined up on the right.
     self.Tag = inner:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
@@ -304,7 +319,7 @@ function TeamRowMixin:OnLoad()
     self.Script:SetTextScale(0.9)
 end
 
--- "Script", with what's wrong when it won't run as written. Grey while tdBattlePetScript isn't
+-- "Script", with what's wrong when it won't run as written ("No script" in grey without one). Grey while tdBattlePetScript isn't
 -- installed (nothing can run then), otherwise green, orange or red like the script's status.
 local SCRIPT_LABELS = {
     ok = L["Script"],
@@ -314,7 +329,8 @@ local SCRIPT_LABELS = {
 
 function TeamRowMixin:UpdateScriptLabel(team)
     if not team.script then
-        self.Script:Hide()
+        self.Script:SetText(L["No script"])
+        self.Script:SetTextColor(GRAY_FONT_COLOR:GetRGB())
         return
     end
     local status = ns.Script.Check(team.script, team.pets)
@@ -324,7 +340,6 @@ function TeamRowMixin:UpdateScriptLabel(team)
     else
         self.Script:SetTextColor(status.color:GetRGB())
     end
-    self.Script:Show()
 end
 
 function TeamRowMixin:Init(data)
@@ -333,11 +348,10 @@ function TeamRowMixin:Init(data)
 
     self.Inner:SetPoint("TOPLEFT", data.indented and ROW_INDENT or 0, -CARD_GAP / 2)
     -- (A texture's alpha is part of its vertex color, so the stripe is set there, not with SetAlpha.)
-    self.Background:SetVertexColor(1, 1, 1, data.stripe and 0.05 or 0.03)
+    ns.SetCardFillAlpha(self.Background, data.stripe and 0.24 or 0.18)
     local loaded = Teams:IsLoaded(team)
     self.loaded = loaded
-    self.Selected:SetShown(loaded)
-    self.SelectedBorder:SetShown(loaded)
+    ns.UpdateCardOutline(self.Outline, loaded, false)
     self:UpdateEditButton()
 
     local displayName, tag = SplitTeamName(team.name)
@@ -367,24 +381,19 @@ function TeamRowMixin:Init(data)
         ui.Border:SetShown(texture ~= nil)
     end
 
-    -- Target, green while you're targeting it.
-    local target = ""
-    if team.targetNpcID then
-        target = L["vs. "] .. (team.targetName or (L["NPC "] .. team.targetNpcID))
-        if ns.Target:IsCurrent(team.targetNpcID) then
-            target = GREEN_FONT_COLOR:WrapTextInColorCode(target)
-        end
+    -- Target, green while you're targeting it; "No target" in grey.
+    local target = DescribeTarget(team)
+    if not target then
+        target = GRAY_FONT_COLOR:WrapTextInColorCode(L["No target"])
+    elseif ns.Target:IsCurrent(team.targetNpcID) then
+        target = GREEN_FONT_COLOR:WrapTextInColorCode(target)
     end
     self.Target:SetText(target)
     self:UpdateScriptLabel(team)
 end
 
--- The gear is dimmed to keep the list calm, and in full colour while the row is hovered or loaded.
 function TeamRowMixin:UpdateEditButton()
-    local active = self.loaded or self:IsMouseOver()
-    local texture = self.EditButton:GetNormalTexture()
-    texture:SetDesaturated(not active)
-    texture:SetAlpha(active and 1 or 0.35)
+    UpdateGearButton(self.EditButton, self:IsMouseOver())
 end
 
 function TeamRowMixin:OnClick(mouseButton)
@@ -428,8 +437,7 @@ function TeamRowMixin:ShowTeamMenu()
         end
         moveTo:CreateRadio(L["Ungrouped"], IsInGroup, MoveToGroup, 0)
         for _, group in ipairs(Teams:GetGroups()) do
-            local label = group.icon and format("|T%s:16:16|t %s", group.icon, group.name) or group.name
-            moveTo:CreateRadio(label, IsInGroup, MoveToGroup, group.id)
+            moveTo:CreateRadio(ns.GroupEditor.FormatGroupName(group), IsInGroup, MoveToGroup, group.id)
         end
 
         root:CreateDivider()
@@ -442,14 +450,19 @@ function TeamRowMixin:ShowTeamMenu()
     end)
 end
 
+function TeamRowMixin:SetHovered(hovered)
+    ns.UpdateCardOutline(self.Outline, self.loaded, hovered)
+end
+
 function TeamRowMixin:OnEnter()
-    self.Hover:Show()
+    self:SetHovered(true)
     self:UpdateEditButton()
     local team = self.team
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(team.name)
-    if team.targetNpcID then
-        GameTooltip:AddLine(L["vs. "] .. (team.targetName or (L["NPC "] .. team.targetNpcID)), 1, 0.82, 0)
+    local target = DescribeTarget(team)
+    if target then
+        GameTooltip:AddLine(target, 1, 0.82, 0)
     end
     for slot = 1, 3 do
         local entry = team.pets[slot]
@@ -485,7 +498,7 @@ function TeamRowMixin:OnLeave()
     GameTooltip:Hide()
     -- Moving onto the gear button counts as leaving the row; keep the hover then.
     if not self:IsMouseOver() then
-        self.Hover:Hide()
+        self:SetHovered(false)
     end
     self:UpdateEditButton()
 end
@@ -495,6 +508,11 @@ end
 local function InitEmptyGroupRow(row)
     if not row.Text then
         row:EnableMouse(false)
+        -- Just an outline, indented like a team card: an empty spot where teams would go.
+        row.Outline = ns.CreateCardOutline(row)
+        row.Outline:ClearAllPoints()
+        row.Outline:SetPoint("TOPLEFT", ROW_INDENT, -CARD_GAP / 2)
+        row.Outline:SetPoint("BOTTOMRIGHT", 0, CARD_GAP / 2)
         -- A fixed box (all four edges) so the text can wrap onto a second line.
         row.Text = row:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
         row.Text:SetPoint("TOPLEFT", ROW_INDENT + 10, -2)
@@ -502,20 +520,39 @@ local function InitEmptyGroupRow(row)
         row.Text:SetJustifyH("LEFT")
         row.Text:SetJustifyV("MIDDLE")
         row.Text:SetWordWrap(true)
-        row.Text:SetText(L["No teams in this group yet. Import one from the gear menu, or pick this group in a team's editor."])
+        row.Text:SetText(L["No teams. Import one from the gear menu, or choose this group in a team's editor."])
     end
 end
 
--- True if the team's name or target contains the (lowercase) search text.
+local function Contains(text, query)
+    return text ~= nil and text:lower():find(query, 1, true) ~= nil
+end
+
+-- True if the team's name, target or one of its pets (species or custom name) contains the
+-- (lowercase) search text. Random and leveling slots have no pet to match.
 local function TeamMatches(team, query)
-    return team.name:lower():find(query, 1, true) ~= nil
-        or (team.targetName and team.targetName:lower():find(query, 1, true) ~= nil)
+    if Contains(team.name, query) or Contains(team.targetName, query) then
+        return true
+    end
+    for slot = 1, 3 do
+        local entry = team.pets[slot] or {}
+        if entry.speciesID and Contains((ns.GetSpeciesInfo(entry.speciesID)), query) then
+            return true
+        end
+        if entry.petID then
+            local _, customName = C_PetJournal.GetPetInfoByPetID(entry.petID)
+            if Contains(customName, query) then
+                return true
+            end
+        end
+    end
+    return false
 end
 
 -- List building: headers followed by their (sorted) teams unless collapsed, with a little space
 -- between groups. Team rows alternate stripes within each group and are indented under headers.
--- With a search (lowercase query), only matching teams are listed (all teams of a group whose name
--- matches), groups without matches are left out, and the rest are shown open.
+-- With a search (lowercase query), only matching teams (see TeamMatches) are listed (all teams of
+-- a group whose name matches), groups without matches are left out, and the rest are shown open.
 -- Returns the elements and the number of teams listed.
 local function BuildElements(query)
     local groups = Teams:GetGroups()
@@ -532,7 +569,7 @@ local function BuildElements(query)
     end
 
     local function Filter(teams, groupName)
-        if not query or (groupName and groupName:lower():find(query, 1, true)) then
+        if not query or Contains(groupName, query) then
             return teams
         end
         local matches = {}
@@ -594,15 +631,9 @@ end
 
 -- Shows the state like the group headers: right while any group is collapsed, down when all are
 -- open. A click toggles (the tooltip says which way); hidden without groups.
-UpdateExpandAllButton = function()
+local function UpdateExpandAllButton()
     expandAllButton:SetShown(#Teams:GetGroups() > 0)
-    local anyCollapsed = Teams:IsAnyCollapsed()
-    if HAS_CHEVRON then
-        expandAllButton.Icon:SetAtlas(CHEVRON_ATLAS)
-        expandAllButton.Icon:SetRotation(anyCollapsed and math.pi / 2 or 0)
-    else
-        expandAllButton.Icon:SetTexture(anyCollapsed and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
-    end
+    SetChevron(expandAllButton.Icon, Teams:IsAnyCollapsed())
 end
 
 -- Puts a team in view: clears the search, opens its group and scrolls it to the middle.
@@ -625,76 +656,37 @@ function TeamsPanel:Setup()
     panel:SetPoint("TOPLEFT", CollectionsJournal, "TOPRIGHT", WINDOW_OFFSET_X, 0)
     panel:SetPoint("BOTTOMLEFT", CollectionsJournal, "BOTTOMRIGHT", WINDOW_OFFSET_X, 0)
     panel:SetWidth(WINDOW_WIDTH)
+    -- Catch clicks on the whole window, so they don't reach the world (e.g. an NPC) behind it.
+    panel:EnableMouse(true)
     ButtonFrameTemplate_HidePortrait(panel)
     panel.CloseButton:Hide()
     panel.Inset:Hide()
     panel:SetTitle(ns.TITLE)
 
-    -- Teams tab: Target, Current, then the team list.
+    -- Teams tab: Target, Current, then the team list, each sunk into the window.
     teamsView = CreateFrame("Frame", nil, panel)
     teamsView:SetAllPoints()
 
-    local targetSection = ns.TargetSection:Create(teamsView)
-    targetSection:SetPoint("TOPLEFT", SECTION_INSET, -28)
-    targetSection:SetPoint("RIGHT", -SECTION_INSET, 0)
+    local targetInset = CreateSectionInset(teamsView, ns.TargetSection)
+    local currentInset = CreateSectionInset(teamsView, ns.CurrentSection, targetInset)
 
-    local currentSection = ns.CurrentSection:Create(teamsView)
-    currentSection:SetPoint("TOPLEFT", targetSection, "BOTTOMLEFT", 0, -SECTION_SPACING)
-    currentSection:SetPoint("RIGHT", -SECTION_INSET, 0)
-
-    -- Teams: New Team / New Group / Import on the header line, then search and the list.
-    local teamsHeader = TeamsPanel.CreateSectionHeader(teamsView, L["Teams"])
-    teamsHeader:SetPoint("TOPLEFT", currentSection, "BOTTOMLEFT", 0, -SECTION_SPACING)
-    teamsHeader:SetPoint("RIGHT", -SECTION_INSET, 0)
-    teamsHeader:SetHeight(22)
-
-    local previous
-    local function CreateHeaderButton(text, onClick)
-        local button = CreateFrame("Button", nil, teamsHeader, "UIPanelButtonTemplate")
-        button:SetHeight(20)
-        button:SetText(text)
-        button:SetWidth(button:GetFontString():GetStringWidth() + 20)
-        button:SetScript("OnClick", onClick)
-        if previous then
-            button:SetPoint("RIGHT", previous, "LEFT", -4, 0)
-        else
-            button:SetPoint("RIGHT")
-        end
-        previous = button
-        return button
-    end
-    CreateHeaderButton(L["Import"], function()
-        ns.ImportDialog:Open()
-    end)
-    CreateHeaderButton(L["New Group"], function()
-        ns.GroupEditor:Open(nil)
-    end)
-    teamsHeader:SetLineEnd(CreateHeaderButton(L["New Team"], function()
-        ns.TeamEditor:Open(nil)
-    end))
-
+    -- Between Current and the list: expand / collapse all, search (teams, targets and groups) and
+    -- the Sort button for groups.
     local searchY = -6
-    -- Search (teams, targets and groups) and the Sort button for groups.
     local sortButton = CreateFrame("Button", nil, teamsView, "UIPanelButtonTemplate")
-    sortButton:SetPoint("TOPRIGHT", teamsHeader, "BOTTOMRIGHT", 0, searchY)
+    sortButton:SetPoint("TOPRIGHT", currentInset, "BOTTOMRIGHT", -SECTION_PADDING + 2, searchY)
     sortButton:SetSize(70, 22)
     sortButton:SetText(L["Sort"])
     sortButton:SetScript("OnClick", function()
         ns.GroupSorter:Open()
     end)
-    sortButton:SetScript("OnEnter", function(button)
-        GameTooltip:SetOwner(button, "ANCHOR_TOP")
-        GameTooltip:SetText(L["Sort groups"])
-        GameTooltip:AddLine(L["Change the order of your groups."], 1, 1, 1)
-        GameTooltip:Show()
-    end)
-    sortButton:SetScript("OnLeave", GameTooltip_Hide)
+    ns.SetTooltip(sortButton, L["Sort groups"], L["Change the order of your groups."])
 
     searchBox = CreateFrame("EditBox", nil, teamsView, "SearchBoxTemplate")
     -- Expand / collapse all groups; the chevron shows the state, like the group headers.
     expandAllButton = CreateFrame("Button", nil, teamsView)
     expandAllButton:SetSize(22, 22)
-    expandAllButton:SetPoint("TOPLEFT", teamsHeader, "BOTTOMLEFT", -2, searchY)
+    expandAllButton:SetPoint("TOPLEFT", currentInset, "BOTTOMLEFT", SECTION_PADDING - 2, searchY)
     expandAllButton:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
     expandAllButton.Icon = expandAllButton:CreateTexture(nil, "ARTWORK")
     expandAllButton.Icon:SetSize(14, 14)
@@ -714,26 +706,18 @@ function TeamsPanel:Setup()
     searchBox:SetPoint("RIGHT", sortButton, "LEFT", -8, 0)
     searchBox:SetHeight(22)
     searchBox:SetAutoFocus(false)
-    searchBox.Instructions:SetText(L["Search teams and groups"])
+    searchBox.Instructions:SetText(L["Search teams, groups and pets"])
     searchBox:HookScript("OnTextChanged", function()
         TeamsPanel:RefreshNow()
     end)
 
     local inset = CreateFrame("Frame", nil, teamsView, "InsetFrameTemplate")
-    inset:SetPoint("TOPLEFT", expandAllButton, "BOTTOMLEFT", -6, -6)
-    inset:SetPoint("BOTTOMRIGHT", -6, 26)
+    inset:SetPoint("TOPLEFT", currentInset, "BOTTOMLEFT", 0, 2 * searchY - 22)
+    inset:SetPoint("BOTTOMRIGHT", INSET_RIGHT, 26)
 
     emptyText = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     emptyText:SetPoint("TOPLEFT", 16, -16)
     emptyText:SetPoint("TOPRIGHT", -16, -16)
-
-    scrollBox = CreateFrame("Frame", nil, inset, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 4, -4)
-    scrollBox:SetPoint("BOTTOMRIGHT", -20, 4)
-
-    local scrollBar = CreateFrame("EventFrame", nil, inset, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 6, 0)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 6, 0)
 
     local view = CreateScrollBoxListLinearView()
     view:SetElementFactory(function(factory, data)
@@ -759,11 +743,37 @@ function TeamsPanel:Setup()
         end
         return data.isHeader and HEADER_HEIGHT or ROW_HEIGHT
     end)
-    view:SetPadding(0, 0, 0, 0, 2)
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
+    -- Room above the first group and below the last like between groups, and a little on both sides.
+    view:SetPadding(GROUP_SPACING, GROUP_SPACING, 4, 4, 2)
+    scrollBox = ns.CreateScrollList(inset, view)
 
     countText = teamsView:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     countText:SetPoint("BOTTOMLEFT", 14, 8)
+
+    -- New Team / New Group / Import along the bottom edge, like the Pet Journal's own buttons.
+    local previous
+    local function CreateBottomButton(text, onClick)
+        local button = CreateFrame("Button", nil, teamsView, "UIPanelButtonTemplate")
+        button:SetHeight(22)
+        button:SetText(text)
+        button:SetWidth(button:GetFontString():GetStringWidth() + 24)
+        button:SetScript("OnClick", onClick)
+        if previous then
+            button:SetPoint("RIGHT", previous, "LEFT", -2, 0)
+        else
+            button:SetPoint("BOTTOMRIGHT", INSET_RIGHT, 4)
+        end
+        previous = button
+    end
+    CreateBottomButton(L["New Team"], function()
+        ns.TeamEditor:Open(nil)
+    end)
+    CreateBottomButton(L["New Group"], function()
+        ns.GroupEditor:Open(nil)
+    end)
+    CreateBottomButton(L["Import"], function()
+        ns.ImportDialog:Open()
+    end)
 
     -- Leveling Queue tab
     queueView = ns.QueueView:Create(panel)
@@ -804,10 +814,6 @@ function TeamsPanel:SelectTab(tab)
     queueView:SetShown(tab == TAB_QUEUE)
     aboutView:SetShown(tab == TAB_ABOUT)
     self:RefreshNow()
-end
-
-function TeamsPanel:GetFrame()
-    return panel
 end
 
 -- Asks for a redraw. Many things trigger one (journal updates, target changes, loads...), often

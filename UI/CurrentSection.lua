@@ -8,7 +8,7 @@ local Teams = ns.Teams
 local CurrentSection = {}
 ns.CurrentSection = CurrentSection
 
-CurrentSection.HEIGHT = 110
+CurrentSection.HEIGHT = 86
 local NUM_SLOTS = 3
 local PET_ICON_SIZE = 30
 -- Health is shown like on Blizzard's pet cards: the heart from the pet battle stat icons.
@@ -22,8 +22,6 @@ local LOW_HEALTH_PERCENT = 50
 -- Healing hurt pets is left to Blizzard's own "Revive Battle Pets" button at the top of the
 -- journal (casting needs a secure button, and one inside Lineup's window would lock it during
 -- combat). Lineup points at it with a glow while a pet is hurt and the spell is ready.
-local REVIVE_SPELL_ID = 125439
-local BANDAGE_ITEM_ID = 86143
 
 local SCRIPT_ICONS = {
     ok = "|TInterface\\RaidFrame\\ReadyCheck-Ready:14:14|t ",
@@ -43,7 +41,7 @@ local injured = {}
 
 -- Seconds until Revive Battle Pets is ready, 0 when it is (the global cooldown doesn't count).
 local function GetReviveCooldown()
-    local info = C_Spell.GetSpellCooldown(REVIVE_SPELL_ID)
+    local info = C_Spell.GetSpellCooldown(ns.REVIVE_SPELL_ID)
     -- Cooldowns can be secret values (in combat), which addon code can't compare or add.
     if not info or not canaccessvalue(info.startTime) or not canaccessvalue(info.duration)
         or info.duration <= 1.5 then
@@ -71,7 +69,7 @@ local function AddHealthToTooltip()
         GameTooltip:AddLine(L["Use \"Revive Battle Pets\" at the top of the journal to heal them."], 1, 1, 1, true)
     else
         GameTooltip:AddLine(format(L["Revive Battle Pets is ready in %s."], SecondsToTime(cooldown)), 1, 1, 1, true)
-        local bandages = C_Item.GetItemCount(BANDAGE_ITEM_ID)
+        local bandages = C_Item.GetItemCount(ns.BANDAGE_ITEM_ID)
         if bandages > 0 then
             GameTooltip:AddLine(format(L["You have %d Battle Pet Bandages."], bandages), 1, 1, 1, true)
         end
@@ -100,12 +98,14 @@ end
 -- Pet card: icon, name and health ("♥ 1000 / 1000", or a skull and "Dead") for one loadout slot.
 local function CreatePetCard(parent, slot)
     local card = CreateFrame("Button", nil, parent)
-    card:SetHeight(PET_ICON_SIZE + 4)
-    card:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+    card:SetHeight(PET_ICON_SIZE + 8)
+    -- A card like the team list's.
+    ns.CreateCardFill(card)
+    card.Outline = ns.CreateCardOutline(card)
 
     card.Icon = card:CreateTexture(nil, "ARTWORK")
     card.Icon:SetSize(PET_ICON_SIZE, PET_ICON_SIZE)
-    card.Icon:SetPoint("LEFT", 2, 0)
+    card.Icon:SetPoint("LEFT", 4, 0)
     card.Border = card:CreateTexture(nil, "OVERLAY")
     card.Border:SetAllPoints(card.Icon)
     card.Border:SetTexture("Interface\\Common\\WhiteIconFrame")
@@ -114,7 +114,7 @@ local function CreatePetCard(parent, slot)
 
     card.Name = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     card.Name:SetPoint("TOPLEFT", card.Icon, "TOPRIGHT", 5, -3)
-    card.Name:SetPoint("RIGHT", -2, 0)
+    card.Name:SetPoint("RIGHT", -4, 0)
     card.Name:SetJustifyH("LEFT")
     card.Name:SetWordWrap(false)
 
@@ -123,7 +123,7 @@ local function CreatePetCard(parent, slot)
     card.HealthIcon:SetPoint("BOTTOMLEFT", card.Icon, "BOTTOMRIGHT", 4, 1)
     card.HealthText = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     card.HealthText:SetPoint("LEFT", card.HealthIcon, "RIGHT", 3, 0)
-    card.HealthText:SetPoint("RIGHT", -2, 0)
+    card.HealthText:SetPoint("RIGHT", -4, 0)
     card.HealthText:SetJustifyH("LEFT")
     card.HealthText:SetWordWrap(false)
 
@@ -133,6 +133,7 @@ local function CreatePetCard(parent, slot)
         end
     end)
     card:SetScript("OnEnter", function()
+        ns.UpdateCardOutline(card.Outline, false, true)
         local petID = cardPetIDs[slot]
         if not petID then
             return
@@ -159,7 +160,10 @@ local function CreatePetCard(parent, slot)
         GameTooltip:AddLine(L["Click to show it in the journal."], 0, 1, 0)
         GameTooltip:Show()
     end)
-    card:SetScript("OnLeave", GameTooltip_Hide)
+    card:SetScript("OnLeave", function()
+        ns.UpdateCardOutline(card.Outline, false, false)
+        GameTooltip:Hide()
+    end)
     return card
 end
 
@@ -207,13 +211,9 @@ function CurrentSection:Create(parent)
     section = CreateFrame("Frame", nil, parent)
     section:SetHeight(self.HEIGHT)
 
-    local header = ns.TeamsPanel.CreateSectionHeader(section, L["Current Team"])
-    header:SetPoint("TOPLEFT")
-    header:SetPoint("TOPRIGHT")
-
     -- The loaded team's name; clicking it shows the team in the list. Save / Revert next to it.
     section.TeamLine = CreateFrame("Button", nil, section)
-    section.TeamLine:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -3)
+    section.TeamLine:SetPoint("TOPLEFT")
     section.TeamLine:SetPoint("RIGHT")
     section.TeamLine:SetHeight(22)
 
@@ -224,20 +224,14 @@ function CurrentSection:Create(parent)
         button:SetScript("OnClick", function()
             onClick(currentTeam)
         end)
-        button:SetScript("OnEnter", function()
-            GameTooltip:SetOwner(button, "ANCHOR_TOP")
-            GameTooltip:SetText(text)
-            GameTooltip:AddLine(tooltip, 1, 1, 1, true)
-            GameTooltip:Show()
-        end)
-        button:SetScript("OnLeave", GameTooltip_Hide)
+        ns.SetTooltip(button, text, tooltip)
         return button
     end
-    section.RevertButton = CreateLineButton(L["Revert"], L["Load the saved version of this team again."], function(team)
+    section.RevertButton = CreateLineButton(L["Revert"], L["Reload the saved version of this team."], function(team)
         Teams:Load(team)
     end)
     section.RevertButton:SetPoint("RIGHT")
-    section.SaveButton = CreateLineButton(SAVE, L["Save the pets and abilities in your journal into this team."], function(team)
+    section.SaveButton = CreateLineButton(SAVE, L["Save your journal's pets and abilities to this team."], function(team)
         Teams:UpdateFromLoadout(team)
         ns:Print(format(L["Saved changes to \"%s\"."], team.name))
         ns.TeamsPanel:Refresh()

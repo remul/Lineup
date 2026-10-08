@@ -129,6 +129,15 @@ end
 ns.DEAD_ICON = "|TInterface\\TargetingFrame\\UI-TargetingFrame-Skull:14:14|t"
 ns.HURT_ICON = "|TInterface\\DialogFrame\\UI-Dialog-Icon-AlertNew:14:14|t"
 
+-- Healing battle pets: the Revive Battle Pets spell and Battle Pet Bandages.
+ns.REVIVE_SPELL_ID = 125439
+ns.BANDAGE_ITEM_ID = 86143
+
+-- "[icon] Beast", e.g. for menu entries.
+function ns.FormatFamily(petType)
+    return format("|T%s:16:16|t %s", ns.GetFamilyIcon(petType), ns.GetFamilyName(petType))
+end
+
 -- Rounded card textures (see tools/generate_rounded_textures.py): white, tinted with
 -- SetVertexColor, and drawn as nine-slices so the corners keep their size at any card size.
 local ROUNDED_FILL = ns.MEDIA .. "RoundedFill"
@@ -144,6 +153,40 @@ function ns.CreateRoundedTexture(parent, layer, subLevel, r, g, b, a, border)
     texture:SetVertexColor(r, g, b, a)
     texture:SetAllPoints()
     return texture
+end
+
+-- Cards in the window's insets (team rows, group headers, pet cards): a lightly warm fill with a
+-- muted bronze outline, to stand out from the insets' dark background in the colours of Blizzard's
+-- frames. The outline brightens while hovered; gold outlines mark the loaded team and its group.
+local CARD_FILL = CreateColor(0.40, 0.36, 0.30)
+local CARD_FILL_ALPHA = 0.22
+local CARD_OUTLINE = CreateColor(0.62, 0.56, 0.46)
+local CARD_OUTLINE_ALPHA, CARD_OUTLINE_HOVER_ALPHA = 0.45, 0.85
+
+function ns.CreateCardFill(parent, alpha)
+    local r, g, b = CARD_FILL:GetRGB()
+    return ns.CreateRoundedTexture(parent, "BACKGROUND", 0, r, g, b, alpha or CARD_FILL_ALPHA)
+end
+
+-- For alternating stripes.
+function ns.SetCardFillAlpha(fill, alpha)
+    local r, g, b = CARD_FILL:GetRGB()
+    fill:SetVertexColor(r, g, b, alpha)
+end
+
+function ns.CreateCardOutline(parent)
+    local r, g, b = CARD_OUTLINE:GetRGB()
+    return ns.CreateRoundedTexture(parent, "BORDER", -1, r, g, b, CARD_OUTLINE_ALPHA, true)
+end
+
+-- Colours a card outline: gold while active, otherwise the plain one, brighter while hovered.
+function ns.UpdateCardOutline(outline, active, hovered)
+    if active then
+        outline:SetVertexColor(1, 0.82, 0, 0.9)
+    else
+        outline:SetVertexColor(CARD_OUTLINE.r, CARD_OUTLINE.g, CARD_OUTLINE.b,
+            hovered and CARD_OUTLINE_HOVER_ALPHA or CARD_OUTLINE_ALPHA)
+    end
 end
 
 -- The divider line of Blizzard's own Settings panel (thin, fading out at both ends).
@@ -168,6 +211,33 @@ function ns.SetDividerTexture(texture, vertical)
         texture:SetAtlas(DIVIDER_ATLAS)
     end
     return DIVIDER_INFO.height
+end
+
+-- A tooltip for frame: the title, and text below it in white (wrapped). anchor defaults to above.
+function ns.SetTooltip(frame, title, text, anchor)
+    frame:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(frame, anchor or "ANCHOR_TOP")
+        GameTooltip:SetText(title)
+        GameTooltip:AddLine(text, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    frame:SetScript("OnLeave", GameTooltip_Hide)
+end
+
+-- A scroll box with a thin scroll bar on its right, filling parent (an inset) less padding, set up
+-- with view. Returns the scroll box.
+function ns.CreateScrollList(parent, view, padding)
+    padding = padding or 4
+    local scrollBox = CreateFrame("Frame", nil, parent, "WowScrollBoxList")
+    scrollBox:SetPoint("TOPLEFT", padding, -padding)
+    scrollBox:SetPoint("BOTTOMRIGHT", -padding - 16, padding)
+
+    local scrollBar = CreateFrame("EventFrame", nil, parent, "MinimalScrollBar")
+    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 6, 0)
+    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 6, 0)
+
+    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
+    return scrollBox
 end
 
 -- r, g, b for a battle pet quality (1 = poor ... 4 = rare).

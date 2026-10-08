@@ -6,7 +6,8 @@ local L = ns.L
 local ImportDialog = {}
 ns.ImportDialog = ImportDialog
 
-local DIALOG_WIDTH = 460
+local EXTRA_LEFT = ns.Dialogs.LEFT_BORDER_EXTRA
+local DIALOG_WIDTH = 460 + EXTRA_LEFT
 local DIALOG_HEIGHT = 440
 -- Lines in the preview below the text box (more are summed up).
 local MAX_PREVIEW_LINES = 5
@@ -129,20 +130,9 @@ local function DoImport()
 end
 
 local function CreateDialog()
-    dialog = CreateFrame("Frame", "LineupImportDialog", UIParent, "ButtonFrameTemplate")
-    dialog:SetSize(DIALOG_WIDTH, DIALOG_HEIGHT)
-    dialog:SetFrameStrata("DIALOG")
-    dialog:SetToplevel(true)
-    dialog:SetMovable(true)
-    dialog:SetClampedToScreen(true)
-    dialog:EnableMouse(true)
-    dialog:RegisterForDrag("LeftButton")
-    dialog:SetScript("OnDragStart", dialog.StartMoving)
-    dialog:SetScript("OnDragStop", dialog.StopMovingOrSizing)
-    ButtonFrameTemplate_HidePortrait(dialog)
+    dialog = ns.Dialogs.CreateWindow("LineupImportDialog", DIALOG_WIDTH, DIALOG_HEIGHT)
     dialog.Inset:Hide()
     dialog:SetTitle(L["Import Team"])
-    tinsert(UISpecialFrames, dialog:GetName())
 
     -- Addons can't read the clipboard, so pasting is up to the player; the box is focused on open.
     local clearButton = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
@@ -155,13 +145,13 @@ local function CreateDialog()
     end)
 
     local hint = dialog:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    hint:SetPoint("TOPLEFT", 16, -32)
+    hint:SetPoint("TOPLEFT", 16 + EXTRA_LEFT, -32)
     hint:SetPoint("RIGHT", clearButton, "LEFT", -10, 0)
     hint:SetJustifyH("LEFT")
     hint:SetText(L["Paste one or more Rematch team strings, e.g. from Xu-Fu's Pet Guides."])
 
     local textInset = CreateFrame("Frame", nil, dialog, "InsetFrameTemplate")
-    textInset:SetPoint("TOPLEFT", 14, -66)
+    textInset:SetPoint("TOPLEFT", 14 + EXTRA_LEFT, -66)
     textInset:SetPoint("BOTTOMRIGHT", -14, 82 + 18 + 14 * MAX_PREVIEW_LINES + 16)
 
     local lastLength = 0
@@ -209,7 +199,7 @@ local function CreateDialog()
 
     -- Group the imported team goes into.
     local groupLabel = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    groupLabel:SetPoint("BOTTOMLEFT", 18, 42)
+    groupLabel:SetPoint("BOTTOMLEFT", 18 + EXTRA_LEFT, 42)
     groupLabel:SetText(L["Group"])
 
     groupDropdown = CreateFrame("DropdownButton", nil, dialog, "WowStyle1DropdownTemplate")
@@ -229,13 +219,8 @@ local function CreateDialog()
     replaceCheck.Label = replaceCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     replaceCheck.Label:SetPoint("LEFT", replaceCheck, "RIGHT", 2, 0)
     replaceCheck.Label:SetText(L["Replace same names"])
-    replaceCheck:SetScript("OnEnter", function(button)
-        GameTooltip:SetOwner(button, "ANCHOR_TOP")
-        GameTooltip:SetText(L["Replace same names"])
-        GameTooltip:AddLine(L["Teams with the same name as one you already have replace it, instead of being added again. Handy for re-importing an updated list."], 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    replaceCheck:SetScript("OnLeave", GameTooltip_Hide)
+    ns.SetTooltip(replaceCheck, L["Replace same names"],
+        L["Teams with the same name as an existing team replace it instead of being added again."])
 end
 
 -- Opens the import window; groupID preselects the group for the imported team (nil = ungrouped).

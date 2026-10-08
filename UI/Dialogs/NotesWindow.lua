@@ -6,29 +6,20 @@ local _, ns = ...
 local NotesWindow = {}
 ns.NotesWindow = NotesWindow
 
-local WINDOW_WIDTH = 340
+local EXTRA_LEFT = ns.Dialogs.LEFT_BORDER_EXTRA
+local WINDOW_WIDTH = 340 + EXTRA_LEFT
 local WINDOW_HEIGHT = 380
 local TEXT_PADDING = 8
 
 local window, scrollFrame, content, notesText
 
 local function CreateWindow()
-    window = CreateFrame("Frame", "LineupNotesWindow", UIParent, "ButtonFrameTemplate")
-    window:SetSize(WINDOW_WIDTH, WINDOW_HEIGHT)
+    window = ns.Dialogs.CreateWindow("LineupNotesWindow", WINDOW_WIDTH, WINDOW_HEIGHT, true)
     window:SetPoint("CENTER", 300, 0)
-    window:SetFrameStrata("HIGH")
-    window:SetToplevel(true)
-    window:SetMovable(true)
-    window:SetClampedToScreen(true)
-    window:EnableMouse(true)
-    window:RegisterForDrag("LeftButton")
-    window:SetScript("OnDragStart", window.StartMoving)
-    window:SetScript("OnDragStop", window.StopMovingOrSizing)
-    ButtonFrameTemplate_HidePortrait(window)
 
     local inset = window.Inset
     inset:ClearAllPoints()
-    inset:SetPoint("TOPLEFT", 4, -26)
+    inset:SetPoint("TOPLEFT", 6 + EXTRA_LEFT, -26)
     inset:SetPoint("BOTTOMRIGHT", -6, 6)
 
     scrollFrame = CreateFrame("ScrollFrame", nil, inset, "UIPanelScrollFrameTemplate")

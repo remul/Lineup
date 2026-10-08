@@ -6,7 +6,7 @@ local Teams = ns.Teams
 local TargetSection = {}
 ns.TargetSection = TargetSection
 
-TargetSection.HEIGHT = 70
+TargetSection.HEIGHT = 46
 local PORTRAIT_SIZE = 44
 local BUTTON_WIDTH = 76
 
@@ -62,15 +62,10 @@ local function SaveForTarget(button)
     end)
 end
 
+-- The tooltip shows while the button is disabled too.
 local function SetButtonTooltip(button, title, text)
     button:SetMotionScriptsWhileDisabled(true)
-    button:SetScript("OnEnter", function()
-        GameTooltip:SetOwner(button, "ANCHOR_TOP")
-        GameTooltip:SetText(title)
-        GameTooltip:AddLine(text, 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    button:SetScript("OnLeave", GameTooltip_Hide)
+    ns.SetTooltip(button, title, text)
 end
 
 -- Builds the section inside parent and returns it (TargetSection.HEIGHT tall; set its width).
@@ -78,21 +73,17 @@ function TargetSection:Create(parent)
     section = CreateFrame("Frame", nil, parent)
     section:SetHeight(self.HEIGHT)
 
-    local header = ns.TeamsPanel.CreateSectionHeader(section, L["Target"])
-    header:SetPoint("TOPLEFT")
-    header:SetPoint("TOPRIGHT")
-
     -- Round portrait of the target.
     section.Portrait = section:CreateTexture(nil, "ARTWORK")
     section.Portrait:SetSize(PORTRAIT_SIZE, PORTRAIT_SIZE)
-    section.Portrait:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 4, -4)
+    section.Portrait:SetPoint("LEFT", 4, 0)
     local mask = section:CreateMaskTexture()
     mask:SetAllPoints(section.Portrait)
     mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     section.Portrait:AddMaskTexture(mask)
 
     section.LoadButton = CreateFrame("Button", nil, section, "UIPanelButtonTemplate")
-    section.LoadButton:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, -3)
+    section.LoadButton:SetPoint("TOPRIGHT")
     section.LoadButton:SetSize(BUTTON_WIDTH, 22)
     section.LoadButton:SetText(L["Load"])
     section.LoadButton:SetScript("OnClick", LoadForTarget)
@@ -103,7 +94,7 @@ function TargetSection:Create(parent)
     section.SaveButton:SetSize(BUTTON_WIDTH, 22)
     section.SaveButton:SetText(SAVE)
     section.SaveButton:SetScript("OnClick", SaveForTarget)
-    SetButtonTooltip(section.SaveButton, L["Save for target"], L["Save the pets currently in your journal as a team for this target."])
+    SetButtonTooltip(section.SaveButton, L["Save for target"], L["Save your journal's pets as a team for this target."])
 
     section.Name = section:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     section.Name:SetPoint("TOPLEFT", section.Portrait, "TOPRIGHT", 10, -6)

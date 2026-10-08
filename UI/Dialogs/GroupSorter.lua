@@ -6,7 +6,8 @@ local Teams = ns.Teams
 local GroupSorter = {}
 ns.GroupSorter = GroupSorter
 
-local WINDOW_WIDTH = 320
+local EXTRA_LEFT = ns.Dialogs.LEFT_BORDER_EXTRA
+local WINDOW_WIDTH = 320 + EXTRA_LEFT
 local WINDOW_HEIGHT = 420
 local ROW_HEIGHT = 30
 
@@ -74,7 +75,7 @@ function GroupSortRowMixin:Init(data)
     self.group = data.group
     self.Background:SetColorTexture(1, 1, 1, data.index % 2 == 1 and 0.05 or 0.02)
     self.Position:SetText(data.index)
-    self.Icon:SetTexture(data.group.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+    ns.IconPicker.SetIconTexture(self.Icon, data.group.icon or "Interface\\Icons\\INV_Misc_QuestionMark", 20)
     self.Icon:SetDesaturated(data.group.icon == nil)
     self.Name:SetText(data.group.name)
     self.UpButton:SetEnabled(data.index > 1)
@@ -82,29 +83,18 @@ function GroupSortRowMixin:Init(data)
 end
 
 local function CreateWindow()
-    window = CreateFrame("Frame", "LineupGroupSorter", UIParent, "ButtonFrameTemplate")
-    window:SetSize(WINDOW_WIDTH, WINDOW_HEIGHT)
-    window:SetFrameStrata("DIALOG")
-    window:SetToplevel(true)
-    window:SetMovable(true)
-    window:SetClampedToScreen(true)
-    window:EnableMouse(true)
-    window:RegisterForDrag("LeftButton")
-    window:SetScript("OnDragStart", window.StartMoving)
-    window:SetScript("OnDragStop", window.StopMovingOrSizing)
-    ButtonFrameTemplate_HidePortrait(window)
+    window = ns.Dialogs.CreateWindow("LineupGroupSorter", WINDOW_WIDTH, WINDOW_HEIGHT)
     window:SetTitle(L["Sort Groups"])
-    tinsert(UISpecialFrames, window:GetName())
 
     local hint = window:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hint:SetPoint("TOPLEFT", 16, -32)
+    hint:SetPoint("TOPLEFT", 16 + EXTRA_LEFT, -32)
     hint:SetPoint("RIGHT", -16, 0)
     hint:SetJustifyH("LEFT")
     hint:SetText(L["Use the arrows to move a group. \"Ungrouped\" always comes last."])
 
     local inset = window.Inset
     inset:ClearAllPoints()
-    inset:SetPoint("TOPLEFT", 4, -52)
+    inset:SetPoint("TOPLEFT", 6 + EXTRA_LEFT, -52)
     inset:SetPoint("BOTTOMRIGHT", -6, 34)
 
     emptyText = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
@@ -112,21 +102,13 @@ local function CreateWindow()
     emptyText:SetPoint("TOPRIGHT", -16, -16)
     emptyText:SetText(L["No groups yet."])
 
-    scrollBox = CreateFrame("Frame", nil, inset, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 4, -4)
-    scrollBox:SetPoint("BOTTOMRIGHT", -20, 4)
-
-    local scrollBar = CreateFrame("EventFrame", nil, inset, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 6, 0)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 6, 0)
-
     local view = CreateScrollBoxListLinearView()
     view:SetElementExtent(ROW_HEIGHT)
     view:SetElementInitializer("LineupGroupSortRowTemplate", function(row, data)
         row:Init(data)
     end)
     view:SetPadding(0, 0, 0, 0, 2)
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
+    scrollBox = ns.CreateScrollList(inset, view)
 
     local doneButton = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
     doneButton:SetPoint("BOTTOMRIGHT", -8, 6)
@@ -137,7 +119,7 @@ local function CreateWindow()
     end)
 
     local alphabeticalButton = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
-    alphabeticalButton:SetPoint("BOTTOMLEFT", 8, 6)
+    alphabeticalButton:SetPoint("BOTTOMLEFT", 8 + EXTRA_LEFT, 6)
     alphabeticalButton:SetSize(110, 22)
     alphabeticalButton:SetText(L["Sort A-Z"])
     alphabeticalButton:SetScript("OnClick", function()

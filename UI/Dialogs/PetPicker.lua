@@ -9,7 +9,8 @@ local L = ns.L
 local PetPicker = {}
 ns.PetPicker = PetPicker
 
-local PICKER_WIDTH = 360
+local EXTRA_LEFT = ns.Dialogs.LEFT_BORDER_EXTRA
+local PICKER_WIDTH = 360 + EXTRA_LEFT
 local PICKER_HEIGHT = 470
 local ROW_HEIGHT = 38
 local ICON_SIZE = 30
@@ -86,10 +87,7 @@ end
 local function UpdateFilterControls()
     local all = not next(families)
     for petType, button in ipairs(familyButtons) do
-        local checked = families[petType] == true
-        button.Selected:SetShown(checked)
-        button.Icon:SetDesaturated(not all and not checked)
-        button.Icon:SetAlpha((all or checked) and 1 or 0.5)
+        ns.FamilyFilter.UpdateButton(button, all, families[petType] == true)
     end
     UpdateVsButton(strongButton, L["Strong vs."], strongVs)
     UpdateVsButton(toughButton, L["Tough vs."], toughVs)
@@ -254,7 +252,7 @@ local function CreatePicker(parent)
     tinsert(UISpecialFrames, picker:GetName())
 
     searchBox = CreateFrame("EditBox", nil, picker, "SearchBoxTemplate")
-    searchBox:SetPoint("TOPLEFT", 16, -30)
+    searchBox:SetPoint("TOPLEFT", 16 + EXTRA_LEFT, -30)
     searchBox:SetPoint("RIGHT", -12, 0)
     searchBox:SetHeight(22)
     searchBox:SetAutoFocus(false)
@@ -264,20 +262,7 @@ local function CreatePicker(parent)
     -- Family icons, like the row above the journal's list: a click on an unfiltered list shows only
     -- that family, further clicks add or remove families, right-click shows all again.
     for petType = 1, ns.NUM_FAMILIES do
-        local button = CreateFrame("Button", nil, picker)
-        button:SetSize(FAMILY_BUTTON_SIZE, FAMILY_BUTTON_SIZE)
-        button:SetPoint("TOPLEFT", 14 + (petType - 1) * (FAMILY_BUTTON_SIZE + FAMILY_BUTTON_SPACING), -60)
-        button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-        button.Icon = button:CreateTexture(nil, "ARTWORK")
-        button.Icon:SetAllPoints()
-        button.Icon:SetTexture(ns.GetFamilyIcon(petType))
-        button.Selected = button:CreateTexture(nil, "OVERLAY")
-        button.Selected:SetPoint("TOPLEFT", -3, 3)
-        button.Selected:SetPoint("BOTTOMRIGHT", 3, -3)
-        button.Selected:SetTexture("Interface\\Buttons\\CheckButtonHilight")
-        button.Selected:SetBlendMode("ADD")
-        button:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-        button:SetScript("OnClick", function(_, mouseButton)
+        local button = ns.FamilyFilter.CreateButton(picker, petType, FAMILY_BUTTON_SIZE, function(_, mouseButton)
             if mouseButton == "RightButton" then
                 wipe(families)
             else
@@ -285,14 +270,7 @@ local function CreatePicker(parent)
             end
             Refresh()
         end)
-        button:SetScript("OnEnter", function()
-            GameTooltip:SetOwner(button, "ANCHOR_TOP")
-            GameTooltip:SetText(ns.GetFamilyName(petType))
-            GameTooltip:AddLine(L["Click to filter by this family."], 1, 1, 1)
-            GameTooltip:AddLine(L["Right-click to show all families."], 1, 1, 1)
-            GameTooltip:Show()
-        end)
-        button:SetScript("OnLeave", GameTooltip_Hide)
+        button:SetPoint("TOPLEFT", 14 + EXTRA_LEFT + (petType - 1) * (FAMILY_BUTTON_SIZE + FAMILY_BUTTON_SPACING), -60)
         familyButtons[petType] = button
     end
 
@@ -306,13 +284,7 @@ local function CreatePicker(parent)
             ns.PetFilters.AddBreedOptions(root, breeds, Refresh)
         end)
     end)
-    breedButton:SetScript("OnEnter", function(button)
-        GameTooltip:SetOwner(button, "ANCHOR_TOP")
-        GameTooltip:SetText(L["Breed"])
-        GameTooltip:AddLine(L["Only pets of the checked breeds. Breeds are worked out from each pet's stats."], 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    breedButton:SetScript("OnLeave", GameTooltip_Hide)
+    ns.SetTooltip(breedButton, L["Breed"], L["Only pets of the checked breeds. Breeds are calculated from pet stats."])
 
     -- Strong vs. / Tough vs. an enemy family, and level 25 only.
     local function CreateVsButton(label, tooltip, get, set)
@@ -321,32 +293,18 @@ local function CreatePicker(parent)
         button:SetScript("OnClick", function()
             MenuUtil.CreateContextMenu(button, function(_, root)
                 root:CreateTitle(label)
-                local function IsSelected(petType)
-                    return get() == petType
-                end
-                local function Select(petType)
+                ns.PetFilters.AddFamilyOptions(root, get, function(petType)
                     set(petType)
                     Refresh()
-                end
-                root:CreateRadio(L["Any family"], IsSelected, Select, 0)
-                for petType = 1, ns.NUM_FAMILIES do
-                    root:CreateRadio(format("|T%s:16:16|t %s", ns.GetFamilyIcon(petType), ns.GetFamilyName(petType)),
-                        IsSelected, Select, petType)
-                end
+                end)
             end)
         end)
-        button:SetScript("OnEnter", function()
-            GameTooltip:SetOwner(button, "ANCHOR_TOP")
-            GameTooltip:SetText(label)
-            GameTooltip:AddLine(tooltip, 1, 1, 1, true)
-            GameTooltip:Show()
-        end)
-        button:SetScript("OnLeave", GameTooltip_Hide)
+        ns.SetTooltip(button, label, tooltip)
         return button
     end
-    strongButton = CreateVsButton(L["Strong vs."], L["Pets that can learn an ability doing extra damage to this family."],
+    strongButton = CreateVsButton(L["Strong vs."], L["Pets that can learn an ability strong against this family."],
         function() return strongVs end, function(petType) strongVs = petType end)
-    strongButton:SetPoint("TOPLEFT", 10, -88)
+    strongButton:SetPoint("TOPLEFT", 10 + EXTRA_LEFT, -88)
     toughButton = CreateVsButton(L["Tough vs."], L["Pets whose family takes less damage from this family's attacks."],
         function() return toughVs end, function(petType) toughVs = petType end)
     toughButton:SetPoint("LEFT", strongButton, "RIGHT", 4, 0)
@@ -363,7 +321,7 @@ local function CreatePicker(parent)
     end)
 
     local inset = CreateFrame("Frame", nil, picker, "InsetFrameTemplate")
-    inset:SetPoint("TOPLEFT", 8, -116)
+    inset:SetPoint("TOPLEFT", 8 + EXTRA_LEFT, -116)
     inset:SetPoint("BOTTOMRIGHT", -8, 36)
 
     -- Slots without a specific pet, in three equal buttons along the bottom.
@@ -377,27 +335,21 @@ local function CreatePicker(parent)
         button:SetHeight(22)
         button:SetText(text)
         button:SetScript("OnClick", onClick)
-        button:SetScript("OnEnter", function()
-            GameTooltip:SetOwner(button, "ANCHOR_TOP")
-            GameTooltip:SetText(text)
-            GameTooltip:AddLine(tooltip, 1, 1, 1, true)
-            GameTooltip:Show()
-        end)
-        button:SetScript("OnLeave", GameTooltip_Hide)
+        ns.SetTooltip(button, text, tooltip)
         buttons[#buttons + 1] = button
         return button
     end
-    CreateOptionButton(L["Leveling"], L["A pet from your leveling queue, picked each time the team is loaded."], function()
+    CreateOptionButton(L["Leveling"], L["A pet from your leveling queue, picked on each load."], function()
         Choose({ leveling = true })
     end)
-    CreateOptionButton(L["Random"], L["A random level 25 pet of any family, or of one family, picked each time the team is loaded."], function(button)
+    CreateOptionButton(L["Random"], L["A random level 25 pet, of any family or one family, picked on each load."], function(button)
         MenuUtil.CreateContextMenu(button, function(_, root)
             root:CreateTitle(L["Random level 25 pet"])
             root:CreateButton(L["Any family"], function()
                 Choose({ random = true, petType = 0 })
             end)
             for petType = 1, ns.NUM_FAMILIES do
-                root:CreateButton(format("|T%s:16:16|t %s", ns.GetFamilyIcon(petType), ns.GetFamilyName(petType)), function()
+                root:CreateButton(ns.FormatFamily(petType), function()
                     Choose({ random = true, petType = petType })
                 end)
             end
@@ -406,24 +358,16 @@ local function CreatePicker(parent)
     CreateOptionButton(L["Empty"], L["No pet in this slot."], function()
         Choose({})
     end)
-    local buttonWidth = (PICKER_WIDTH - 2 * 8 - 2 * 4) / 3
+    local buttonWidth = (PICKER_WIDTH - EXTRA_LEFT - 2 * 8 - 2 * 4) / 3
     for index, button in ipairs(buttons) do
-        button:SetPoint("BOTTOMLEFT", 8 + (index - 1) * (buttonWidth + 4), 8)
+        button:SetPoint("BOTTOMLEFT", 8 + EXTRA_LEFT + (index - 1) * (buttonWidth + 4), 8)
         button:SetWidth(buttonWidth)
     end
-
-    scrollBox = CreateFrame("Frame", nil, inset, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 4, -4)
-    scrollBox:SetPoint("BOTTOMRIGHT", -20, 4)
-
-    local scrollBar = CreateFrame("EventFrame", nil, inset, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 6, 0)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 6, 0)
 
     local view = CreateScrollBoxListLinearView()
     view:SetElementInitializer("Button", InitRow)
     view:SetElementExtent(ROW_HEIGHT)
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
+    scrollBox = ns.CreateScrollList(inset, view)
 
     noResults = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     noResults:SetPoint("TOP", 0, -24)

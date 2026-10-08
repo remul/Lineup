@@ -20,6 +20,30 @@ function Dialogs.Confirm(prompt, onAccept)
     StaticPopup_Show("LINEUP_CONFIRM", prompt, nil, { onAccept = onAccept })
 end
 
+-- ButtonFrameTemplate's left border is wider than its right one, so content needs this much more
+-- room on the left than on the right to sit evenly between them. Windows are this much wider too.
+Dialogs.LEFT_BORDER_EXTRA = 5
+
+-- A draggable window (ButtonFrameTemplate, without the portrait) above other UI, closed by Escape.
+-- A free-standing one (freeStanding) sits lower and stays open on Escape, e.g. for use in battle.
+function Dialogs.CreateWindow(name, width, height, freeStanding)
+    local window = CreateFrame("Frame", name, UIParent, "ButtonFrameTemplate")
+    window:SetSize(width, height)
+    window:SetFrameStrata(freeStanding and "HIGH" or "DIALOG")
+    window:SetToplevel(true)
+    window:SetMovable(true)
+    window:SetClampedToScreen(true)
+    window:EnableMouse(true)
+    window:RegisterForDrag("LeftButton")
+    window:SetScript("OnDragStart", window.StartMoving)
+    window:SetScript("OnDragStop", window.StopMovingOrSizing)
+    ButtonFrameTemplate_HidePortrait(window)
+    if not freeStanding then
+        tinsert(UISpecialFrames, name)
+    end
+    return window
+end
+
 -- Windows the player has dragged somewhere, and those already watched for that ([frame] = true).
 local movedWindows, watchedWindows = {}, {}
 

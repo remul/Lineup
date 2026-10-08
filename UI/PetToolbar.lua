@@ -14,21 +14,19 @@ local GROUP_SPACING = 20
 -- Gap between the bar's right edge and the right edge of the journal's content.
 local RIGHT_MARGIN = 8
 
-local REVIVE_SPELL_ID = 125439
-local BANDAGE_ITEM_ID = 86143
 local SAFARI_HAT_ITEM_ID = 92738
 local LESSER_PET_TREAT_ITEM_ID = 98112
 local PET_TREAT_ITEM_ID = 98114
 
 -- Left to right, in groups: healing, leveling, summoning. The bar ends where Blizzard's buttons were.
 local BUTTONS = {
-    { key = "revive", group = 1, spellID = REVIVE_SPELL_ID },
-    { key = "bandage", group = 1, itemID = BANDAGE_ITEM_ID, showCount = true },
+    { key = "revive", group = 1, spellID = ns.REVIVE_SPELL_ID },
+    { key = "bandage", group = 1, itemID = ns.BANDAGE_ITEM_ID, showCount = true },
     { key = "safariHat", group = 2, toyID = SAFARI_HAT_ITEM_ID, cancelBuff = true },
     { key = "lesserPetTreat", group = 2, itemID = LESSER_PET_TREAT_ITEM_ID, showCount = true },
     { key = "petTreat", group = 2, itemID = PET_TREAT_ITEM_ID, showCount = true },
     { key = "summon", group = 3, icon = "Interface\\Icons\\INV_Pet_Achievement_CaptureAWildPet",
-      title = L["Summon Random Favorite Pet"], hint = L["Right-click to summon a random pet from your whole collection."] },
+      title = L["Summon Random Favorite Pet"], hint = L["Right-click to summon a random pet from your collection."] },
 }
 
 -- x offset of each button from the bar's left edge, x centers of the dividers between groups,
@@ -54,7 +52,6 @@ end
 local bar
 local buttons = {}
 local pendingSetup = false
-local HideTextBehindBar
 -- Blizzard buttons we've hooked to stay hidden.
 local keptHidden = {}
 
@@ -223,7 +220,7 @@ end
 local function SearchButtons(frame, depth, found)
     for _, child in ipairs({ frame:GetChildren() }) do
         local name = child:GetName() or ""
-        if not found.heal and (CastsSpell(child, REVIVE_SPELL_ID) or name:find("HealPet")) then
+        if not found.heal and (CastsSpell(child, ns.REVIVE_SPELL_ID) or name:find("HealPet")) then
             found.heal = child
         elseif not found.summon and (CastsSpell(child, SUMMON_RANDOM_FAVORITE_SPELL_ID) or name:find("RandomFavorite")) then
             found.summon = child
@@ -286,7 +283,7 @@ end
 -- calls them. Text is safe to hide any time; buttons can be protected, so only out of combat.
 local blizzardHidden = false
 
-HideTextBehindBar = function()
+local function HideTextBehindBar()
     -- Anything hidden stays hidden (buttons are hooked), so one successful pass is enough.
     if blizzardHidden or not bar or not bar:IsVisible() then
         return
@@ -342,7 +339,7 @@ local function Setup()
     bar = CreateFrame("Frame", nil, PetJournal)
     local offsets, dividers, width = GetLayout()
     bar:SetSize(width, BUTTON_SIZE)
-    -- Upright versions of the window's section dividers.
+    -- Upright divider lines between the button groups.
     for _, x in ipairs(dividers) do
         local divider = bar:CreateTexture(nil, "ARTWORK")
         local thickness = ns.SetDividerTexture(divider, true)
@@ -407,9 +404,7 @@ ns:RegisterEvent("PLAYER_REGEN_ENABLED", function()
     end
     HideBlizzardButtons()
     PetToolbar:Refresh()
-    if HideTextBehindBar then
-        HideTextBehindBar()
-    end
+    HideTextBehindBar()
 end)
 
 local function OnToolbarEvent()

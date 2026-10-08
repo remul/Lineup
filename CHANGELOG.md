@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.4.0
+
+- **Pet Collection**: a magnifying glass next to the Pet Journal's "Total Pets" shows how many pets
+  you have; click it for details. An overview (collected, level 25 and rare pets, unique and in
+  total, duplicates, average battle pet level, pets in your teams, a quality bar) and bars per
+  **family** or per **source** for a number of your choice, e.g. percent collected.
+- **Delete groups** from a group's gear menu, and optionally all of its teams along with it.
+- **Expansion logos** in the group icon picker, right after the pet families.
+- The Lineup window's sections (Target, Current Team, team list) and the Leveling Queue and
+  Settings tabs are sunk into the window like the Pet Journal's insets; the current pets are cards
+  like the teams. The Leveling Queue's sort and options are radio buttons and checkboxes.
+- Even spacing on both sides in every Lineup window, and a little room above the first and below
+  the last group.
+- Clicks on the Lineup window no longer reach the world behind it (e.g. an NPC).
+- Shorter, clearer tooltips and texts.
+
 ## 1.3.1
 
 - Teams are shown as **rounded cards** with a little space between them; the loaded team has a

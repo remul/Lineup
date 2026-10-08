@@ -78,20 +78,11 @@ end
 
 -- "Strong vs." / "Tough vs." submenu: any family, or one.
 local function AddVsSubmenu(root, label, get, set)
-    local submenu = root:CreateButton(label)
-    local function IsSelected(family)
-        return get() == family
-    end
-    local function Select(family)
+    ns.PetFilters.AddFamilyOptions(root:CreateButton(label), get, function(family)
         set(family)
         Changed()
         return MenuResponse.Refresh
-    end
-    submenu:CreateRadio(L["Any family"], IsSelected, Select, 0)
-    for family = 1, ns.NUM_FAMILIES do
-        submenu:CreateRadio(format("|T%s:16:16|t %s", ns.GetFamilyIcon(family), ns.GetFamilyName(family)),
-            IsSelected, Select, family)
-    end
+    end)
 end
 
 function JournalFilters:Setup()

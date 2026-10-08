@@ -30,6 +30,7 @@ end
 -- Space between a section's header and its content, and between sections.
 local HEADER_GAP = 6
 local SECTION_GAP = 16
+local SECTION_HEADER_HEIGHT = 18
 
 local function CreateParagraph(parent, text, anchor, offsetY)
     local paragraph = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -41,45 +42,69 @@ local function CreateParagraph(parent, text, anchor, offsetY)
     return paragraph
 end
 
--- A section header like the Teams tab's, below anchor.
+-- A section's gold title with a divider line running to the right edge, below anchor (or at the
+-- top of parent).
 local function CreateSection(parent, text, anchor)
-    local header = ns.TeamsPanel.CreateSectionHeader(parent, text)
-    header:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -SECTION_GAP)
-    header:SetPoint("RIGHT")
+    local header = CreateFrame("Frame", nil, parent)
+    header:SetHeight(SECTION_HEADER_HEIGHT)
+    if anchor then
+        header:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -SECTION_GAP)
+    else
+        header:SetPoint("TOPLEFT")
+    end
+    header:SetPoint("RIGHT", parent)
+
+    header.Text = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    header.Text:SetPoint("LEFT")
+    header.Text:SetText(text)
+
+    header.Line = header:CreateTexture(nil, "ARTWORK")
+    header.Line:SetPoint("LEFT", header.Text, "RIGHT", 8, 0)
+    header.Line:SetPoint("RIGHT")
+    header.Line:SetHeight(ns.SetDividerTexture(header.Line))
     return header
 end
 
--- Builds the view inside parent (the Lineup window) and returns it; it starts hidden. Laid out
--- like the Teams tab: sections with a header line, without a box around them.
+-- Builds the view inside parent (the Lineup window) and returns it; it starts hidden. The addon's
+-- name and description sit on the window, the sections below sunk into it like the Teams tab's.
 function AboutView:Create(parent)
     view = CreateFrame("Frame", nil, parent)
     view:SetAllPoints()
     view:Hide()
 
-    local inset = ns.TeamsPanel.SECTION_INSET
-    local content = CreateFrame("Frame", nil, view)
-    content:SetPoint("TOPLEFT", inset, -32)
-    content:SetPoint("BOTTOMRIGHT", -inset, 30)
+    local edge = ns.TeamsPanel.SECTION_INSET
+    local header = CreateFrame("Frame", nil, view)
+    header:SetPoint("TOPLEFT", edge, -32)
+    header:SetPoint("BOTTOMRIGHT", -edge, 30)
 
     -- Header: icon, name, version and what Lineup does.
-    local icon = content:CreateTexture(nil, "ARTWORK")
+    local icon = header:CreateTexture(nil, "ARTWORK")
     icon:SetSize(40, 40)
     icon:SetPoint("TOPLEFT")
     icon:SetTexture(ns.MEDIA .. "Icon")
 
-    local title = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -2)
     title:SetText(ns.TITLE)
 
-    versionText = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    versionText = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     versionText:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
 
-    local about = CreateParagraph(content,
-        L["Pet battle teams for Blizzard's Pet Journal: save and load teams, group them, import Rematch team strings (e.g. from Xu-Fu's Pet Guides) and keep an automatic leveling queue."],
+    local about = CreateParagraph(header,
+        L["Pet battle teams for the Pet Journal: save, load and group teams, import Rematch team strings and level pets from a queue."],
         icon, -10)
 
+    -- Everything below the description sits in one inset.
+    local inset = CreateFrame("Frame", nil, view, "InsetFrameTemplate")
+    local insetLeft, insetRight = ns.TeamsPanel.INSET_LEFT, ns.TeamsPanel.INSET_RIGHT
+    inset:SetPoint("TOPLEFT", about, "BOTTOMLEFT", insetLeft - edge, -12)
+    inset:SetPoint("BOTTOMRIGHT", insetRight, 26)
+    local content = CreateFrame("Frame", nil, inset)
+    content:SetPoint("TOPLEFT", edge - insetLeft, -10)
+    content:SetPoint("BOTTOMRIGHT", -(edge - insetLeft), 10)
+
     -- Settings
-    local settings = CreateSection(content, L["Settings"], about)
+    local settings = CreateSection(content, L["Settings"])
 
     -- A checkbox for the setting ns.db[key], below anchor, explained by tooltip.
     local function CreateCheckbox(key, label, tooltip, anchor, offsetX, offsetY)
@@ -94,22 +119,16 @@ function AboutView:Create(parent)
         check:SetScript("OnClick", function(button)
             ns.db[key] = button:GetChecked()
         end)
-        check:SetScript("OnEnter", function(button)
-            GameTooltip:SetOwner(button, "ANCHOR_TOPLEFT")
-            GameTooltip:SetText(label)
-            GameTooltip:AddLine(tooltip, 1, 1, 1, true)
-            GameTooltip:Show()
-        end)
-        check:SetScript("OnLeave", GameTooltip_Hide)
+        ns.SetTooltip(check, label, tooltip, "ANCHOR_TOPLEFT")
         checkboxes[#checkboxes + 1] = { button = check, key = key }
         return check
     end
 
     local autoLoadCheck = CreateCheckbox("autoLoadTargetTeam", L["Load a target's team automatically"],
-        L["When you target a tamer or wild pet that has exactly one team, that team is loaded right away."],
+        L["Targeting a tamer or wild pet with exactly one team loads that team."],
         settings, -4, -HEADER_GAP + 2)
     local debugCheck = CreateCheckbox("debug", L["Debug messages in chat"],
-        L["Shows details about loading teams in chat, to help track down problems."], autoLoadCheck, 0, 0)
+        L["Shows team loading details in chat, for troubleshooting."], autoLoadCheck, 0, 0)
 
     -- Import & Export: teams from Rematch, and all teams as text.
     local transfer = CreateSection(content, L["Import & Export"], debugCheck)
@@ -132,13 +151,8 @@ function AboutView:Create(parent)
     exportButton:SetScript("OnClick", function()
         ns.ExportDialog:Open(L["Export All Teams"], ns.Export.All())
     end)
-    exportButton:SetScript("OnEnter", function(button)
-        GameTooltip:SetOwner(button, "ANCHOR_TOP")
-        GameTooltip:SetText(L["Export All Teams"])
-        GameTooltip:AddLine(L["All teams and groups as team strings (with notes and scripts), to back them up or move them to Rematch."], 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    exportButton:SetScript("OnLeave", GameTooltip_Hide)
+    ns.SetTooltip(exportButton, L["Export All Teams"],
+        L["All teams and groups as team strings, with notes and scripts. For backups or moving to Rematch."])
 
     -- Overview
     local overview = CreateSection(content, L["Overview"], rematchButton)
@@ -172,6 +186,6 @@ function AboutView:Refresh()
     local rematchLoaded = ns.Import.IsRematchAvailable()
     rematchButton:SetEnabled(rematchLoaded)
     rematchText:SetText(rematchLoaded
-        and L["Copy all your Rematch teams and groups into Lineup, including pet battle scripts from tdBattlePetScript."]
-        or L["Enable Rematch and reload to import its teams here. Or use Rematch's \"Export All Teams\" and paste the text into Import."])
+        and L["Copies all Rematch teams and groups into Lineup, with their tdBattlePetScript scripts."]
+        or L["Enable Rematch and reload to import its teams, or paste the text of Rematch's \"Export All Teams\" into Import."])
 end

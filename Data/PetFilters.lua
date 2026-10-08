@@ -50,6 +50,18 @@ function PetFilters.DescribeBreeds(breeds)
     return #names > 0 and table.concat(names, ", ") or nil
 end
 
+-- Adds family choices to a menu: "Any family" (0) and a radio button per family. get() returns the
+-- chosen family; select(family) stores a choice, and what it returns is the menu's response.
+function PetFilters.AddFamilyOptions(menu, get, select)
+    local function IsSelected(family)
+        return get() == family
+    end
+    menu:CreateRadio(ns.L["Any family"], IsSelected, select, 0)
+    for family = 1, ns.NUM_FAMILIES do
+        menu:CreateRadio(ns.FormatFamily(family), IsSelected, select, family)
+    end
+end
+
 -- Adds breed choices to a menu: "Any breed" and a checkbox per breed. changed() runs after every
 -- change.
 function PetFilters.AddBreedOptions(menu, breeds, changed)

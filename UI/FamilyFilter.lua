@@ -55,6 +55,39 @@ local function Button_OnEnter(button)
     GameTooltip:Show()
 end
 
+-- A family icon button (also used by the pet picker). onClick(button, mouseButton); button.petType
+-- is its family.
+function FamilyFilter.CreateButton(parent, petType, size, onClick)
+    local button = CreateFrame("Button", nil, parent)
+    button.petType = petType
+    button:SetSize(size, size)
+    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+
+    button.Icon = button:CreateTexture(nil, "ARTWORK")
+    button.Icon:SetAllPoints()
+    button.Icon:SetTexture(ns.GetFamilyIcon(petType))
+
+    button.Selected = button:CreateTexture(nil, "OVERLAY")
+    button.Selected:SetPoint("TOPLEFT", -3, 3)
+    button.Selected:SetPoint("BOTTOMRIGHT", 3, -3)
+    button.Selected:SetTexture("Interface\\Buttons\\CheckButtonHilight")
+    button.Selected:SetBlendMode("ADD")
+
+    button:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    button:SetScript("OnClick", onClick)
+    button:SetScript("OnEnter", Button_OnEnter)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+    return button
+end
+
+-- With all families shown, every icon is plain; otherwise the shown ones are highlighted and the
+-- rest dimmed.
+function FamilyFilter.UpdateButton(button, all, checked)
+    button.Selected:SetShown(not all and checked)
+    button.Icon:SetDesaturated(not all and not checked)
+    button.Icon:SetAlpha((all or checked) and 1 or 0.5)
+end
+
 -- Shift every top anchor of a region down to free up space above it.
 local function MoveTopDown(region, offset, onlyUnlessRelativeTo)
     local points = {}
@@ -86,26 +119,8 @@ function FamilyFilter:Setup()
     bar:SetPoint("BOTTOMLEFT", scrollBox, "TOPLEFT", 4, 4)
 
     for petType = 1, ns.NUM_FAMILIES do
-        local button = CreateFrame("Button", nil, bar)
-        button.petType = petType
-        button:SetSize(BUTTON_SIZE, BUTTON_SIZE)
+        local button = FamilyFilter.CreateButton(bar, petType, BUTTON_SIZE, Button_OnClick)
         button:SetPoint("LEFT", (petType - 1) * (BUTTON_SIZE + BUTTON_SPACING), 0)
-        button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-
-        button.Icon = button:CreateTexture(nil, "ARTWORK")
-        button.Icon:SetAllPoints()
-        button.Icon:SetTexture(ns.GetFamilyIcon(petType))
-
-        button.Selected = button:CreateTexture(nil, "OVERLAY")
-        button.Selected:SetPoint("TOPLEFT", -3, 3)
-        button.Selected:SetPoint("BOTTOMRIGHT", 3, -3)
-        button.Selected:SetTexture("Interface\\Buttons\\CheckButtonHilight")
-        button.Selected:SetBlendMode("ADD")
-
-        button:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-        button:SetScript("OnClick", Button_OnClick)
-        button:SetScript("OnEnter", Button_OnEnter)
-        button:SetScript("OnLeave", GameTooltip_Hide)
         buttons[petType] = button
     end
 
@@ -118,9 +133,6 @@ end
 function FamilyFilter:Refresh()
     local all = AllTypesChecked()
     for petType, button in ipairs(buttons) do
-        local checked = C_PetJournal.IsPetTypeChecked(petType)
-        button.Selected:SetShown(not all and checked)
-        button.Icon:SetDesaturated(not all and not checked)
-        button.Icon:SetAlpha((all or checked) and 1 or 0.5)
+        FamilyFilter.UpdateButton(button, all, C_PetJournal.IsPetTypeChecked(petType))
     end
 end
