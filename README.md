@@ -2,89 +2,118 @@
 
 # Lineup
 
-Pet battle teams for World of Warcraft (Retail), built into Blizzard's own Pet Journal.
+A pet battle team manager for World of Warcraft (Retail) that works inside Blizzard's Pet Journal.
 
-Lineup is a simpler, cleaner take on Rematch. Blizzard's Pet Journal stays as it is; Lineup adds a
-family filter, a toolbar, and a window next to the journal with your target, your current team and
-all your teams.
+Lineup adds a window next to the Pet Journal with your current target, the team you have loaded and
+all your saved teams. The journal itself keeps working as before; Lineup adds a few things to it.
 
 ## Features
 
-- **Teams** – save the three pets in your journal (with their abilities) as a team, and load it with
-  one click. Teams can have a target NPC, notes and a [tdBattlePetScript](https://www.curseforge.com/wow/addons/td-battle-pet-script) script.
-  The loaded team is marked; change a pet or ability and Lineup offers to **Save** or **Revert**.
-- **Groups** – sort teams into collapsible groups with icons (including expansion logos), in your
-  own order. Search teams and groups by name or target. Delete a group with or without its teams.
-- **Team editor** – name, target, notes and script, and pets chosen right there: a pet picker
-  searches your pets by name, species or ability and filters by family, strong vs. or tough vs. an
-  enemy family; it also sets leveling, random level 25 and empty slots. Pick abilities per pet.
-- **Lineup window** – next to the journal, in three sections: your **target** (the targeted tamer or
-  wild pet, its teams, quick Load / Save), your **current** team (the pets in your journal with
-  their health, whether the script will run) and all your **teams**. Optionally, targeting an NPC
-  with exactly one team loads it.
-- **Scripts** – with [Pet Battle Scripts](https://www.curseforge.com/wow/addons/td-battle-pet-script)
-  installed, the loaded team's script runs from its Auto button in battle. Lineup checks each
-  script and flags abilities the team doesn't have selected, and can select them for you.
-- **Pet health** – dead and hurt pets are marked, and Blizzard's Revive Battle Pets button glows
-  while one needs healing.
-- **Import** – paste Rematch team strings, e.g. from [Xu-Fu's Pet Guides](https://www.wow-petguide.com),
-  one or many at once. Pets, abilities, targets, notes and scripts are read; random and leveling
-  slots are supported. Existing Rematch teams can be imported directly while Rematch is enabled.
-- **Export** – teams, groups or everything as Rematch team strings (with notes and scripts), to
-  share or back up, or to move them to Rematch.
-- **Leveling queue** – filled automatically with your battle pets below level 25, sortable, with
-  options for duplicates. Leveling slots in teams take the next suitable pet when the team is loaded;
-  click a pet to find it in the journal.
-- **Family filter** – a row of family icons above the pet list that drives the journal's own filter.
-  The journal's Filter menu also gets **Strong vs.**, **Tough vs.**, **Breed** and **Level** (25,
-  below 25 or a range).
-- **Breeds** – each pet's breed (e.g. P/S) is worked out from its stats with Blizzard's battle pet
-  data and shown as a badge in the Pet Journal (list and loadout), and in the pet picker, the
-  current team and team tooltips. Imports prefer the breed a team asks for and warn when yours
-  differs.
-- **Pet toolbar** – Revive Battle Pets, Battle Pet Bandage, Safari Hat, pet treats and Summon Random
-  Favorite Pet in one bar.
-- **Notes window** – pop out a team's strategy notes to follow them during a battle.
-- **Statistics** – a tab in the Lineup window: how many pets you have, at level 25 and in rare
-  quality, with bars per family or source (e.g. percent collected).
+### Teams
+
+- Save the three pets in your journal, with their abilities, as a team. Load a team with one click.
+- Give a team a target NPC, notes and a [tdBattlePetScript](https://www.curseforge.com/wow/addons/td-battle-pet-script)
+  script.
+- Put teams in groups. Groups can have an icon, can be collapsed and sorted, and can be deleted with
+  or without their teams.
+- Search teams and groups by name or target.
+- When you change a pet or an ability of the loaded team, you can save the change or go back to the
+  saved team.
+
+### Lineup window
+
+The window next to the journal has four tabs:
+
+- **Teams** – your target (the tamer or wild pet you have targeted) and its teams, the loaded team
+  with its pets and their health, and the list of all teams.
+- **Leveling Queue** – your battle pets below level 25. Teams can have leveling slots, which take
+  the next pet from this queue when the team is loaded.
+- **Statistics** – how many pets you have collected, how many are level 25 or rare, and how your
+  collection splits by family or source.
+- **Settings** – options, import and export.
+
+A Hide / Show button next to the journal's Find Battle button hides or shows the window.
+
+### Team editor
+
+- Set the name, group, target, notes and script.
+- Choose pets with a pet picker: search by name, species or ability, and filter by family or by
+  strong / tough against an enemy family.
+- A slot can also be a leveling pet, a random level 25 pet, or empty.
+- Choose each pet's abilities.
+
+### In the Pet Journal
+
+- A row of family icons above the pet list, to filter by family.
+- More options in the journal's Filter menu: **Strong vs.**, **Tough vs.**, **Breed** and **Level**.
+- Each pet's breed (e.g. P/S) as a badge below its name, in the list and on the three battle slots.
+- A toolbar with Revive Battle Pets, Battle Pet Bandage, Safari Hat, pet treats and Summon Random
+  Favorite Pet.
+- Blizzard's Revive Battle Pets button glows when a pet in your loadout is hurt or dead.
+
+### Scripts
+
+With [Pet Battle Scripts (tdBattlePetScript)](https://www.curseforge.com/wow/addons/td-battle-pet-script)
+installed, the loaded team's script runs from the Auto button in battle. Lineup checks each script
+and shows when it uses an ability the team doesn't have selected; it can select those abilities for
+you.
+
+### Import and export
+
+- Paste one or more Rematch team strings, e.g. from [Xu-Fu's Pet Guides](https://www.wow-petguide.com).
+  Pets, abilities, breeds, targets, notes and scripts are imported.
+- If Rematch is installed, you can import all its teams and groups at once.
+- Export a team, a group or everything as Rematch team strings, with notes and scripts.
+
+### Other
+
+- Breeds are worked out from each pet's stats with Blizzard's battle pet data. Imports pick your pet
+  of the breed a team asks for, and tell you when you don't have it.
+- A team's notes can be opened in a separate window to read during a battle.
 
 ## Installation
 
 Copy the `Lineup_PetBattles` folder into `World of Warcraft/_retail_/Interface/AddOns/` and restart
-the game. (The folder isn't just "Lineup" because another, unrelated addon already uses that name.)
+the game. The folder is called `Lineup_PetBattles` because another addon already uses the name
+"Lineup".
+
 Open the Pet Journal (`Shift+P`, Pets tab) or type `/lineup`.
-
-## Languages
-
-Lineup follows the language of your game client: **English** (default) and **German**.
-Translations live in `Locales/`; to add a language, copy `Locales/deDE.lua`, change the locale
-code (e.g. `frFR`), translate the right-hand side of each line and add the file to the TOC.
 
 ## Commands
 
-| Command         | Description                 |
-|-----------------|-----------------------------|
-| `/lineup`       | Open the Pet Journal        |
-| `/lineup debug` | Toggle debug messages       |
+| Command         | Description                   |
+|-----------------|-------------------------------|
+| `/lineup`       | Open the Pet Journal          |
+| `/lineup debug` | Turn debug messages on or off |
+
+## Languages
+
+Lineup uses the language of your game client. English and German are available.
+
+Translations are in `Locales/`. To add a language, copy `Locales/deDE.lua`, change the locale code
+(e.g. `frFR`), translate the text on the right of each line and add the file to
+`Lineup_PetBattles.toc`.
 
 ## Development
 
-Lineup is plain Lua and XML with no build step. For development, link the repository into the
-AddOns folder so changes are picked up with `/reload`:
+Lineup is Lua and XML with no build step. Link the repository into the AddOns folder and use
+`/reload` in game to load changes:
 
 ```sh
 ln -s "$(pwd)" "/Applications/World of Warcraft/_retail_/Interface/AddOns/Lineup_PetBattles"
 ```
 
-Pet breeds are worked out from each pet's stats with Blizzard's battle pet tables, generated into
-`Data/BreedData.lua`. After a patch that adds pets, run `python3 tools/generate_breed_data.py`
-(it downloads the tables of the current live build from [wago.tools](https://wago.tools)) and
-commit the result.
+Breed data is generated into `Data/BreedData.lua` from Blizzard's battle pet tables. After a patch
+that adds pets, run `python3 tools/generate_breed_data.py` (it downloads the current tables from
+[wago.tools](https://wago.tools)) and commit the result.
 
-Releases are packaged with the [BigWigs packager](https://github.com/BigWigsMods/packager)
-(see `.pkgmeta`) when a version tag is pushed. Set `## Version` in `Lineup_PetBattles.toc` to the
-same version before tagging; it's shown on the Settings tab.
-Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+Textures in `Media/` that are drawn in code (rounded cards, badges, the paw) come from the other
+scripts in `tools/`.
+
+Releases are built by the [BigWigs packager](https://github.com/BigWigsMods/packager) (see
+`.pkgmeta`) when a version tag is pushed. Before tagging, set `## Version` in
+`Lineup_PetBattles.toc` to the same version; it's shown on the Settings tab. Changes are listed in
+[CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
