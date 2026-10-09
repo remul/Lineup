@@ -252,6 +252,7 @@ function IconPicker.Create(parent, onSelect)
     picker.ScrollBox = ns.CreateScrollList(inset, view, 6)
 
     picker.NoResults = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+    picker.NoResults:SetTextColor(ns.MUTED_COLOR:GetRGB())
     picker.NoResults:SetPoint("TOP", 0, -24)
     picker.NoResults:SetText(L["No icons found"])
 

@@ -22,8 +22,25 @@ local BREAKDOWN_PADDING = 8
 local SIDE_PADDING = 10
 -- Space below the quality legend.
 local BOTTOM_PADDING = 6
--- Between the quality legend's entries ("Rare 123 • Uncommon 45"): a grey bullet.
-local LEGEND_SEPARATOR = "  |cff808080\226\128\162|r  "
+-- The quality legend: a badge per quality ("Rare 123"; see ns.CreateBadge), a bit bigger than
+-- the default, this far below the bar and apart.
+local LEGEND_BADGE_SCALE = 1.15
+local LEGEND_BADGE_HEIGHT = 14 * LEGEND_BADGE_SCALE
+local LEGEND_TOP_GAP = 10
+local LEGEND_BADGE_GAP = 6
+
+-- Quality colours for the bar and its badges, by rarity (1 poor ... 4 rare). Blizzard's hues, but
+-- evened out like the family colours (Blizzard's range from dark blue to bright green), so the bar
+-- reads as one and every badge is readable on its dark fill.
+local QUALITY_COLORS = {
+    CreateColor(0.58, 0.58, 0.58), -- Poor
+    CreateColor(0.95, 0.95, 0.95), -- Common
+    CreateColor(0.25, 0.88, 0.18), -- Uncommon
+    CreateColor(0.16, 0.52, 1.00), -- Rare
+}
+-- A solid bar looks brighter than the same colour as a badge's outline and text on its dark fill,
+-- so the bar's segments are darkened this much to look alike.
+local QUALITY_BAR_SHADE = 0.9
 local DROPDOWN_HEIGHT = 26
 local BY_FAMILY, BY_SOURCE = "families", "sources"
 
@@ -114,7 +131,7 @@ end
 
 local Overview = {}
 -- The table (header, 3 rows, divider, 4 rows), then the quality bar and legend.
-Overview.HEIGHT = 8 * TABLE_ROW_HEIGHT + 10 + 14 + 12 + 6 + 12 + 6 + 12 + BOTTOM_PADDING
+Overview.HEIGHT = 8 * TABLE_ROW_HEIGHT + 10 + 14 + 12 + 6 + 12 + LEGEND_TOP_GAP + LEGEND_BADGE_HEIGHT + BOTTOM_PADDING
 
 function Overview:Create(parent)
     local frame = CreateFrame("Frame", nil, parent)
@@ -169,15 +186,26 @@ function Overview:Create(parent)
         else
             segment:SetPoint("LEFT")
         end
-        segment:SetColorTexture(ns.GetRarityColor(rarity))
+        local r, g, b = QUALITY_COLORS[rarity]:GetRGB()
+        segment:SetColorTexture(r * QUALITY_BAR_SHADE, g * QUALITY_BAR_SHADE, b * QUALITY_BAR_SHADE)
         frame.QualitySegments[rarity] = segment
         previous = segment
     end
 
-    frame.QualityLegend = CreateText(frame, "GameFontHighlightSmall")
-    frame.QualityLegend:SetPoint("TOPLEFT", frame.QualityBar, "BOTTOMLEFT", 0, -6)
-    frame.QualityLegend:SetPoint("RIGHT")
-    frame.QualityLegend:SetSpacing(2)
+    -- Legend under the bar, in the bar's order: rare first.
+    frame.QualityBadges = {}
+    previous = nil
+    for rarity = 4, 1, -1 do
+        -- (Offsets are in the badge's own, scaled units.)
+        local badge = ns.CreateBadge(frame, LEGEND_BADGE_SCALE)
+        if previous then
+            badge:SetPoint("LEFT", previous, "RIGHT", LEGEND_BADGE_GAP / LEGEND_BADGE_SCALE, 0)
+        else
+            badge:SetPoint("TOPLEFT", frame.QualityBar, "BOTTOMLEFT", 0, -LEGEND_TOP_GAP / LEGEND_BADGE_SCALE)
+        end
+        frame.QualityBadges[rarity] = badge
+        previous = badge
+    end
 
     overview = frame
     return frame
@@ -198,17 +226,14 @@ local function RefreshOverview(stats)
 
     -- Segment widths by share; a texture can't be 0 wide, so empty ones are hidden instead.
     local barWidth = overview.QualityBar:GetWidth()
-    local legend = {}
     for rarity = 4, 1, -1 do
         local count = stats.qualities[rarity]
         local segment = overview.QualitySegments[rarity]
         segment:SetWidth(max(barWidth * count / max(total.collected, 1), 0.001))
         segment:SetShown(count > 0)
-        local r, g, b = ns.GetRarityColor(rarity)
-        legend[#legend + 1] = format("|cff%02x%02x%02x%s|r %s", r * 255, g * 255, b * 255,
-            _G["ITEM_QUALITY" .. (rarity - 1) .. "_DESC"], FormatNumber(count))
+        overview.QualityBadges[rarity]:SetText(_G["ITEM_QUALITY" .. (rarity - 1) .. "_DESC"] .. " " .. FormatNumber(count),
+            QUALITY_COLORS[rarity])
     end
-    overview.QualityLegend:SetText(table.concat(legend, LEGEND_SEPARATOR))
 end
 
 -- Breakdown (families or sources), filling the rest of the tab

@@ -43,6 +43,10 @@ function ns:Debug(...)
     end
 end
 
+-- Muted text ("No target", "No script", hints): lighter than Blizzard's grey, which is hard to read
+-- on the window's backgrounds and on badges.
+ns.MUTED_COLOR = CreateColor(0.75, 0.75, 0.75)
+
 -- Pet families, indexed by pet type.
 local FAMILY_SUFFIX = {
     "Humanoid", "Dragon", "Flying", "Undead", "Critter",

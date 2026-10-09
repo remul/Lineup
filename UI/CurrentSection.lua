@@ -8,7 +8,7 @@ local Teams = ns.Teams
 local CurrentSection = {}
 ns.CurrentSection = CurrentSection
 
-CurrentSection.HEIGHT = 86
+CurrentSection.HEIGHT = 100
 local NUM_SLOTS = 3
 local PET_ICON_SIZE = 30
 -- Health is shown like on Blizzard's pet cards: the heart from the pet battle stat icons.
@@ -16,9 +16,10 @@ local STAT_ICONS = "Interface\\PetBattles\\PetBattle-StatIcons"
 local SKULL_ICON = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull"
 local HEALTH_ICON_SIZE = 12
 local CARD_SPACING = 6
--- Muted text ("No script", "Empty slot"): lighter than Blizzard's grey, which disappears into the grey end of the
--- section's background (see TeamsPanel).
-local MUTED_COLOR = CreateColor(0.75, 0.75, 0.75)
+-- Header: the loaded team's group icon, its name and group, like the Settings tab's header.
+local HEADER_HEIGHT = 36
+local HEADER_ICON_SIZE = 32
+local HEADER_ICON_GAP = 8
 -- Pets below this much health get an orange warning (dead pets always get a red one).
 local LOW_HEALTH_PERCENT = 50
 
@@ -26,11 +27,6 @@ local LOW_HEALTH_PERCENT = 50
 -- journal (casting needs a secure button, and one inside Lineup's window would lock it during
 -- combat). Lineup points at it with a glow while a pet is hurt and the spell is ready.
 
-local SCRIPT_ICONS = {
-    ok = "|TInterface\\RaidFrame\\ReadyCheck-Ready:14:14|t ",
-    warning = ns.HURT_ICON .. " ",
-    error = "|TInterface\\RaidFrame\\ReadyCheck-NotReady:14:14|t ",
-}
 local SCRIPT_LABELS = {
     ok = L["Script ready"],
     warning = L["Script · check abilities"],
@@ -178,7 +174,7 @@ local function UpdatePetCard(card, slot)
         card.Border:Hide()
         card.Level:SetText("")
         card.Name:SetText(L["Empty slot"])
-        card.Name:SetTextColor(MUTED_COLOR:GetRGB())
+        card.Name:SetTextColor(ns.MUTED_COLOR:GetRGB())
         card.HealthIcon:Hide()
         card.HealthText:SetText("")
         return
@@ -214,11 +210,15 @@ function CurrentSection:Create(parent)
     section = CreateFrame("Frame", nil, parent)
     section:SetHeight(self.HEIGHT)
 
-    -- The loaded team's name; clicking it shows the team in the list. Save / Revert next to it.
+    -- Header: the loaded team's group icon, name and group; clicking it shows the team in the list.
+    -- Save / Revert on the right.
     section.TeamLine = CreateFrame("Button", nil, section)
     section.TeamLine:SetPoint("TOPLEFT")
     section.TeamLine:SetPoint("RIGHT")
-    section.TeamLine:SetHeight(22)
+    section.TeamLine:SetHeight(HEADER_HEIGHT)
+
+    section.TeamIcon = section.TeamLine:CreateTexture(nil, "ARTWORK")
+    section.TeamIcon:SetPoint("CENTER", section.TeamLine, "LEFT", 2 + HEADER_ICON_SIZE / 2, 0)
 
     local function CreateLineButton(text, tooltip, onClick)
         local button = CreateFrame("Button", nil, section.TeamLine, "UIPanelButtonTemplate")
@@ -241,15 +241,19 @@ function CurrentSection:Create(parent)
     end)
     section.SaveButton:SetPoint("RIGHT", section.RevertButton, "LEFT", -4, 0)
 
-    section.TeamName = section.TeamLine:CreateFontString(nil, "ARTWORK", "GameFontNormalMed2")
-    section.TeamName:SetPoint("LEFT", 4, 0)
+    section.TeamName = section.TeamLine:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    section.TeamName:SetPoint("TOPLEFT", 2 + HEADER_ICON_SIZE + HEADER_ICON_GAP, -2)
     section.TeamName:SetJustifyH("LEFT")
     section.TeamName:SetWordWrap(false)
-    -- "changed" in small orange after the name; a long name is shortened before this is.
-    section.TeamState = section.TeamLine:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-    section.TeamState:SetPoint("LEFT", section.TeamName, "RIGHT", 6, -1)
-    section.TeamState:SetTextColor(ORANGE_FONT_COLOR:GetRGB())
-    section.TeamState:SetText(L["changed"])
+    section.TeamGroup = section.TeamLine:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    section.TeamGroup:SetPoint("TOPLEFT", section.TeamName, "BOTTOMLEFT", 0, -3)
+    section.TeamGroup:SetPoint("RIGHT", section.TeamLine, "RIGHT")
+    section.TeamGroup:SetJustifyH("LEFT")
+    section.TeamGroup:SetWordWrap(false)
+    section.TeamGroup:SetTextColor(ns.MUTED_COLOR:GetRGB())
+    -- An orange "changed" badge after the name; a long name is shortened before this is.
+    section.TeamState = ns.CreateBadge(section.TeamLine)
+    section.TeamState:SetPoint("LEFT", section.TeamName, "RIGHT", 6, 0)
 
     section.TeamLine:SetScript("OnClick", function()
         if currentTeam then
@@ -289,8 +293,9 @@ function CurrentSection:Create(parent)
     section.Script = CreateFrame("Frame", nil, section)
     section.Script:SetPoint("TOPLEFT", section.Cards[1], "BOTTOMLEFT", 2, -6)
     section.Script:SetSize(1, 16)
-    section.Script.Text = section.Script:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    section.Script.Text:SetPoint("LEFT")
+    -- A badge like the team list's script badge (see ns.CreateBadge).
+    section.Script.Badge = ns.CreateBadge(section.Script)
+    section.Script.Badge:SetPoint("LEFT")
     section.Script:SetScript("OnEnter", function(frame)
         local team = currentTeam
         if not (team and team.script) then
@@ -368,22 +373,28 @@ function CurrentSection:Refresh()
     local team = Teams:GetLoadedTeam()
     currentTeam = team
     local changed = team ~= nil and not Teams:IsLoading() and Teams:HasChanges(team)
+    -- The group's icon (Lineup's without one, greyed out without a team) and name.
+    local group = team and team.groupID and Teams:GetGroup(team.groupID)
+    ns.IconPicker.SetIconTexture(section.TeamIcon, group and group.icon or ns.MEDIA .. "Icon", HEADER_ICON_SIZE)
+    section.TeamIcon:SetDesaturated(team == nil)
     if team then
         section.TeamName:SetText((ns.TeamsPanel.SplitTeamName(team.name)))
         section.TeamName:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
+        section.TeamGroup:SetText(group and group.name or L["Ungrouped"])
     else
         section.TeamName:SetText(L["No team loaded"])
-        section.TeamName:SetTextColor(GRAY_FONT_COLOR:GetRGB())
+        section.TeamName:SetTextColor(ns.MUTED_COLOR:GetRGB())
+        section.TeamGroup:SetText("")
     end
     section.SaveButton:SetShown(changed)
     section.RevertButton:SetShown(changed)
-    section.TeamState:SetShown(changed)
+    section.TeamState:SetText(changed and L["changed"] or nil, ORANGE_FONT_COLOR)
 
     -- The name gets the room left of Save / Revert and "changed", and is cut short beyond that.
-    local room = section.TeamLine:GetWidth() - 4
+    local room = section.TeamLine:GetWidth() - 2 - HEADER_ICON_SIZE - HEADER_ICON_GAP
     if changed then
         room = room - section.SaveButton:GetWidth() - 4 - section.RevertButton:GetWidth() - 6
-            - section.TeamState:GetStringWidth() - 6
+            - section.TeamState:GetWidth() - 6
     end
     section.TeamName:SetWidth(max(1, min(section.TeamName:GetUnboundedStringWidth(), room)))
 
@@ -391,21 +402,21 @@ function CurrentSection:Refresh()
         UpdatePetCard(card, slot)
     end
 
-    -- Script of the loaded team.
-    local scriptText = ""
+    -- Script of the loaded team, in a badge coloured like its status.
+    local badge = section.Script.Badge
     if team and team.script then
         local status = ns.Script.Check(team.script, team.pets)
-        local label = (SCRIPT_ICONS[status.level] or "") .. (SCRIPT_LABELS[status.level] or L["Script"])
-        if status.level == "ok" and not ns.Script.CanRun() then
-            scriptText = MUTED_COLOR:WrapTextInColorCode(L["Script"])
+        if ns.Script.IsReadyButIdle(status) then
+            badge:SetText(L["Script"], ns.MUTED_COLOR)
         else
-            scriptText = status.color:WrapTextInColorCode(label)
+            badge:SetText(SCRIPT_LABELS[status.level] or L["Script"], status.color)
         end
     elseif team then
-        scriptText = MUTED_COLOR:WrapTextInColorCode(L["No script"])
+        badge:SetText(L["No script"], ns.MUTED_COLOR)
+    else
+        badge:SetText(nil)
     end
-    section.Script.Text:SetText(scriptText)
-    section.Script:SetWidth(max(1, section.Script.Text:GetStringWidth()))
+    section.Script:SetWidth(badge:IsShown() and badge:GetWidth() or 1)
 
     section.Health.Text:SetText(DescribeHealth())
     section.Health:SetWidth(max(1, section.Health.Text:GetStringWidth()))

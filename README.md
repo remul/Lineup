@@ -36,10 +36,12 @@ all your teams.
   options for duplicates. Leveling slots in teams take the next suitable pet when the team is loaded;
   click a pet to find it in the journal.
 - **Family filter** – a row of family icons above the pet list that drives the journal's own filter.
-  The journal's Filter menu also gets **Strong vs.**, **Tough vs.**, **Breed** and **Level 25 only**.
+  The journal's Filter menu also gets **Strong vs.**, **Tough vs.**, **Breed** and **Level** (25,
+  below 25 or a range).
 - **Breeds** – each pet's breed (e.g. P/S) is worked out from its stats with Blizzard's battle pet
-  data and shown in the pet picker, the current team and team tooltips. Imports prefer the breed a
-  team asks for and warn when yours differs.
+  data and shown as a badge in the Pet Journal (list and loadout), and in the pet picker, the
+  current team and team tooltips. Imports prefer the breed a team asks for and warn when yours
+  differs.
 - **Pet toolbar** – Revive Battle Pets, Battle Pet Bandage, Safari Hat, pet treats and Summon Random
   Favorite Pet in one bar.
 - **Notes window** – pop out a team's strategy notes to follow them during a battle.

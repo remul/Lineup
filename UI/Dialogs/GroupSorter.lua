@@ -56,6 +56,7 @@ function GroupSortRowMixin:OnLoad()
     self.UpButton:SetPoint("RIGHT", self.DownButton, "LEFT", 0, 0)
 
     self.Position = self:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    self.Position:SetTextColor(ns.MUTED_COLOR:GetRGB())
     self.Position:SetPoint("LEFT", 8, 0)
     self.Position:SetWidth(18)
     self.Position:SetJustifyH("RIGHT")
@@ -88,16 +89,22 @@ local function CreateWindow()
 
     local hint = window:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     hint:SetPoint("TOPLEFT", 16 + EXTRA_LEFT, -32)
-    hint:SetPoint("RIGHT", -16, 0)
+    -- A set width (rather than a right anchor) so the hint's height covers every wrapped line; the
+    -- list below is anchored to its bottom.
+    hint:SetWidth(WINDOW_WIDTH - 32 - EXTRA_LEFT)
     hint:SetJustifyH("LEFT")
+    hint:SetWordWrap(true)
     hint:SetText(L["Use the arrows to move a group. \"Ungrouped\" always comes last."])
 
     local inset = window.Inset
     inset:ClearAllPoints()
-    inset:SetPoint("TOPLEFT", 6 + EXTRA_LEFT, -52)
+    -- Below the hint (one or two lines, depending on the language), with some room under it.
+    inset:SetPoint("TOP", hint, "BOTTOM", 0, -10)
+    inset:SetPoint("LEFT", 6 + EXTRA_LEFT, 0)
     inset:SetPoint("BOTTOMRIGHT", -6, 34)
 
     emptyText = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+    emptyText:SetTextColor(ns.MUTED_COLOR:GetRGB())
     emptyText:SetPoint("TOPLEFT", 16, -16)
     emptyText:SetPoint("TOPRIGHT", -16, -16)
     emptyText:SetText(L["No groups yet"])

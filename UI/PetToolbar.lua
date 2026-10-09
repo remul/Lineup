@@ -74,14 +74,27 @@ end
 
 local function UpdateCooldown(button)
     local info = button.info
-    local start, duration, enabled
     if info.spellID then
-        local cooldown = C_Spell.GetSpellCooldown(info.spellID)
-        if cooldown then
-            start, duration, enabled = cooldown.startTime, cooldown.duration, cooldown.isEnabled
+        -- Spell cooldowns are secret values in combat, which addon code can't pass to SetCooldown;
+        -- a duration object hands them to the cooldown spiral without reading them.
+        local duration = C_Spell.GetSpellCooldownDuration(info.spellID)
+        if duration then
+            button.Cooldown:SetCooldownFromDurationObject(duration)
+        else
+            button.Cooldown:Clear()
         end
-    elseif info.itemID or info.toyID then
-        start, duration, enabled = C_Container.GetItemCooldown(info.itemID or info.toyID)
+        return
+    end
+    -- (The summon button has neither a spell nor an item.)
+    if not (info.itemID or info.toyID) then
+        button.Cooldown:Clear()
+        return
+    end
+
+    local start, duration, enabled = C_Container.GetItemCooldown(info.itemID or info.toyID)
+    -- Should item cooldowns turn secret too, the spiral keeps what it last showed.
+    if not (canaccessvalue(start) and canaccessvalue(duration)) then
+        return
     end
     if start and duration and enabled then
         button.Cooldown:SetCooldown(start, duration)

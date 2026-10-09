@@ -16,6 +16,8 @@ local PET_ICON_SIZE = 32
 local PET_ICON_SPACING = 14
 
 local editor, nameBox, groupDropdown, npcIDBox, targetNameText, petIcons, scriptBox, scriptStatus, saveButton, deleteButton
+-- Show a message below the name and target boxes (see Dialogs.CreateInputError).
+local ShowNameError, ShowTargetError
 local fixAbilitiesButton
 local editingTeam, draft, scriptCheck
 
@@ -34,7 +36,7 @@ local function UpdateTarget()
         targetNameText:SetTextColor(HIGHLIGHT_FONT_COLOR:GetRGB())
     else
         targetNameText:SetText(L["No target"])
-        targetNameText:SetTextColor(GRAY_FONT_COLOR:GetRGB())
+        targetNameText:SetTextColor(ns.MUTED_COLOR:GetRGB())
     end
 end
 
@@ -144,7 +146,7 @@ local function ShowAbilityMenu(owner, slot)
                 root:CreateRadio(format("|T%s:16:16|t %s", abilityIcon, abilityName), IsSelected, Select,
                     { index = index, abilityID = abilityID })
             end
-            root:CreateRadio(GRAY_FONT_COLOR:WrapTextInColorCode(L["Keep current"]), IsSelected, Select, { index = index })
+            root:CreateRadio(ns.MUTED_COLOR:WrapTextInColorCode(L["Keep current"]), IsSelected, Select, { index = index })
         end
     end)
 end
@@ -178,7 +180,7 @@ end
 local function Save()
     local name = strtrim(nameBox:GetText())
     if name == "" then
-        ns:Print(L["A team needs a name."])
+        ShowNameError(L["A team needs a name"])
         nameBox:SetFocus()
         return
     end
@@ -210,6 +212,7 @@ local function CreateEditor()
     nameBox:SetAutoFocus(false)
     nameBox:SetMaxLetters(40)
     nameBox:SetScript("OnEnterPressed", EditBox_ClearFocus)
+    ShowNameError = ns.Dialogs.CreateInputError(nameBox)
 
     -- Group
     CreateLabel(L["Group"], editor, -76)
@@ -240,6 +243,8 @@ local function CreateEditor()
         end
     end)
     ns.SetTooltip(npcIDBox, L["NPC ID"], L["Target the NPC and click \"Use Target\", or type its ID."])
+    -- After the box's own OnTextChanged, which the error hooks.
+    ShowTargetError = ns.Dialogs.CreateInputError(npcIDBox)
 
     local useTargetButton = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
     useTargetButton:SetPoint("TOPRIGHT", -16, -106)
@@ -248,9 +253,10 @@ local function CreateEditor()
     useTargetButton:SetScript("OnClick", function()
         local npcID, name = ns.Target.GetNpc("target")
         if not npcID then
-            ns:Print(L["Target an NPC first."])
+            ShowTargetError(L["Target an NPC first"])
             return
         end
+        ShowTargetError(nil)
         draft.targetNpcID, draft.targetName = npcID, name
         npcIDBox:SetText(tostring(npcID))
         UpdateTarget()
@@ -349,6 +355,7 @@ local function CreateEditor()
     local scriptLabel = CreateLabel(L["Script"], editor, -198)
     local scriptHint = editor:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     scriptHint:SetPoint("LEFT", scriptLabel, "RIGHT", 0, 0)
+    scriptHint:SetTextColor(ns.MUTED_COLOR:GetRGB())
     scriptHint:SetText(L["Paste a tdBattlePetScript script, e.g. from Xu-Fu's Pet Guides"])
 
     local scriptInset = CreateFrame("Frame", nil, editor, "InsetFrameTemplate")
@@ -440,6 +447,8 @@ function TeamEditor:Open(team, initialDraft)
 
     editor:SetTitle(team and L["Edit Team"] or (initialDraft and L["Import Team"]) or L["New Team"])
     nameBox:SetText(draft.name)
+    ShowNameError(nil)
+    ShowTargetError(nil)
     npcIDBox:SetText(draft.targetNpcID and tostring(draft.targetNpcID) or "")
     scriptBox:SetText(draft.script)
     deleteButton:SetShown(team ~= nil)

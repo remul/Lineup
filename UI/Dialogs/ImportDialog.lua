@@ -20,7 +20,7 @@ local NOTE_ICONS = {
 local NOTE_COLORS = {
     error = RED_FONT_COLOR,
     warning = ORANGE_FONT_COLOR,
-    info = GRAY_FONT_COLOR,
+    info = ns.MUTED_COLOR,
 }
 local READY_ICON = "|TInterface\\RaidFrame\\ReadyCheck-Ready:14:14|t "
 
@@ -55,7 +55,7 @@ local function DescribeTeamPreview(parsed)
         end
     end
     if #notes > MAX_PREVIEW_LINES then
-        lines[#lines + 1] = GRAY_FONT_COLOR:WrapTextInColorCode(format(L["...and %d more"], #notes - MAX_PREVIEW_LINES))
+        lines[#lines + 1] = ns.MUTED_COLOR:WrapTextInColorCode(format(L["...and %d more"], #notes - MAX_PREVIEW_LINES))
     end
     if not hasProblems then
         tinsert(lines, 1, READY_ICON .. GREEN_FONT_COLOR:WrapTextInColorCode(L["Ready to import: you have all the pets"]))
@@ -69,7 +69,7 @@ local function UpdateStatus()
     local text = textBox:GetText()
     if strtrim(text) == "" then
         statusText:SetText(L["Paste a team to import"])
-        statusText:SetTextColor(GRAY_FONT_COLOR:GetRGB())
+        statusText:SetTextColor(ns.MUTED_COLOR:GetRGB())
     else
         local all = ns.Import.ParseAll(text)
         if all.numTeams == 0 then
@@ -86,7 +86,7 @@ local function UpdateStatus()
                 local names = GetTeamNames()
                 local listed = table.concat(names, ", ", 1, math.min(#names, MAX_LISTED_NAMES))
                 summary = format(L["%d teams: %s%s"], #names, listed, #names > MAX_LISTED_NAMES and ", ..." or "")
-                previewText:SetText(GRAY_FONT_COLOR:WrapTextInColorCode(L["After importing, teams that need attention are listed in chat"]))
+                previewText:SetText(ns.MUTED_COLOR:WrapTextInColorCode(L["After importing, teams that need attention are listed in chat"]))
             end
             if #all.errors > 0 then
                 summary = summary .. format(L["  |cffff2020(%d unreadable)|r"], #all.errors)

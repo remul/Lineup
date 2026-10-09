@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.6.0
+
+- **Breed badges** in the Pet Journal: each battle pet's breed (e.g. P/S) below its name, in the
+  list and on the three loadout slots.
+- **Badges on team cards**: the family, the target ("vs. ...", green while targeted) and the
+  script's state are coloured badges; "No target" and "No script" are muted ones.
+- The **Current Team** section has a header: the team's group icon, its name and its group.
+  "changed" and the script's state ("Script ready", ...) are badges too.
+- **Level filter** in the journal's Filter menu: level 25, below 25, 20–24, 15–19, 10–14, 1–9
+  or 1 (instead of "Level 25 only").
+- Statistics: the quality legend is a row of badges, in colours shared with the quality bar.
+- Editors show what's missing (e.g. "A team needs a name") below the field instead of in chat.
+- Team cards are a bit taller; names and pet icons line up, with the loaded team's check mark
+  after its name. Ready scripts are shown in the Dragonkin family's green.
+- Lighter grey for hints and muted text in all Lineup windows.
+- Fixed: errors from the pet toolbar's cooldowns in combat.
+- Fixed: hiding the Lineup window in combat was blocked; the Hide / Show button is disabled in
+  combat.
+- Fixed: the Sort Groups hint was cut off.
+
 ## 1.5.0
 
 - **Statistics tab** in the Lineup window: your pet collection (formerly the Pet Collection

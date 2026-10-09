@@ -2,7 +2,7 @@ local _, ns = ...
 local L = ns.L
 
 -- Lineup's filters in Blizzard's Pet Journal: "Strong vs." and "Tough vs." an enemy family, breed
--- and "Level 25 only", added to the journal's own Filter menu. The journal builds its list from its
+-- and a level range, added to the journal's own Filter menu. The journal builds its list from its
 -- own filters; Lineup then leaves out the pets that don't pass these. While one is on, a small
 -- button at the end of the family row shows it and clears it; the journal's Reset clears them too.
 -- They last until the game is reloaded. Pets that aren't collected have no breed, so a breed
@@ -10,22 +10,34 @@ local L = ns.L
 local JournalFilters = {}
 ns.JournalFilters = JournalFilters
 
+-- Level ranges for the Level submenu: label, short text for the clear button, lowest and highest.
+local LEVEL_RANGES = {
+    { label = L["Level 25"], short = "25", min = 25, max = 25 },
+    { label = L["Below level 25"], short = "<25", min = 1, max = 24 },
+    { label = format(L["Level %d–%d"], 20, 24), short = "20–24", min = 20, max = 24 },
+    { label = format(L["Level %d–%d"], 15, 19), short = "15–19", min = 15, max = 19 },
+    { label = format(L["Level %d–%d"], 10, 14), short = "10–14", min = 10, max = 14 },
+    { label = format(L["Level %d–%d"], 1, 9), short = "1–9", min = 1, max = 9 },
+    { label = format(L["Level %d"], 1), short = "1", min = 1, max = 1 },
+}
+
 local strongVs, toughVs = 0, 0
-local maxLevelOnly = false
+local levelRange -- one of LEVEL_RANGES, or nil for any level
 local breeds = {} -- [breedID] = true; none = any breed
 local clearButton
 
 local function IsActive()
-    return strongVs ~= 0 or toughVs ~= 0 or maxLevelOnly or next(breeds) ~= nil
+    return strongVs ~= 0 or toughVs ~= 0 or levelRange ~= nil or next(breeds) ~= nil
 end
 
 local function ClearAll()
-    strongVs, toughVs, maxLevelOnly = 0, 0, false
+    strongVs, toughVs, levelRange = 0, 0, nil
     wipe(breeds)
 end
 
 local function Passes(petID, speciesID, level, petType)
-    if maxLevelOnly and (level or 0) < 25 then
+    -- Pets that aren't collected have no level, so a level range leaves them out.
+    if levelRange and not (level and level >= levelRange.min and level <= levelRange.max) then
         return false
     end
     return ns.PetFilters.IsStrongAgainst(speciesID, strongVs) and ns.PetFilters.IsToughAgainst(petType, toughVs)
@@ -57,8 +69,8 @@ local function UpdateClearButton()
             icons[#icons + 1] = format("|T%s:14:14|t", ns.GetFamilyIcon(family))
         end
     end
-    if maxLevelOnly then
-        icons[#icons + 1] = "25"
+    if levelRange then
+        icons[#icons + 1] = levelRange.short
     end
     icons[#icons + 1] = ns.PetFilters.DescribeBreeds(breeds)
     clearButton.Text:SetText(table.concat(icons, " ") .. " |TInterface\\Buttons\\UI-StopButton:12:12|t")
@@ -104,12 +116,24 @@ function JournalFilters:Setup()
         AddVsSubmenu(root, L["Strong vs."], function() return strongVs end, function(family) strongVs = family end)
         AddVsSubmenu(root, L["Tough vs."], function() return toughVs end, function(family) toughVs = family end)
         ns.PetFilters.AddBreedSubmenu(root, L["Breed"], breeds, Changed)
-        root:CreateCheckbox(L["Level 25 only"], function()
-            return maxLevelOnly
-        end, function()
-            maxLevelOnly = not maxLevelOnly
+        -- Level: any, or one range.
+        local levelMenu = root:CreateButton(L["Level"])
+        local function IsSelected(range)
+            return range == levelRange
+        end
+        local function Select(range)
+            levelRange = range
             Changed()
+            return MenuResponse.Refresh
+        end
+        levelMenu:CreateRadio(L["Any level"], function()
+            return levelRange == nil
+        end, function()
+            return Select(nil)
         end)
+        for _, range in ipairs(LEVEL_RANGES) do
+            levelMenu:CreateRadio(range.label, IsSelected, Select, range)
+        end
     end)
 
     -- Shows the active filters at the end of the family row; a click clears them.
@@ -134,8 +158,8 @@ function JournalFilters:Setup()
         if toughVs ~= 0 then
             GameTooltip:AddLine(L["Tough vs."] .. " " .. ns.GetFamilyName(toughVs), 1, 1, 1)
         end
-        if maxLevelOnly then
-            GameTooltip:AddLine(L["Level 25 only"], 1, 1, 1)
+        if levelRange then
+            GameTooltip:AddLine(levelRange.label, 1, 1, 1)
         end
         local breedNames = ns.PetFilters.DescribeBreeds(breeds)
         if breedNames then

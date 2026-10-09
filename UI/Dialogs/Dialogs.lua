@@ -44,6 +44,25 @@ function Dialogs.CreateWindow(name, width, height, freeStanding)
     return window
 end
 
+-- A red message below editBox saying what's wrong with its input (e.g. "A team needs a name"),
+-- rather than a chat message. Returns a function that shows a message, or hides it with nil.
+-- Typing in the box hides it too.
+function Dialogs.CreateInputError(editBox)
+    local text = editBox:GetParent():CreateFontString(nil, "OVERLAY", "GameFontRedSmall")
+    text:SetPoint("TOPLEFT", editBox, "BOTTOMLEFT", 0, -1)
+    text:SetJustifyH("LEFT")
+    text:Hide()
+    editBox:HookScript("OnTextChanged", function(_, userInput)
+        if userInput then
+            text:Hide()
+        end
+    end)
+    return function(message)
+        text:SetText(message or "")
+        text:SetShown(message ~= nil)
+    end
+end
+
 -- Windows the player has dragged somewhere, and those already watched for that ([frame] = true).
 local movedWindows, watchedWindows = {}, {}
 

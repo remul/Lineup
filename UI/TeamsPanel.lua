@@ -23,24 +23,31 @@ local SECTION_PADDING = 8
 -- Window edge to section content.
 TeamsPanel.SECTION_INSET = INSET_LEFT + SECTION_PADDING
 local HEADER_HEIGHT = 28
-local ROW_HEIGHT = 64
+local ROW_HEIGHT = 70
 -- Space between team cards.
 local CARD_GAP = 4
 local GROUP_SPACING = 8
 -- Gap between a group header and its first team, and after its last team.
 local GROUP_INNER_SPACING = 4
--- Width of the target text in the right column (clear of the pet icons on the left).
+-- The right column's badges (family tag, target, script; see ns.CreateBadge): one per line, the
+-- target's no wider than this (clear of the pet icons on the left), a bit smaller than the default.
 local RIGHT_COLUMN_WIDTH = 170
+local RIGHT_COLUMN_LINE_HEIGHT = 12
+local RIGHT_COLUMN_LINE_GAP = 6
+local RIGHT_COLUMN_BADGE_SCALE = 0.9
 local EMPTY_GROUP_HEIGHT = 36
 -- Team rows are indented under their group header.
 local ROW_INDENT = 12
 local PET_ICON_SIZE = 26
 local PET_ICON_SPACING = 5
--- Pet icons sit indented under the team name so the two lines are easy to tell apart.
-local PET_ICON_INDENT = 18
+local NAME_INDENT = 10
+-- Pet icons line up with the team name, a little above the card's bottom edge.
+local PET_ICON_INDENT = NAME_INDENT
+local PET_ICON_BOTTOM = 10
 -- Downward chevron; rotated to point right for collapsed groups (plus/minus if the atlas is missing).
 local CHEVRON_ATLAS = "uitools-icon-chevron-down"
-local LOADED_ICON = "Interface\\RaidFrame\\ReadyCheck-Ready"
+-- After the loaded team's name, as part of its text.
+local LOADED_MARK = " |TInterface\\RaidFrame\\ReadyCheck-Ready:14:14|t"
 local HAS_CHEVRON = C_Texture.GetAtlasInfo(CHEVRON_ATLAS) ~= nil
 local UNGROUPED = 0
 
@@ -300,17 +307,25 @@ function TeamRowMixin:OnLoad()
     end, NOTES_TEXTURE)
     self.NotesButton:SetPoint("BOTTOMRIGHT", -6, 8)
 
-    -- Family tag from the team name, e.g. "Humanoid", lined up on the right.
-    self.Tag = inner:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-    self.Tag:SetPoint("RIGHT", self.EditButton, "LEFT", -6, 0)
+    -- Right column, one badge per line: the family tag from the team name (e.g. "Humanoid") next
+    -- to the gear, the target and the script below it. The lines are fixed, so a missing badge
+    -- leaves its line empty rather than moving the others.
+    local function CreateLine(...)
+        local line = CreateFrame("Frame", nil, inner)
+        line:SetSize(1, RIGHT_COLUMN_LINE_HEIGHT)
+        line:SetPoint(...)
+        local badge = ns.CreateBadge(inner, RIGHT_COLUMN_BADGE_SCALE)
+        badge:SetPoint("RIGHT", line, "RIGHT")
+        return line, badge
+    end
+    local tagLine, targetLine
+    tagLine, self.TagBadge = CreateLine("RIGHT", self.EditButton, "LEFT", -6, 0)
+    targetLine, self.TargetBadge = CreateLine("TOPRIGHT", tagLine, "BOTTOMRIGHT", 0, -RIGHT_COLUMN_LINE_GAP)
+    self.TargetBadge:SetMaxWidth(RIGHT_COLUMN_WIDTH / RIGHT_COLUMN_BADGE_SCALE)
+    _, self.ScriptBadge = CreateLine("TOPRIGHT", targetLine, "BOTTOMRIGHT", 0, -RIGHT_COLUMN_LINE_GAP)
 
     self.Name = inner:CreateFontString(nil, "ARTWORK", "GameFontHighlightMed2")
-    -- Check mark in front of the loaded team's name.
-    self.Check = inner:CreateTexture(nil, "ARTWORK")
-    self.Check:SetSize(14, 14)
-    self.Check:SetPoint("TOPLEFT", 10, -10)
-    self.Check:SetTexture(LOADED_ICON)
-    self.Name:SetPoint("RIGHT", self.Tag, "LEFT", -8, 0)
+    self.Name:SetPoint("TOPLEFT", NAME_INDENT, -9)
     self.Name:SetJustifyH("LEFT")
     self.Name:SetWordWrap(false)
 
@@ -318,7 +333,7 @@ function TeamRowMixin:OnLoad()
     for slot = 1, 3 do
         local icon = inner:CreateTexture(nil, "ARTWORK")
         icon:SetSize(PET_ICON_SIZE, PET_ICON_SIZE)
-        icon:SetPoint("BOTTOMLEFT", PET_ICON_INDENT + (slot - 1) * (PET_ICON_SIZE + PET_ICON_SPACING), 6)
+        icon:SetPoint("BOTTOMLEFT", PET_ICON_INDENT + (slot - 1) * (PET_ICON_SIZE + PET_ICON_SPACING), PET_ICON_BOTTOM)
 
         local border = inner:CreateTexture(nil, "OVERLAY")
         border:SetAllPoints(icon)
@@ -329,23 +344,11 @@ function TeamRowMixin:OnLoad()
 
         self.PetSlots[slot] = { Icon = icon, Border = border, Level = level }
     end
-
-    -- Right column under the family tag: the target, and "Script" below it (both a bit smaller).
-    self.Target = inner:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    self.Target:SetPoint("TOPRIGHT", self.Tag, "BOTTOMRIGHT", 0, -6)
-    self.Target:SetWidth(RIGHT_COLUMN_WIDTH)
-    self.Target:SetJustifyH("RIGHT")
-    self.Target:SetWordWrap(false)
-    self.Target:SetTextScale(0.9)
-
-    self.Script = inner:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-    self.Script:SetPoint("TOPRIGHT", self.Target, "BOTTOMRIGHT", 0, -2)
-    self.Script:SetJustifyH("RIGHT")
-    self.Script:SetTextScale(0.9)
 end
 
--- "Script", with what's wrong when it won't run as written ("No script" in grey without one). Grey while tdBattlePetScript isn't
--- installed (nothing can run then), otherwise green, orange or red like the script's status.
+-- "Script", with what's wrong when it won't run as written ("No script" without one). Muted while
+-- tdBattlePetScript isn't installed (nothing can run then), otherwise green, orange or red like the
+-- script's status.
 local SCRIPT_LABELS = {
     ok = L["Script"],
     warning = L["Script · check abilities"],
@@ -354,17 +357,12 @@ local SCRIPT_LABELS = {
 
 function TeamRowMixin:UpdateScriptLabel(team)
     if not team.script then
-        self.Script:SetText(L["No script"])
-        self.Script:SetTextColor(GRAY_FONT_COLOR:GetRGB())
+        self.ScriptBadge:SetText(L["No script"], ns.MUTED_COLOR)
         return
     end
     local status = ns.Script.Check(team.script, team.pets)
-    self.Script:SetText(SCRIPT_LABELS[status.level] or L["Script"])
-    if status.level == "ok" and not ns.Script.CanRun() then
-        self.Script:SetTextColor(GRAY_FONT_COLOR:GetRGB())
-    else
-        self.Script:SetTextColor(status.color:GetRGB())
-    end
+    local idle = ns.Script.IsReadyButIdle(status)
+    self.ScriptBadge:SetText(SCRIPT_LABELS[status.level] or L["Script"], idle and ns.MUTED_COLOR or status.color)
 end
 
 function TeamRowMixin:Init(data)
@@ -381,17 +379,18 @@ function TeamRowMixin:Init(data)
     self:UpdateEditButton()
 
     local displayName, tag = SplitTeamName(team.name)
-    self.Name:SetText(displayName)
-    -- The loaded team: gold name after a check mark; others white.
-    self.Check:SetShown(loaded)
-    self.Name:SetPoint("TOPLEFT", loaded and 28 or 10, -9)
+    -- The loaded team: gold name with a check mark after it; others white. (A long name can cut the
+    -- mark off; the gold name and outline still show it.)
+    self.Name:SetText(loaded and displayName .. LOADED_MARK or displayName)
     self.Name:SetTextColor((loaded and NORMAL_FONT_COLOR or HIGHLIGHT_FONT_COLOR):GetRGB())
     local petType = tag and ns.FindFamilyByName(tag)
     if petType then
-        self.Tag:SetText(format("|T%s:12:12|t %s", ns.GetFamilyIcon(petType), ns.GetFamilyColor(petType):WrapTextInColorCode(tag)))
+        self.TagBadge:SetText(format("|T%s:12:12|t %s", ns.GetFamilyIcon(petType), tag), ns.GetFamilyColor(petType))
     else
-        self.Tag:SetText(tag and GRAY_FONT_COLOR:WrapTextInColorCode(tag) or "")
+        self.TagBadge:SetText(tag, ns.MUTED_COLOR)
     end
+    -- The name runs up to the tag, or to the gear without one.
+    self.Name:SetPoint("RIGHT", tag and self.TagBadge or self.EditButton, "LEFT", -8, 0)
 
     for slot, ui in ipairs(self.PetSlots) do
         local texture, _, level, missing, rarity = Teams.GetSlotDisplay(team.pets[slot])
@@ -407,14 +406,13 @@ function TeamRowMixin:Init(data)
         ui.Border:SetShown(texture ~= nil)
     end
 
-    -- Target, green while you're targeting it; "No target" in grey.
+    -- Target, green while you're targeting it; "No target" muted.
     local target = DescribeTarget(team)
     if not target then
-        target = GRAY_FONT_COLOR:WrapTextInColorCode(L["No target"])
-    elseif ns.Target:IsCurrent(team.targetNpcID) then
-        target = GREEN_FONT_COLOR:WrapTextInColorCode(target)
+        self.TargetBadge:SetText(L["No target"], ns.MUTED_COLOR)
+    else
+        self.TargetBadge:SetText(target, ns.Target:IsCurrent(team.targetNpcID) and GREEN_FONT_COLOR or nil)
     end
-    self.Target:SetText(target)
     self:UpdateScriptLabel(team)
 end
 
@@ -837,7 +835,14 @@ function TeamsPanel:Setup()
 
     -- Blizzard's panel manager places other windows (Character, Spellbook...) beside the journal by
     -- the journal's width alone; count this window in, so they open to its right, not over it.
+    -- The journal is protected in combat, so a change then waits until combat ends.
+    local pendingWidth
     local function SetJournalExtraWidth(width)
+        if InCombatLockdown() then
+            pendingWidth = width
+            return
+        end
+        pendingWidth = nil
         SetUIPanelAttribute(CollectionsJournal, "extraWidth", width)
         if CollectionsJournal:IsShown() then
             UpdateUIPanelPositions(CollectionsJournal)
@@ -874,10 +879,27 @@ function TeamsPanel:Setup()
     toggleButton:SetScript("OnEnter", function(button)
         GameTooltip:SetOwner(button, "ANCHOR_TOP")
         GameTooltip:SetText(ns.db.windowHidden and L["Show Lineup"] or L["Hide Lineup"])
+        if not button:IsEnabled() then
+            GameTooltip_AddErrorLine(GameTooltip, ERR_NOT_IN_COMBAT)
+        end
         GameTooltip:Show()
     end)
     toggleButton:SetScript("OnLeave", GameTooltip_Hide)
     UpdateWindowShown()
+
+    -- Disabled in combat: showing or hiding the window changes the journal's layout, which is
+    -- protected then (see SetJournalExtraWidth). Its tooltip still says why.
+    toggleButton:SetMotionScriptsWhileDisabled(true)
+    toggleButton:SetEnabled(not InCombatLockdown())
+    ns:RegisterEvent("PLAYER_REGEN_DISABLED", function()
+        toggleButton:Disable()
+    end)
+    ns:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+        toggleButton:Enable()
+        if pendingWidth then
+            SetJournalExtraWidth(pendingWidth)
+        end
+    end)
 
     self:SelectTab(TAB_TEAMS)
 end

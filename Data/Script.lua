@@ -220,7 +220,8 @@ local STATUS_COLORS = {
     none = GRAY_FONT_COLOR,
     error = RED_FONT_COLOR,
     warning = ORANGE_FONT_COLOR,
-    ok = GREEN_FONT_COLOR,
+    -- The Dragonkin family's green rather than Blizzard's, which is kept for "this is your target".
+    ok = ns.GetFamilyColor(2),
 }
 
 -- The state of a script: { level = "none" | "error" | "warning" | "ok", problems = { "..." },
@@ -250,6 +251,12 @@ function Script.Check(text, pets)
     end
     status.color = STATUS_COLORS[status.level]
     return status
+end
+
+-- True for a script that's ready but can't run, because tdBattlePetScript isn't installed: shown
+-- muted then, rather than looking ready.
+function Script.IsReadyButIdle(status)
+    return status.level == "ok" and not Script.CanRun()
 end
 
 -- Tooltip lines for a checked script: every problem (or the summary), and a note when scripts

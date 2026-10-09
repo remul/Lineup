@@ -13,6 +13,8 @@ local PREVIEW_ICON_SIZE = 48
 
 local editor, nameBox, previewIcon, previewName, iconPicker, groupTab, iconTab, deleteButton
 local editingGroup, draft, onSaved
+-- Shows a message below the name box (see Dialogs.CreateInputError).
+local ShowNameError
 
 local function UpdatePreview()
     ns.IconPicker.SetIconTexture(previewIcon, draft.icon or "Interface\\Icons\\INV_Misc_QuestionMark", PREVIEW_ICON_SIZE)
@@ -30,7 +32,7 @@ end
 local function Save()
     local name = strtrim(nameBox:GetText())
     if name == "" then
-        ns:Print(L["A group needs a name."])
+        ShowNameError(L["A group needs a name"])
         SelectTab(TAB_GROUP)
         nameBox:SetFocus()
         return
@@ -143,6 +145,7 @@ local function CreateEditor()
     nameBox:SetMaxLetters(40)
     nameBox:SetScript("OnTextChanged", UpdatePreview)
     nameBox:SetScript("OnEnterPressed", Save)
+    ShowNameError = ns.Dialogs.CreateInputError(nameBox)
 
     local chooseIconButton = CreateFrame("Button", nil, groupTab, "UIPanelButtonTemplate")
     chooseIconButton:SetPoint("TOPLEFT", nameBox, "BOTTOMLEFT", -6, -14)
@@ -229,6 +232,7 @@ function GroupEditor:Open(group, callback)
 
     editor:SetTitle(group and L["Edit Group"] or L["New Group"])
     nameBox:SetText(group and group.name or "")
+    ShowNameError(nil)
     iconPicker:ClearSearch()
     iconPicker:SetSelected(draft.icon)
     deleteButton:SetShown(group ~= nil)
