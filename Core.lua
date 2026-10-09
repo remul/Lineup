@@ -17,6 +17,8 @@ local DEFAULTS = {
     queueSort = "levelDesc",
     queueIncludeDuplicates = false,
     queueIncludeMaxedSpecies = false,
+    -- The Lineup window beside the Pet Journal, hidden with the button by the journal's close button.
+    windowHidden = false,
 }
 
 local CHAR_DEFAULTS = {}

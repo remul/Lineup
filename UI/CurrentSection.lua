@@ -16,6 +16,9 @@ local STAT_ICONS = "Interface\\PetBattles\\PetBattle-StatIcons"
 local SKULL_ICON = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull"
 local HEALTH_ICON_SIZE = 12
 local CARD_SPACING = 6
+-- Muted text ("No script", "Empty slot"): lighter than Blizzard's grey, which disappears into the grey end of the
+-- section's background (see TeamsPanel).
+local MUTED_COLOR = CreateColor(0.75, 0.75, 0.75)
 -- Pets below this much health get an orange warning (dead pets always get a red one).
 local LOW_HEALTH_PERCENT = 50
 
@@ -175,7 +178,7 @@ local function UpdatePetCard(card, slot)
         card.Border:Hide()
         card.Level:SetText("")
         card.Name:SetText(L["Empty slot"])
-        card.Name:SetTextColor(GRAY_FONT_COLOR:GetRGB())
+        card.Name:SetTextColor(MUTED_COLOR:GetRGB())
         card.HealthIcon:Hide()
         card.HealthText:SetText("")
         return
@@ -394,12 +397,12 @@ function CurrentSection:Refresh()
         local status = ns.Script.Check(team.script, team.pets)
         local label = (SCRIPT_ICONS[status.level] or "") .. (SCRIPT_LABELS[status.level] or L["Script"])
         if status.level == "ok" and not ns.Script.CanRun() then
-            scriptText = GRAY_FONT_COLOR:WrapTextInColorCode(L["Script"])
+            scriptText = MUTED_COLOR:WrapTextInColorCode(L["Script"])
         else
             scriptText = status.color:WrapTextInColorCode(label)
         end
     elseif team then
-        scriptText = GRAY_FONT_COLOR:WrapTextInColorCode(L["No script"])
+        scriptText = MUTED_COLOR:WrapTextInColorCode(L["No script"])
     end
     section.Script.Text:SetText(scriptText)
     section.Script:SetWidth(max(1, section.Script.Text:GetStringWidth()))

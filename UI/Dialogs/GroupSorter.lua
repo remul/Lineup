@@ -100,7 +100,7 @@ local function CreateWindow()
     emptyText = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     emptyText:SetPoint("TOPLEFT", 16, -16)
     emptyText:SetPoint("TOPRIGHT", -16, -16)
-    emptyText:SetText(L["No groups yet."])
+    emptyText:SetText(L["No groups yet"])
 
     local view = CreateScrollBoxListLinearView()
     view:SetElementExtent(ROW_HEIGHT)

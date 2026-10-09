@@ -5,7 +5,7 @@ local Teams = ns.Teams
 -- The Lineup window, docked to the right of the Collections window and shown with the Pet Journal
 -- tab. Its Teams tab is split into sections: Target (see TargetSection), Current (the loaded team
 -- and loadout, see CurrentSection) and the team list, where teams are listed under collapsible
--- group headers. The Leveling Queue and Settings tabs use the whole window.
+-- group headers. The Leveling Queue, Statistics and Settings tabs use the whole window.
 local TeamsPanel = {}
 ns.TeamsPanel = TeamsPanel
 
@@ -44,10 +44,10 @@ local LOADED_ICON = "Interface\\RaidFrame\\ReadyCheck-Ready"
 local HAS_CHEVRON = C_Texture.GetAtlasInfo(CHEVRON_ATLAS) ~= nil
 local UNGROUPED = 0
 
-local TAB_TEAMS, TAB_QUEUE, TAB_ABOUT = 1, 2, 3
-local TAB_LABELS = { L["Teams"], L["Leveling Queue"], L["Settings"] }
+local TAB_TEAMS, TAB_QUEUE, TAB_STATISTICS, TAB_ABOUT = 1, 2, 3, 4
+local TAB_LABELS = { L["Teams"], L["Leveling Queue"], L["Statistics"], L["Settings"] }
 
-local panel, teamsView, queueView, aboutView, scrollBox, countText, emptyText, searchBox, expandAllButton
+local panel, teamsView, queueView, statisticsView, aboutView, scrollBox, countText, emptyText, searchBox, expandAllButton
 local currentTab = TAB_TEAMS
 local refreshPending = false
 
@@ -71,6 +71,17 @@ local function CreateSectionInset(parent, module, anchor)
 end
 TeamsPanel.CreateSectionInset = CreateSectionInset
 
+-- Gives an inset the Pet Journal's pet card background (dark at the top, fading to grey), inside
+-- its border like Blizzard's card. With heightShare (0-1) it only covers that share of the inset,
+-- at the bottom, so the fade is shorter; above it the inset's own dark background continues.
+local function AddPetCardBackground(inset, heightShare)
+    local background = inset:CreateTexture(nil, "BACKGROUND", nil, 1)
+    background:SetAtlas("PetJournal-PetCard-BG")
+    background:SetPoint("BOTTOMLEFT", 3, 3)
+    background:SetPoint("BOTTOMRIGHT", -3, 3)
+    background:SetHeight((inset:GetHeight() - 6) * (heightShare or 1))
+end
+
 -- Sorts teams by name, lowercasing each name once instead of on every comparison.
 local function SortTeamsByName(teams)
     local keys = {}
@@ -93,11 +104,14 @@ local function SetChevron(texture, collapsed)
 end
 
 -- The gear button on group headers and team rows, opening their menu. onHoverChanged runs when
--- the mouse enters or leaves it, so the row can keep its hover state.
-local function CreateGearButton(parent, tooltip, onClick, onHoverChanged)
+-- the mouse enters or leaves it, so the row can keep its hover state. texture swaps the gear for
+-- another small gold icon in the same style (e.g. the notes button).
+local GEAR_TEXTURE = "Interface\\Buttons\\UI-OptionsButton"
+local NOTES_TEXTURE = "Interface\\Buttons\\UI-GuildButton-PublicNote-Up"
+local function CreateGearButton(parent, tooltip, onClick, onHoverChanged, texture)
     local button = CreateFrame("Button", nil, parent)
     button:SetSize(16, 16)
-    button:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
+    button:SetNormalTexture(texture or GEAR_TEXTURE)
     button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
     button:SetScript("OnClick", onClick)
     button:SetScript("OnEnter", function()
@@ -275,6 +289,17 @@ function TeamRowMixin:OnLoad()
     end)
     self.EditButton:SetPoint("TOPRIGHT", -6, -8)
 
+    -- Below the gear, for teams with notes: pops them out (like "Pop Out Notes" in the menu).
+    self.NotesButton = CreateGearButton(self, L["Pop Out Notes"], function()
+        ns.NotesWindow:Open(self.team)
+    end, function()
+        self:UpdateEditButton()
+        if not self:IsMouseOver() then
+            self:SetHovered(false)
+        end
+    end, NOTES_TEXTURE)
+    self.NotesButton:SetPoint("BOTTOMRIGHT", -6, 8)
+
     -- Family tag from the team name, e.g. "Humanoid", lined up on the right.
     self.Tag = inner:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
     self.Tag:SetPoint("RIGHT", self.EditButton, "LEFT", -6, 0)
@@ -352,6 +377,7 @@ function TeamRowMixin:Init(data)
     local loaded = Teams:IsLoaded(team)
     self.loaded = loaded
     ns.UpdateCardOutline(self.Outline, loaded, false)
+    self.NotesButton:SetShown(ns.NotesWindow.HasContent(team))
     self:UpdateEditButton()
 
     local displayName, tag = SplitTeamName(team.name)
@@ -393,7 +419,9 @@ function TeamRowMixin:Init(data)
 end
 
 function TeamRowMixin:UpdateEditButton()
-    UpdateGearButton(self.EditButton, self:IsMouseOver())
+    local hovered = self:IsMouseOver()
+    UpdateGearButton(self.EditButton, hovered)
+    UpdateGearButton(self.NotesButton, hovered)
 end
 
 function TeamRowMixin:OnClick(mouseButton)
@@ -496,7 +524,7 @@ end
 
 function TeamRowMixin:OnLeave()
     GameTooltip:Hide()
-    -- Moving onto the gear button counts as leaving the row; keep the hover then.
+    -- Moving onto the gear or notes button counts as leaving the row; keep the hover then.
     if not self:IsMouseOver() then
         self:SetHovered(false)
     end
@@ -669,6 +697,9 @@ function TeamsPanel:Setup()
 
     local targetInset = CreateSectionInset(teamsView, ns.TargetSection)
     local currentInset = CreateSectionInset(teamsView, ns.CurrentSection, targetInset)
+    AddPetCardBackground(targetInset)
+    -- A shorter fade, so the pet cards (light like the team list's) stand out from it.
+    AddPetCardBackground(currentInset, 0.5)
 
     -- Between Current and the list: expand / collapse all, search (teams, targets and groups) and
     -- the Sort button for groups.
@@ -778,6 +809,9 @@ function TeamsPanel:Setup()
     -- Leveling Queue tab
     queueView = ns.QueueView:Create(panel)
 
+    -- Statistics tab (your pet collection)
+    statisticsView = ns.StatisticsView:Create(panel)
+
     -- Settings tab (settings and info about the addon)
     aboutView = ns.AboutView:Create(panel)
 
@@ -801,17 +835,65 @@ function TeamsPanel:Setup()
     end
     PanelTemplates_SetNumTabs(panel, #panel.Tabs)
 
+    -- Blizzard's panel manager places other windows (Character, Spellbook...) beside the journal by
+    -- the journal's width alone; count this window in, so they open to its right, not over it.
+    local function SetJournalExtraWidth(width)
+        SetUIPanelAttribute(CollectionsJournal, "extraWidth", width)
+        if CollectionsJournal:IsShown() then
+            UpdateUIPanelPositions(CollectionsJournal)
+        end
+    end
     panel:SetScript("OnShow", function()
+        SetJournalExtraWidth(WINDOW_OFFSET_X + WINDOW_WIDTH)
         TeamsPanel:RefreshNow()
     end)
+    panel:SetScript("OnHide", function()
+        SetJournalExtraWidth(0)
+    end)
+
+    -- Left of the journal's Find Battle button, in the same style: hides or shows this window,
+    -- remembered across sessions. The text starts with the paw from Lineup's logo, inline and in the
+    -- button text's gold, so the two stay centered together where Blizzard puts button text.
+    local pawMarkup = "|T" .. ns.MEDIA .. "Paw:12:12:0:0:64:64:0:64:0:64:255:209:0|t "
+    local findBattleButton = PetJournal.FindBattleButton
+    local toggleButton = CreateFrame("Button", nil, PetJournal, "MagicButtonTemplate")
+    toggleButton:SetSize(findBattleButton:GetSize())
+    toggleButton:SetPoint("RIGHT", findBattleButton, "LEFT")
+    -- Joins the two buttons the way Blizzard joins its own neighbouring ones.
+    MagicButton_OnLoad(toggleButton)
+    local function UpdateWindowShown()
+        panel:SetShown(not ns.db.windowHidden)
+        toggleButton:SetText(pawMarkup .. (ns.db.windowHidden and SHOW or HIDE))
+    end
+    toggleButton:SetScript("OnClick", function(button)
+        PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+        ns.db.windowHidden = not ns.db.windowHidden
+        UpdateWindowShown()
+        button:GetScript("OnEnter")(button)
+    end)
+    toggleButton:SetScript("OnEnter", function(button)
+        GameTooltip:SetOwner(button, "ANCHOR_TOP")
+        GameTooltip:SetText(ns.db.windowHidden and L["Show Lineup"] or L["Hide Lineup"])
+        GameTooltip:Show()
+    end)
+    toggleButton:SetScript("OnLeave", GameTooltip_Hide)
+    UpdateWindowShown()
+
     self:SelectTab(TAB_TEAMS)
 end
 
 function TeamsPanel:SelectTab(tab)
     currentTab = tab
     PanelTemplates_SetTab(panel, tab)
+    -- Back to their natural widths, then shrink the others if they'd run past the window (with
+    -- long translations); the selected tab keeps its full text.
+    for _, each in ipairs(panel.Tabs) do
+        PanelTemplates_TabResize(each, 0)
+    end
+    PanelTemplates_ResizeTabsToFit(panel, WINDOW_WIDTH - 20)
     teamsView:SetShown(tab == TAB_TEAMS)
     queueView:SetShown(tab == TAB_QUEUE)
+    statisticsView:SetShown(tab == TAB_STATISTICS)
     aboutView:SetShown(tab == TAB_ABOUT)
     self:RefreshNow()
 end
@@ -841,6 +923,9 @@ function TeamsPanel:RefreshNow()
 
     if currentTab == TAB_QUEUE then
         ns.QueueView:Refresh()
+        return
+    elseif currentTab == TAB_STATISTICS then
+        ns.StatisticsView:Refresh()
         return
     elseif currentTab == TAB_ABOUT then
         ns.AboutView:Refresh()

@@ -121,7 +121,7 @@ function TargetSection:Refresh()
         section.Portrait:SetTexture("Interface\\CharacterFrame\\TempPortrait")
         section.Name:SetText(L["No target"])
         section.Name:SetTextColor(GRAY_FONT_COLOR:GetRGB())
-        section.Status:SetText(L["Target a tamer or wild pet."])
+        section.Status:SetText(L["Target a tamer or wild pet"])
         section.LoadButton:Disable()
         section.SaveButton:Disable()
         return
@@ -133,7 +133,7 @@ function TargetSection:Refresh()
 
     local numTeams = #Teams:GetForTarget(npcID)
     if numTeams == 0 then
-        section.Status:SetText(L["No teams for this target yet."])
+        section.Status:SetText(L["No teams for this target yet"])
     else
         section.Status:SetText(GREEN_FONT_COLOR:WrapTextInColorCode(format(numTeams == 1 and L["%d team"] or L["%d teams"], numTeams)))
     end

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.0
+
+- **Statistics tab** in the Lineup window: your pet collection (formerly the Pet Collection
+  panel behind the magnifying glass) with a headline and progress bar, the overview and quality
+  bar, and bars per **family** or **source** chosen from a dropdown.
+- **Hide / Show button** next to the Pet Journal's Find Battle button hides the Lineup window,
+  remembered across sessions.
+- **Notes button** on team cards with notes, below the gear: pops the notes out.
+- Other windows (Character, Spellbook, ...) now open beside the Lineup window instead of over it.
+- The Target and Current Team sections have the Pet Journal's pet card background.
+- No trailing dots on one-line labels; easier to read "No script" and "Empty slot".
+
 ## 1.4.0
 
 - **Pet Collection**: a magnifying glass next to the Pet Journal's "Total Pets" shows how many pets

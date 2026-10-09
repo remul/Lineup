@@ -43,8 +43,8 @@ all your teams.
 - **Pet toolbar** – Revive Battle Pets, Battle Pet Bandage, Safari Hat, pet treats and Summon Random
   Favorite Pet in one bar.
 - **Notes window** – pop out a team's strategy notes to follow them during a battle.
-- **Pet Collection** – next to the journal's "Total Pets": how many pets you have, at level 25 and in
-  rare quality, with bars per family or source (e.g. percent collected).
+- **Statistics** – a tab in the Lineup window: how many pets you have, at level 25 and in rare
+  quality, with bars per family or source (e.g. percent collected).
 
 ## Installation
 

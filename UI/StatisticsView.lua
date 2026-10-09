@@ -2,33 +2,34 @@ local _, ns = ...
 local L = ns.L
 local Collection = ns.Collection
 
--- A button next to the Pet Journal's "Total Pets" count, opening a panel about your collection:
--- an overview (collected, level 25, rare, quality), and bars per family or per source for a chosen
--- number (see Collection.METRICS). Hovering the button sums it up.
-local CollectionPanel = {}
-ns.CollectionPanel = CollectionPanel
+-- The Statistics tab of the Lineup window, about your pet collection: how much of it you have on
+-- the window itself (like the Settings tab's header), then sunk into it an overview (collected,
+-- level 25, rare, quality) and bars per family or per source for a chosen number (see
+-- Collection.METRICS).
+local StatisticsView = {}
+ns.StatisticsView = StatisticsView
 
-local EXTRA_LEFT = ns.Dialogs.LEFT_BORDER_EXTRA
-local BUTTON_ATLAS = "communities-icon-searchmagnifyingglass"
-local BUTTON_SIZE = 16
-local PANEL_WIDTH = 340 + EXTRA_LEFT
-local PANEL_HEIGHT = 400
-local PADDING = 12
--- Width inside the panel's inset, less padding.
-local CONTENT_WIDTH = PANEL_WIDTH - 12 - EXTRA_LEFT - 2 * PADDING
 local TABLE_ROW_HEIGHT = 18
 -- x of the Unique and Total columns' right edges, from the content's right edge.
 local UNIQUE_COLUMN_X, TOTAL_COLUMN_X = -70, 0
-local BAR_ROW_HEIGHT = 22
+-- Bar rows shrink to this height at most so every family or source fits.
+local BAR_ROW_HEIGHT, BAR_ROW_MIN_HEIGHT = 22, 16
 local BAR_LABEL_WIDTH = 118
 local BAR_VALUE_WIDTH = 48
 local SOURCE_BAR_COLOR = CreateColor(0.85, 0.68, 0.28)
+local BREAKDOWN_PADDING = 8
+-- Extra room left and right of the data in both insets, beyond the usual section padding.
+local SIDE_PADDING = 10
+-- Space below the quality legend.
+local BOTTOM_PADDING = 6
+-- Between the quality legend's entries ("Rare 123 • Uncommon 45"): a grey bullet.
+local LEGEND_SEPARATOR = "  |cff808080\226\128\162|r  "
+local DROPDOWN_HEIGHT = 26
+local BY_FAMILY, BY_SOURCE = "families", "sources"
 
-local TAB_OVERVIEW, TAB_FAMILIES, TAB_SOURCES = 1, 2, 3
-
-local panel, overview, breakdown, metricDropdown
-local currentTab = TAB_OVERVIEW
--- The number the bars show; stays chosen until the game is reloaded.
+local view, header, overview, breakdown
+-- What the bars are split by and the number they show; stay chosen until the game is reloaded.
+local breakdownBy = BY_FAMILY
 local metric = Collection.METRICS[1]
 
 local function FormatNumber(number)
@@ -39,13 +40,61 @@ local function GetSourceName(source)
     return _G["BATTLE_PET_SOURCE_" .. source] or format(L["Source %d"], source)
 end
 
--- Overview
-
 local function CreateText(parent, fontObject, justify)
     local text = parent:CreateFontString(nil, "OVERLAY", fontObject)
     text:SetJustifyH(justify or "LEFT")
     return text
 end
+
+-- Header, on the window above the insets: "You have 1,234 of the journal's 1,800 pets." and a bar
+-- for the share.
+
+local HEADER_TOP = -40
+-- Gap between the headline and the bar, and the bar's share of the header's width.
+local HEADER_GAP = 14
+local PROGRESS_WIDTH = 0.8
+local HEADER_HEIGHT = 18 + HEADER_GAP + 20
+
+local function CreateHeader(parent)
+    local edge = ns.TeamsPanel.SECTION_INSET
+    local frame = CreateFrame("Frame", nil, parent)
+    frame:SetPoint("TOPLEFT", edge, HEADER_TOP)
+    frame:SetPoint("TOPRIGHT", -edge, HEADER_TOP)
+    frame:SetHeight(HEADER_HEIGHT)
+
+    frame.Headline = CreateText(frame, "GameFontNormalLarge", "CENTER")
+    frame.Headline:SetPoint("TOPLEFT")
+    frame.Headline:SetPoint("RIGHT")
+
+    frame.Progress = CreateFrame("StatusBar", nil, frame)
+    frame.Progress:SetPoint("TOP", frame.Headline, "BOTTOM", 0, -HEADER_GAP)
+    frame:SetScript("OnSizeChanged", function(_, width)
+        frame.Progress:SetWidth(width * PROGRESS_WIDTH)
+    end)
+    frame.Progress:SetHeight(20)
+    frame.Progress:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    frame.Progress:SetStatusBarColor(0.1, 0.65, 0.15)
+    frame.Progress.Background = frame.Progress:CreateTexture(nil, "BACKGROUND")
+    frame.Progress.Background:SetAllPoints()
+    frame.Progress.Background:SetColorTexture(0, 0, 0, 0.5)
+    frame.Progress.Text = CreateText(frame.Progress, "GameFontHighlight", "CENTER")
+    frame.Progress.Text:SetPoint("CENTER")
+
+    header = frame
+    return frame
+end
+
+local function RefreshHeader(total)
+    -- The numbers in white, so they stand out from the gold sentence.
+    header.Headline:SetText(format(L["You have %s of the journal's %s pets"],
+        WHITE_FONT_COLOR:WrapTextInColorCode(FormatNumber(total.unique)),
+        WHITE_FONT_COLOR:WrapTextInColorCode(FormatNumber(total.species))))
+    header.Progress:SetMinMaxValues(0, max(total.species, 1))
+    header.Progress:SetValue(total.unique)
+    header.Progress.Text:SetText(format(L["%.1f%% collected"], total.species > 0 and total.unique * 100 / total.species or 0))
+end
+
+-- Overview, as a section of the window (see TeamsPanel.CreateSectionInset)
 
 -- A table row: label on the left, unique and total counts in their columns.
 local function CreateTableRow(parent, label, anchor, offsetY)
@@ -63,36 +112,25 @@ local function CreateTableRow(parent, label, anchor, offsetY)
     return row
 end
 
-local function CreateOverview(parent)
+local Overview = {}
+-- The table (header, 3 rows, divider, 4 rows), then the quality bar and legend.
+Overview.HEIGHT = 8 * TABLE_ROW_HEIGHT + 10 + 14 + 12 + 6 + 12 + 6 + 12 + BOTTOM_PADDING
+
+function Overview:Create(parent)
     local frame = CreateFrame("Frame", nil, parent)
-    frame:SetPoint("TOPLEFT", PADDING, -PADDING)
-    frame:SetPoint("BOTTOMRIGHT", -PADDING, PADDING)
-
-    -- "You have 1,234 of the journal's 1,800 pets." and a bar for the share.
-    frame.Headline = CreateText(frame, "GameFontHighlight")
-    frame.Headline:SetPoint("TOPLEFT")
-    frame.Headline:SetPoint("RIGHT")
-
-    frame.Progress = CreateFrame("StatusBar", nil, frame)
-    frame.Progress:SetPoint("TOPLEFT", frame.Headline, "BOTTOMLEFT", 0, -8)
-    frame.Progress:SetPoint("RIGHT")
-    frame.Progress:SetHeight(16)
-    frame.Progress:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    frame.Progress:SetStatusBarColor(0.1, 0.65, 0.15)
-    frame.Progress.Background = frame.Progress:CreateTexture(nil, "BACKGROUND")
-    frame.Progress.Background:SetAllPoints()
-    frame.Progress.Background:SetColorTexture(0, 0, 0, 0.5)
-    frame.Progress.Text = CreateText(frame.Progress, "GameFontHighlightSmall", "CENTER")
-    frame.Progress.Text:SetPoint("CENTER")
+    frame:SetHeight(self.HEIGHT)
 
     -- Counts: unique (species) and total (pets), then single numbers in the Total column.
-    local header = CreateTableRow(frame, "", frame.Progress, -14)
-    header.Unique:SetFontObject("GameFontNormalSmall")
-    header.Unique:SetText(L["Unique"])
-    header.Total:SetFontObject("GameFontNormalSmall")
-    header.Total:SetText(L["Total"])
+    local columns = CreateTableRow(frame, "", frame)
+    columns:ClearAllPoints()
+    columns:SetPoint("TOPLEFT")
+    columns:SetPoint("RIGHT")
+    columns.Unique:SetFontObject("GameFontNormalSmall")
+    columns.Unique:SetText(L["Unique"])
+    columns.Total:SetFontObject("GameFontNormalSmall")
+    columns.Total:SetText(L["Total"])
 
-    frame.Collected = CreateTableRow(frame, L["Collected"], header)
+    frame.Collected = CreateTableRow(frame, L["Collected"], columns)
     frame.MaxLevel = CreateTableRow(frame, L["Level 25"], frame.Collected)
     frame.Rare = CreateTableRow(frame, L["Rare quality"], frame.MaxLevel)
 
@@ -140,17 +178,13 @@ local function CreateOverview(parent)
     frame.QualityLegend:SetPoint("TOPLEFT", frame.QualityBar, "BOTTOMLEFT", 0, -6)
     frame.QualityLegend:SetPoint("RIGHT")
     frame.QualityLegend:SetSpacing(2)
+
+    overview = frame
     return frame
 end
 
 local function RefreshOverview(stats)
     local total = stats.total
-    overview.Headline:SetText(format(L["You have %s of the journal's %s pets."],
-        FormatNumber(total.unique), FormatNumber(total.species)))
-    overview.Progress:SetMinMaxValues(0, max(total.species, 1))
-    overview.Progress:SetValue(total.unique)
-    overview.Progress.Text:SetText(format(L["%.1f%% collected"], total.species > 0 and total.unique * 100 / total.species or 0))
-
     overview.Collected.Unique:SetText(FormatNumber(total.unique))
     overview.Collected.Total:SetText(FormatNumber(total.collected))
     overview.MaxLevel.Unique:SetText(FormatNumber(total.uniqueMaxLevel))
@@ -163,20 +197,21 @@ local function RefreshOverview(stats)
     overview.InTeams.Total:SetText(FormatNumber(stats.inTeams))
 
     -- Segment widths by share; a texture can't be 0 wide, so empty ones are hidden instead.
+    local barWidth = overview.QualityBar:GetWidth()
     local legend = {}
     for rarity = 4, 1, -1 do
         local count = stats.qualities[rarity]
         local segment = overview.QualitySegments[rarity]
-        segment:SetWidth(max(CONTENT_WIDTH * count / max(total.collected, 1), 0.001))
+        segment:SetWidth(max(barWidth * count / max(total.collected, 1), 0.001))
         segment:SetShown(count > 0)
         local r, g, b = ns.GetRarityColor(rarity)
         legend[#legend + 1] = format("|cff%02x%02x%02x%s|r %s", r * 255, g * 255, b * 255,
             _G["ITEM_QUALITY" .. (rarity - 1) .. "_DESC"], FormatNumber(count))
     end
-    overview.QualityLegend:SetText(table.concat(legend, "   "))
+    overview.QualityLegend:SetText(table.concat(legend, LEGEND_SEPARATOR))
 end
 
--- Breakdown (families or sources)
+-- Breakdown (families or sources), filling the rest of the tab
 
 local function ShowRowTooltip(row)
     local tally = row.tally
@@ -193,10 +228,8 @@ local function ShowRowTooltip(row)
     GameTooltip:Show()
 end
 
-local function CreateBarRow(parent, index)
+local function CreateBarRow(parent)
     local row = CreateFrame("Frame", nil, parent)
-    row:SetHeight(BAR_ROW_HEIGHT)
-    row:SetPoint("TOPLEFT", parent.Dropdown, "BOTTOMLEFT", 0, -10 - (index - 1) * BAR_ROW_HEIGHT)
     row:SetPoint("RIGHT")
 
     row.Icon = row:CreateTexture(nil, "ARTWORK")
@@ -225,40 +258,58 @@ end
 
 local function CreateBreakdown(parent)
     local frame = CreateFrame("Frame", nil, parent)
-    frame:SetPoint("TOPLEFT", PADDING, -PADDING)
-    frame:SetPoint("BOTTOMRIGHT", -PADDING, PADDING)
+    frame:SetPoint("TOPLEFT", BREAKDOWN_PADDING + SIDE_PADDING, -BREAKDOWN_PADDING)
+    frame:SetPoint("BOTTOMRIGHT", -BREAKDOWN_PADDING - SIDE_PADDING, BREAKDOWN_PADDING)
 
-    local label = CreateText(frame, "GameFontNormal")
-    label:SetPoint("TOPLEFT", 0, -5)
-    label:SetText(L["Show"])
+    -- Families or sources on the left, the number the bars show on the right.
+    frame.ByDropdown = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")
+    frame.ByDropdown:SetPoint("TOPLEFT")
+    frame.ByDropdown:SetWidth(BAR_LABEL_WIDTH)
+    frame.ByDropdown:SetupMenu(function(_, root)
+        local function IsSelected(each)
+            return each == breakdownBy
+        end
+        local function Select(each)
+            breakdownBy = each
+            StatisticsView:Refresh()
+        end
+        root:CreateRadio(L["Families"], IsSelected, Select, BY_FAMILY)
+        root:CreateRadio(L["Sources"], IsSelected, Select, BY_SOURCE)
+    end)
 
-    metricDropdown = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")
-    metricDropdown:SetPoint("LEFT", label, "RIGHT", 8, 0)
-    metricDropdown:SetPoint("RIGHT")
-    metricDropdown:SetupMenu(function(_, root)
+    frame.MetricDropdown = CreateFrame("DropdownButton", nil, frame, "WowStyle1DropdownTemplate")
+    frame.MetricDropdown:SetPoint("LEFT", frame.ByDropdown, "RIGHT", 8, 0)
+    frame.MetricDropdown:SetPoint("RIGHT")
+    frame.MetricDropdown:SetupMenu(function(_, root)
         local function IsSelected(each)
             return each == metric
         end
         local function Select(each)
             metric = each
-            CollectionPanel:Refresh()
+            StatisticsView:Refresh()
         end
         for _, each in ipairs(Collection.METRICS) do
             root:CreateRadio(each.label, IsSelected, Select, each)
         end
     end)
-    frame.Dropdown = metricDropdown
 
     frame.Rows = {}
-    return frame
+    breakdown = frame
 end
 
 local function RefreshBreakdown(stats)
-    local byFamily = currentTab ~= TAB_SOURCES
-    local values, fullBar = Collection.GetBreakdown(byFamily and "families" or "sources", metric)
+    breakdown.ByDropdown:GenerateMenu()
+    breakdown.MetricDropdown:GenerateMenu()
+
+    local byFamily = breakdownBy == BY_FAMILY
+    local values, fullBar = Collection.GetBreakdown(breakdownBy, metric)
+    local rowsHeight = breakdown:GetHeight() - DROPDOWN_HEIGHT - 8
+    local rowHeight = max(BAR_ROW_MIN_HEIGHT, min(BAR_ROW_HEIGHT, floor(rowsHeight / max(#values, 1))))
     for index, entry in ipairs(values) do
-        local row = breakdown.Rows[index] or CreateBarRow(breakdown, index)
+        local row = breakdown.Rows[index] or CreateBarRow(breakdown)
         breakdown.Rows[index] = row
+        row:SetHeight(rowHeight)
+        row:SetPoint("TOPLEFT", 0, -DROPDOWN_HEIGHT - 8 - (index - 1) * rowHeight)
         row.tally = (byFamily and stats.families or stats.sources)[entry.id]
 
         row.Icon:SetShown(byFamily)
@@ -285,123 +336,45 @@ local function RefreshBreakdown(stats)
     end
 end
 
--- Panel
+-- View
 
-local function SelectTab(tab)
-    currentTab = tab
-    PanelTemplates_SetTab(panel, tab)
-    overview:SetShown(tab == TAB_OVERVIEW)
-    breakdown:SetShown(tab ~= TAB_OVERVIEW)
-    CollectionPanel:Refresh()
-end
+function StatisticsView:Create(parent)
+    view = CreateFrame("Frame", nil, parent)
+    view:SetAllPoints()
+    view:Hide()
 
-local function CreatePanel(anchor)
-    panel = CreateFrame("Frame", "LineupCollectionPanel", PetJournal, "ButtonFrameTemplate")
-    panel:SetSize(PANEL_WIDTH, PANEL_HEIGHT)
-    panel:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -6)
-    panel:SetFrameStrata("DIALOG")
-    panel:SetToplevel(true)
-    panel:EnableMouse(true)
-    panel:SetClampedToScreen(true)
-    ButtonFrameTemplate_HidePortrait(panel)
-    panel:SetTitle(L["Pet Collection"])
-    tinsert(UISpecialFrames, panel:GetName())
-    panel:Hide()
+    CreateHeader(view)
 
-    local inset = panel.Inset
-    inset:ClearAllPoints()
-    inset:SetPoint("TOPLEFT", 6 + EXTRA_LEFT, -26)
-    inset:SetPoint("BOTTOMRIGHT", -6, 6)
+    -- The overview sunk into the window below the header, like a section (see
+    -- TeamsPanel.CreateSectionInset), with the breakdown in a second inset under it.
+    local padding = ns.TeamsPanel.SECTION_INSET - ns.TeamsPanel.INSET_LEFT
+    local overviewTop = HEADER_TOP - HEADER_HEIGHT - 12
+    local overviewInset = CreateFrame("Frame", nil, view, "InsetFrameTemplate")
+    overviewInset:SetPoint("TOPLEFT", ns.TeamsPanel.INSET_LEFT, overviewTop)
+    overviewInset:SetPoint("TOPRIGHT", ns.TeamsPanel.INSET_RIGHT, overviewTop)
+    overviewInset:SetHeight(Overview.HEIGHT + 2 * padding)
+    local overviewSection = Overview:Create(overviewInset)
+    overviewSection:SetPoint("TOPLEFT", padding + SIDE_PADDING, -padding)
+    overviewSection:SetPoint("TOPRIGHT", -padding - SIDE_PADDING, -padding)
 
-    overview = CreateOverview(inset)
-    breakdown = CreateBreakdown(inset)
+    local inset = CreateFrame("Frame", nil, view, "InsetFrameTemplate")
+    inset:SetPoint("TOPLEFT", overviewInset, "BOTTOMLEFT", 0, -ns.TeamsPanel.INSET_GAP)
+    inset:SetPoint("BOTTOMRIGHT", ns.TeamsPanel.INSET_RIGHT, 26)
+    CreateBreakdown(inset)
 
-    panel.Tabs = {}
-    local tabLabels = { [TAB_OVERVIEW] = L["Overview"], [TAB_FAMILIES] = L["Families"], [TAB_SOURCES] = L["Sources"] }
-    for index, label in ipairs(tabLabels) do
-        local tab = CreateFrame("Button", "LineupCollectionPanelTab" .. index, panel, "PanelTabButtonTemplate")
-        tab:SetID(index)
-        tab:SetText(label)
-        PanelTemplates_TabResize(tab, 0)
-        tab:SetScript("OnClick", function()
-            PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB)
-            SelectTab(index)
-        end)
-        if index == 1 then
-            tab:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", 11, 2)
-        else
-            tab:SetPoint("LEFT", panel.Tabs[index - 1], "RIGHT", 3, 0)
-        end
-        panel.Tabs[index] = tab
-    end
-    PanelTemplates_SetNumTabs(panel, #panel.Tabs)
-
-    panel:SetScript("OnShow", function()
-        PlaySound(SOUNDKIT.IG_MAINMENU_OPEN)
-        SelectTab(currentTab)
-    end)
-    panel:SetScript("OnHide", function()
-        PlaySound(SOUNDKIT.IG_MAINMENU_CLOSE)
-    end)
-    -- Closed along with the journal, so it doesn't pop up again next time.
-    PetJournal:HookScript("OnHide", function()
-        panel:Hide()
-    end)
-end
-
-local function ShowButtonTooltip(button)
-    local total = Collection.GetStats().total
-    GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
-    GameTooltip:SetText(L["Pet Collection"])
-    GameTooltip:AddDoubleLine(L["Unique pets"], FormatNumber(total.unique), 1, 0.82, 0, 1, 1, 1)
-    GameTooltip:AddDoubleLine(L["Total pets"], FormatNumber(total.collected), 1, 0.82, 0, 1, 1, 1)
-    GameTooltip:AddDoubleLine(L["Not collected"], FormatNumber(total.species - total.unique), 1, 0.82, 0, 1, 1, 1)
-    GameTooltip:AddDoubleLine(L["Average battle pet level"],
-        format("%.1f", total.battlePets > 0 and total.levels / total.battlePets or 0), 1, 0.82, 0, 1, 1, 1)
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine(L["Click for details."], 0, 1, 0)
-    GameTooltip:Show()
-end
-
--- Called once the Pet Journal exists.
-function CollectionPanel:Setup()
-    local petCount = PetJournal.PetCount
-    if not petCount then
-        return
-    end
-
-    local button = CreateFrame("Button", nil, PetJournal)
-    button:SetSize(BUTTON_SIZE, BUTTON_SIZE)
-    button:SetPoint("LEFT", petCount, "RIGHT", 4, 0)
-    button:SetFrameLevel(petCount:GetFrameLevel() + 2)
-    -- A flat symbol rather than a framed icon; it lights up while hovered.
-    button:SetNormalAtlas(BUTTON_ATLAS)
-    button:SetHighlightAtlas(BUTTON_ATLAS, "ADD")
-    button:SetScript("OnClick", function()
-        GameTooltip:Hide()
-        panel:SetShown(not panel:IsShown())
-    end)
-    button:SetScript("OnEnter", ShowButtonTooltip)
-    button:SetScript("OnLeave", GameTooltip_Hide)
-
-    CreatePanel(button)
     -- Pets changed (see Roster:Invalidate): redraw once the new list can be read.
     hooksecurefunc(ns.Roster, "Invalidate", function()
-        C_Timer.After(0, function()
-            CollectionPanel:Refresh()
-        end)
+        ns.TeamsPanel:Refresh()
     end)
+    return view
 end
 
-function CollectionPanel:Refresh()
-    if not panel or not panel:IsVisible() then
+function StatisticsView:Refresh()
+    if not view or not view:IsVisible() then
         return
     end
     local stats = Collection.GetStats()
-    if currentTab == TAB_OVERVIEW then
-        RefreshOverview(stats)
-    else
-        metricDropdown:GenerateMenu()
-        RefreshBreakdown(stats)
-    end
+    RefreshHeader(stats.total)
+    RefreshOverview(stats)
+    RefreshBreakdown(stats)
 end

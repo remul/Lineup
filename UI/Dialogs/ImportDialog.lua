@@ -58,7 +58,7 @@ local function DescribeTeamPreview(parsed)
         lines[#lines + 1] = GRAY_FONT_COLOR:WrapTextInColorCode(format(L["...and %d more"], #notes - MAX_PREVIEW_LINES))
     end
     if not hasProblems then
-        tinsert(lines, 1, READY_ICON .. GREEN_FONT_COLOR:WrapTextInColorCode(L["Ready to import: you have all the pets."]))
+        tinsert(lines, 1, READY_ICON .. GREEN_FONT_COLOR:WrapTextInColorCode(L["Ready to import: you have all the pets"]))
     end
     return table.concat(lines, "\n")
 end
@@ -68,12 +68,12 @@ local function UpdateStatus()
     previewText:SetText("")
     local text = textBox:GetText()
     if strtrim(text) == "" then
-        statusText:SetText(L["Paste a team to import."])
+        statusText:SetText(L["Paste a team to import"])
         statusText:SetTextColor(GRAY_FONT_COLOR:GetRGB())
     else
         local all = ns.Import.ParseAll(text)
         if all.numTeams == 0 then
-            statusText:SetText(all.errors[1] or L["Not a team string."])
+            statusText:SetText(all.errors[1] or L["Not a team string"])
             statusText:SetTextColor(RED_FONT_COLOR:GetRGB())
         else
             result = all
@@ -86,7 +86,7 @@ local function UpdateStatus()
                 local names = GetTeamNames()
                 local listed = table.concat(names, ", ", 1, math.min(#names, MAX_LISTED_NAMES))
                 summary = format(L["%d teams: %s%s"], #names, listed, #names > MAX_LISTED_NAMES and ", ..." or "")
-                previewText:SetText(GRAY_FONT_COLOR:WrapTextInColorCode(L["After importing, teams that need attention are listed in chat."]))
+                previewText:SetText(GRAY_FONT_COLOR:WrapTextInColorCode(L["After importing, teams that need attention are listed in chat"]))
             end
             if #all.errors > 0 then
                 summary = summary .. format(L["  |cffff2020(%d unreadable)|r"], #all.errors)
@@ -148,7 +148,7 @@ local function CreateDialog()
     hint:SetPoint("TOPLEFT", 16 + EXTRA_LEFT, -32)
     hint:SetPoint("RIGHT", clearButton, "LEFT", -10, 0)
     hint:SetJustifyH("LEFT")
-    hint:SetText(L["Paste one or more Rematch team strings, e.g. from Xu-Fu's Pet Guides."])
+    hint:SetText(L["Paste one or more Rematch team strings, e.g. from Xu-Fu's Pet Guides"])
 
     local textInset = CreateFrame("Frame", nil, dialog, "InsetFrameTemplate")
     textInset:SetPoint("TOPLEFT", 14 + EXTRA_LEFT, -66)
