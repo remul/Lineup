@@ -74,8 +74,7 @@ you.
 ## Installation
 
 Copy the `Lineup_PetBattles` folder into `World of Warcraft/_retail_/Interface/AddOns/` and restart
-the game. The folder is called `Lineup_PetBattles` because another addon already uses the name
-"Lineup".
+the game.
 
 Open the Pet Journal (`Shift+P`, Pets tab) or type `/lineup`.
 
@@ -88,7 +87,8 @@ Open the Pet Journal (`Shift+P`, Pets tab) or type `/lineup`.
 
 ## Languages
 
-Lineup uses the language of your game client. English and German are available.
+Lineup uses the language of your game client. English, German, French, Italian and Russian are
+available.
 
 Translations are in `Locales/`. To add a language, copy `Locales/deDE.lua`, change the locale code
 (e.g. `frFR`), translate the text on the right of each line and add the file to

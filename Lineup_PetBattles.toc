@@ -22,6 +22,9 @@
 
 Locales\Locales.lua
 Locales\deDE.lua
+Locales\frFR.lua
+Locales\itIT.lua
+Locales\ruRU.lua
 Core.lua
 Data\Teams.lua
 Data\BreedData.lua
