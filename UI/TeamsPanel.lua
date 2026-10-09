@@ -171,6 +171,7 @@ function GroupHeaderMixin:OnLoad()
     self.Name = self:CreateFontString(nil, "ARTWORK", "GameFontNormalMed2")
 
     self.Count = self:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    self.Count:SetTextColor(ns.MUTED_COLOR:GetRGB())
     self.Count:SetPoint("LEFT", self.Name, "RIGHT", 6, 0)
 
     self.EditButton = CreateGearButton(self, L["Group options"], function()

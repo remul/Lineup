@@ -3,7 +3,9 @@ local L = ns.L
 
 -- The leveling queue is built automatically from your battle pets below level 25. By default it
 -- has one per species (your highest) and skips species you already have at level 25; options
--- include duplicates and those species too. Its order is the chosen sort.
+-- include duplicates and those species too. Its order is the chosen sort, or the player's own
+-- ("custom": moved up and down in the list; pets new to the queue go to the end). The custom order
+-- is kept while another sort is chosen, so switching back restores it.
 -- Teams can have leveling slots, which are filled from the front of the queue when loaded.
 -- A leveling slot can carry Rematch-style preferences:
 --   { minHP, allowMM, expectedDD, maxHP, minXP, maxXP }
@@ -62,9 +64,54 @@ LevelingQueue.SORTS = {
         return ByName(a, b)
     end },
     { key = "name", label = L["Name"], compare = ByName },
+    { key = "custom", label = L["Custom"] },
 }
 
+-- The custom order: pets in queueCustomOrder by their place there, then the others (new to the
+-- queue) by level, highest first.
+local function GetCustomCompare()
+    local position = {}
+    for index, petID in ipairs(ns.db.queueCustomOrder) do
+        position[petID] = index
+    end
+    return function(a, b)
+        local pa, pb = position[a.petID], position[b.petID]
+        if pa and pb then
+            return pa < pb
+        elseif pa or pb then
+            return pa ~= nil
+        end
+        return LevelingQueue.SORTS[1].compare(a, b)
+    end
+end
+
+-- Drops pets from the saved custom order that can't be leveled anymore: level 25, released or
+-- caged (not among pets, the owned ones), or unable to battle. Pets the queue's options leave out
+-- keep their place.
+local function PruneCustomOrder(pets)
+    -- No pets usually means the journal isn't loaded yet (e.g. just after logging in), not that
+    -- they're all gone.
+    if #pets == 0 then
+        return
+    end
+    local levelable = {}
+    for _, pet in ipairs(pets) do
+        if pet.canBattle and pet.level < 25 then
+            levelable[pet.petID] = true
+        end
+    end
+    local order = ns.db.queueCustomOrder
+    for index = #order, 1, -1 do
+        if not levelable[order[index]] then
+            table.remove(order, index)
+        end
+    end
+end
+
 local function GetSortCompare()
+    if ns.db.queueSort == "custom" then
+        return GetCustomCompare()
+    end
     for _, sort in ipairs(LevelingQueue.SORTS) do
         if sort.key == ns.db.queueSort then
             return sort.compare
@@ -89,11 +136,59 @@ function LevelingQueue:SetOption(key, value)
 end
 
 function LevelingQueue:SetSort(key)
+    -- The first switch to the custom order starts from the order shown so far; later ones bring
+    -- back the saved order.
+    if key == "custom" and ns.db.queueSort ~= "custom" and #ns.db.queueCustomOrder == 0 then
+        local order = {}
+        for index, pet in ipairs(self:Get()) do
+            order[index] = pet.petID
+        end
+        ns.db.queueCustomOrder = order
+    end
     ns.db.queueSort = key
     if queue then
         table.sort(queue, GetSortCompare())
     end
     ns.TeamsPanel:Refresh()
+end
+
+function LevelingQueue:IsCustomSort()
+    return ns.db.queueSort == "custom"
+end
+
+-- Saves petIDs (the queue's pets) as the custom order. Pets not in the queue right now (left out by
+-- its options) keep their place after them.
+function LevelingQueue:SetCustomOrder(petIDs)
+    local order, inQueue = {}, {}
+    for index, petID in ipairs(petIDs) do
+        order[index] = petID
+        inQueue[petID] = true
+    end
+    for _, savedID in ipairs(ns.db.queueCustomOrder) do
+        if not inQueue[savedID] then
+            order[#order + 1] = savedID
+        end
+    end
+    ns.db.queueCustomOrder = order
+    table.sort(self:Get(), GetSortCompare())
+    ns.TeamsPanel:Refresh()
+end
+
+-- Moves a pet up (delta -1) or down (1) in the custom order.
+function LevelingQueue:Move(petID, delta)
+    local petIDs, index = {}, nil
+    for i, pet in ipairs(self:Get()) do
+        petIDs[i] = pet.petID
+        if pet.petID == petID then
+            index = i
+        end
+    end
+    local target = index and index + delta
+    if not target or target < 1 or target > #petIDs then
+        return
+    end
+    petIDs[index], petIDs[target] = petIDs[target], petIDs[index]
+    self:SetCustomOrder(petIDs)
 end
 
 -- Returns the queue as a list of roster pets (see Roster:GetOwnedPets).
@@ -103,6 +198,7 @@ function LevelingQueue:Get()
     end
 
     owned = ns.Roster:GetOwnedPets()
+    PruneCustomOrder(owned)
     local includeDuplicates = ns.db.queueIncludeDuplicates
     local includeMaxed = ns.db.queueIncludeMaxedSpecies
 

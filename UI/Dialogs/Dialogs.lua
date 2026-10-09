@@ -63,6 +63,21 @@ function Dialogs.CreateInputError(editBox)
     end
 end
 
+-- A small up or down arrow button for moving an entry in a list (delta -1 = up, 1 = down);
+-- onClick runs on a click. Disable it at the list's ends.
+function Dialogs.CreateArrowButton(parent, delta, onClick)
+    local texturePrefix = delta < 0 and "Interface\\Buttons\\UI-ScrollBar-ScrollUpButton"
+        or "Interface\\Buttons\\UI-ScrollBar-ScrollDownButton"
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(24, 24)
+    button:SetNormalTexture(texturePrefix .. "-Up")
+    button:SetPushedTexture(texturePrefix .. "-Down")
+    button:SetDisabledTexture(texturePrefix .. "-Disabled")
+    button:SetHighlightTexture(texturePrefix .. "-Highlight", "ADD")
+    button:SetScript("OnClick", onClick)
+    return button
+end
+
 -- Windows the player has dragged somewhere, and those already watched for that ([frame] = true).
 local movedWindows, watchedWindows = {}, {}
 

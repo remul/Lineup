@@ -517,6 +517,15 @@ function Teams:MoveGroup(group, delta)
     end
 end
 
+-- Puts the groups in this order (a reordered copy of Teams:GetGroups()).
+function Teams:SetGroupOrder(groups)
+    local saved = ns.db.groups
+    wipe(saved)
+    for index, group in ipairs(groups) do
+        saved[index] = group
+    end
+end
+
 function Teams:SortGroupsByName()
     table.sort(ns.db.groups, function(a, b)
         return a.name:lower() < b.name:lower()

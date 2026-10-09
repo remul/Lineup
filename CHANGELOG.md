@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.7.0
+
+- **French, Italian and Russian** translations.
+- **Custom order for the leveling queue**: a new "Custom" sort where you drag pets into your own
+  order, or move them with the arrows. Leveling slots use that order. It's kept while you use
+  another sort; pets that reach level 25 drop out of it.
+- **Drag and drop** in the Sort Groups window as well. Rows that can be dragged have a grip.
+- The Sort Groups window shows groups as cards like the group headers in the Lineup window, with
+  their team count.
+- Shorter README.
+- Fixed: a German message read "der Familie beliebig" for random slots without a family.
+
 ## 1.6.0
 
 - **Breed badges** in the Pet Journal: each battle pet's breed (e.g. P/S) below its name, in the

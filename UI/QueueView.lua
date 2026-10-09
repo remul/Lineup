@@ -1,7 +1,8 @@
 local _, ns = ...
 local L = ns.L
 
--- The "Leveling Queue" tab of the Lineup window: the automatic leveling queue with XP bars.
+-- The "Leveling Queue" tab of the Lineup window: the automatic leveling queue with XP bars. With the
+-- custom sort, rows can be dragged, or moved with their up / down arrows, into your own order.
 local QueueView = {}
 ns.QueueView = QueueView
 
@@ -21,9 +22,12 @@ function QueueRowMixin:OnLoad()
     self.Background:SetAtlas("PetList-ButtonBackground")
     self:SetHighlightAtlas("PetList-ButtonHighlight")
 
+    -- Custom sort: a drag grip before the icon (which moves over for it).
+    self.Grip = ns.CreateDragGrip(self)
+    self.Grip:SetPoint("LEFT", 8, 0)
+
     self.Icon = self:CreateTexture(nil, "ARTWORK")
     self.Icon:SetSize(34, 34)
-    self.Icon:SetPoint("LEFT", 6, 0)
 
     self.IconBorder = self:CreateTexture(nil, "OVERLAY")
     self.IconBorder:SetAllPoints(self.Icon)
@@ -36,9 +40,21 @@ function QueueRowMixin:OnLoad()
     self.Family:SetSize(18, 18)
     self.Family:SetPoint("RIGHT", -8, 0)
 
+    -- Custom sort: arrows left of the family icon.
+    local function Move(delta)
+        ns.LevelingQueue:Move(self.pet.petID, delta)
+    end
+    self.DownButton = ns.Dialogs.CreateArrowButton(self, 1, function()
+        Move(1)
+    end)
+    self.DownButton:SetPoint("RIGHT", self.Family, "LEFT", -6, 0)
+    self.UpButton = ns.Dialogs.CreateArrowButton(self, -1, function()
+        Move(-1)
+    end)
+    self.UpButton:SetPoint("RIGHT", self.DownButton, "LEFT", 0, 0)
+
     self.Name = self:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     self.Name:SetPoint("TOPLEFT", self.Icon, "TOPRIGHT", 8, -2)
-    self.Name:SetPoint("RIGHT", self.Family, "LEFT", -6, 0)
     self.Name:SetJustifyH("LEFT")
     self.Name:SetWordWrap(false)
 
@@ -49,7 +65,6 @@ function QueueRowMixin:OnLoad()
 
     self.XPBar = CreateFrame("StatusBar", nil, self)
     self.XPBar:SetPoint("LEFT", self.Level, "RIGHT", 2, 0)
-    self.XPBar:SetPoint("RIGHT", self.Family, "LEFT", -8, 0)
     self.XPBar:SetHeight(8)
     self.XPBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
     self.XPBar:SetStatusBarColor(0.58, 0.0, 0.55)
@@ -74,6 +89,18 @@ function QueueRowMixin:Init(data)
     self.XPBar:SetMinMaxValues(0, self.maxXp)
     self.XPBar:SetValue(self.xp)
     self.Family:SetTexture(ns.GetFamilyIcon(pet.petType))
+
+    -- The name and XP bar run up to the arrows (custom sort) or the family icon.
+    local custom = data.custom
+    self.Grip:SetShown(custom)
+    self.Icon:SetPoint("LEFT", custom and 22 or 6, 0)
+    self.UpButton:SetShown(custom)
+    self.DownButton:SetShown(custom)
+    self.UpButton:SetEnabled(data.position > 1)
+    self.DownButton:SetEnabled(data.position < data.count)
+    local rightEdge = custom and self.UpButton or self.Family
+    self.Name:SetPoint("RIGHT", rightEdge, "LEFT", -6, 0)
+    self.XPBar:SetPoint("RIGHT", rightEdge, "LEFT", -8, 0)
 end
 
 function QueueRowMixin:OnClick()
@@ -204,6 +231,16 @@ function QueueView:Create(parent)
     end)
     listView:SetPadding(0, 0, 0, 0, 2)
     scrollBox = ns.CreateScrollList(inset, listView)
+    -- Dragging rows sets the custom order (and only works with that sort).
+    ns.AddDragReorder(scrollBox, function()
+        return ns.LevelingQueue:IsCustomSort()
+    end, function(entries)
+        local petIDs = {}
+        for index, data in ipairs(entries) do
+            petIDs[index] = data.pet.petID
+        end
+        ns.LevelingQueue:SetCustomOrder(petIDs)
+    end)
 
     countText = view:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     countText:SetPoint("BOTTOMLEFT", 14, 8)
@@ -223,9 +260,11 @@ function QueueView:Refresh()
         check:SetChecked(ns.LevelingQueue:GetOption(key) and true or false)
     end
 
+    local pets = ns.LevelingQueue:Get()
+    local custom = ns.LevelingQueue:IsCustomSort()
     local elements = {}
-    for position, pet in ipairs(ns.LevelingQueue:Get()) do
-        elements[position] = { pet = pet, position = position }
+    for position, pet in ipairs(pets) do
+        elements[position] = { pet = pet, position = position, count = #pets, custom = custom }
     end
     scrollBox:SetDataProvider(CreateDataProvider(elements), ScrollBoxConstants.RetainScrollPosition)
     emptyText:SetShown(#elements == 0)

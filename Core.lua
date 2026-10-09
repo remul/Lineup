@@ -15,6 +15,8 @@ local DEFAULTS = {
     nextGroupID = 1,
     ungroupedCollapsed = false,
     queueSort = "levelDesc",
+    -- The "custom" queue sort: petIDs in the player's order (see LevelingQueue:Move).
+    queueCustomOrder = {},
     queueIncludeDuplicates = false,
     queueIncludeMaxedSpecies = false,
     -- The Lineup window beside the Pet Journal, hidden with the button by the journal's close button.
@@ -244,6 +246,45 @@ function ns.CreateScrollList(parent, view, padding)
 
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
     return scrollBox
+end
+
+-- A drag grip (two columns of three dots) to show that a row can be dragged; anchor it and show or
+-- hide it with the row's drag state.
+local GRIP_DOT, GRIP_GAP = 2, 2
+function ns.CreateDragGrip(parent)
+    local grip = CreateFrame("Frame", nil, parent)
+    grip:SetSize(2 * GRIP_DOT + GRIP_GAP, 3 * GRIP_DOT + 2 * GRIP_GAP)
+    local r, g, b = ns.MUTED_COLOR:GetRGB()
+    for column = 0, 1 do
+        for row = 0, 2 do
+            local dot = grip:CreateTexture(nil, "ARTWORK")
+            dot:SetColorTexture(r, g, b, 0.8)
+            PixelUtil.SetSize(dot, GRIP_DOT, GRIP_DOT)
+            PixelUtil.SetPoint(dot, "TOPLEFT", grip, "TOPLEFT", column * (GRIP_DOT + GRIP_GAP), -row * (GRIP_DOT + GRIP_GAP))
+        end
+    end
+    return grip
+end
+
+-- Lets the entries of a scroll list (see ns.CreateScrollList) be dragged into a new order, with
+-- Blizzard's drag behavior: a drop line between rows, scrolling at the edges. canDrag() says whether
+-- dragging is allowed right now (nil: always); onReordered(entries) gets the list's element data in
+-- the new order after each drop, to save it.
+function ns.AddDragReorder(scrollBox, canDrag, onReordered)
+    local dragBehavior = ScrollUtil.InitDefaultLinearDragBehavior(scrollBox)
+    dragBehavior:SetReorderable(true)
+    if canDrag then
+        dragBehavior:SetDragPredicate(function()
+            return canDrag()
+        end)
+    end
+    dragBehavior:SetPostDrop(function(contextData)
+        local entries = {}
+        for _, elementData in contextData.dataProvider:Enumerate() do
+            entries[#entries + 1] = elementData
+        end
+        onReordered(entries)
+    end)
 end
 
 -- r, g, b for a battle pet quality (1 = poor ... 4 = rare).
