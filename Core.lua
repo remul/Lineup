@@ -121,13 +121,29 @@ end
 -- kept; don't change the tables.
 local abilitiesBySpecies = {}
 
+-- An ability's name, icon and family (petType); abilities don't change, so they're kept.
+local abilityInfo = {}
+
+function ns.GetAbilityInfo(abilityID)
+    local info = abilityInfo[abilityID]
+    if not info then
+        local name, icon, petType = C_PetJournal.GetPetAbilityInfo(abilityID)
+        if not name then
+            return nil
+        end
+        info = { name, icon, petType }
+        abilityInfo[abilityID] = info
+    end
+    return info[1], info[2], info[3]
+end
+
 function ns.GetSpeciesAbilities(speciesID)
     local abilities = abilitiesBySpecies[speciesID]
     if not abilities then
         local ids, levels = C_PetJournal.GetPetAbilityList(speciesID)
         abilities = { ids = ids or {}, levels = levels or {}, names = {}, types = {}, strongAgainst = {} }
         for index, abilityID in ipairs(abilities.ids) do
-            local _, name, _, _, _, _, abilityType = C_PetBattles.GetAbilityInfoByID(abilityID)
+            local name, _, abilityType = ns.GetAbilityInfo(abilityID)
             abilities.names[index] = (name or ""):lower()
             abilities.types[index] = abilityType
             if ns.STRONG_AGAINST[abilityType] then
@@ -394,9 +410,9 @@ end
 ns:RegisterEvent("ADDON_LOADED")
 
 -- Slash commands
-SLASH_LINEUP1 = "/lineup"
+SLASH_LINEUP_PETBATTLES1 = "/lineup"
 
-SlashCmdList.LINEUP = function(msg)
+SlashCmdList.LINEUP_PETBATTLES = function(msg)
     local cmd = strtrim(msg or ""):lower()
 
     if cmd == "" then

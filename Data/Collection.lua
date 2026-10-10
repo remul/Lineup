@@ -147,10 +147,10 @@ function Collection.Describe(tally, metric)
     return value, format(metric.format or "%d", value)
 end
 
--- Values for a whole breakdown ("families" or "sources"): { { id, value, text } } in order, and the
--- value a full bar stands for.
-function Collection.GetBreakdown(groupBy, metric)
-    local tallies = Collection.GetStats()[groupBy]
+-- Values for a whole breakdown ("families" or "sources") of stats (see GetStats):
+-- { { id, value, text } } in order, and the value a full bar stands for.
+function Collection.GetBreakdown(stats, groupBy, metric)
+    local tallies = stats[groupBy]
     local rows, largest = {}, 1
     for id = 1, groupBy == "families" and ns.NUM_FAMILIES or C_PetJournal.GetNumPetSources() do
         local tally = tallies[id]

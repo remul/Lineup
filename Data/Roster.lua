@@ -1,92 +1,85 @@
 local _, ns = ...
 
--- Lists owned pets. The journal API only returns pets matching the journal's filters (shared with
--- Blizzard's Pet Journal), so they are widened for the scan and restored afterwards.
+-- Your pets, read without touching the Pet Journal where possible: owned pets come from
+-- C_PetJournal.GetOwnedPetIDs. Only the list of every species (collected or not, with its source)
+-- needs the journal's own list, which its filters limit; see ScanJournal.
 local Roster = {}
 ns.Roster = Roster
 
--- There is no getter for the journal's search text, so remember it as it's set.
-local searchText = ""
-local expanding = false
+local scanning = false
 
-hooksecurefunc(C_PetJournal, "SetSearchFilter", function(text)
-    if not expanding then
-        searchText = text or ""
-    end
-end)
-hooksecurefunc(C_PetJournal, "ClearSearchFilter", function()
-    if not expanding then
-        searchText = ""
-    end
-end)
-
--- True if the journal currently hides any owned pets (search, "collected" off, or a family or
--- source unchecked). "Not collected" doesn't matter: those entries are skipped while scanning.
-local function IsAnyFilterUsed()
+-- The journal's filter state: collected / not collected, families, sources and search text.
+local function SaveJournalFilters()
     local J = C_PetJournal
-    if searchText ~= "" or not J.IsFilterChecked(LE_PET_JOURNAL_FILTER_COLLECTED) then
-        return true
+    local saved = {
+        collected = J.IsFilterChecked(LE_PET_JOURNAL_FILTER_COLLECTED),
+        notCollected = J.IsFilterChecked(LE_PET_JOURNAL_FILTER_NOT_COLLECTED),
+        search = J.GetSearchFilter() or "",
+        families = {},
+        sources = {},
+    }
+    for family = 1, J.GetNumPetTypes() do
+        saved.families[family] = J.IsPetTypeChecked(family)
     end
-    for i = 1, J.GetNumPetTypes() do
-        if not J.IsPetTypeChecked(i) then
-            return true
-        end
+    for source = 1, J.GetNumPetSources() do
+        saved.sources[source] = J.IsPetSourceChecked(source)
     end
-    for i = 1, J.GetNumPetSources() do
-        if not J.IsPetSourceChecked(i) then
-            return true
-        end
-    end
-    return false
+    return saved
 end
 
--- Runs callback with the journal listing every owned pet (and, with includeUncollected, every pet
--- it knows), then puts its search and filters back.
-local function WithWidenedFilters(includeUncollected, callback)
+local function RestoreJournalFilters(saved)
     local J = C_PetJournal
-    local collected = J.IsFilterChecked(LE_PET_JOURNAL_FILTER_COLLECTED)
-    local notCollected = J.IsFilterChecked(LE_PET_JOURNAL_FILTER_NOT_COLLECTED)
-    local types, sources = {}, {}
-    for i = 1, J.GetNumPetTypes() do
-        types[i] = J.IsPetTypeChecked(i)
+    J.SetFilterChecked(LE_PET_JOURNAL_FILTER_COLLECTED, saved.collected)
+    J.SetFilterChecked(LE_PET_JOURNAL_FILTER_NOT_COLLECTED, saved.notCollected)
+    for family, checked in ipairs(saved.families) do
+        J.SetPetTypeFilter(family, checked)
     end
-    for i = 1, J.GetNumPetSources() do
-        sources[i] = J.IsPetSourceChecked(i)
+    for source, checked in ipairs(saved.sources) do
+        J.SetPetSourceChecked(source, checked)
     end
+    if saved.search ~= "" then
+        J.SetSearchFilter(saved.search)
+    end
+end
 
-    expanding = true
+-- Runs scan(onlySource) once per pet source with the journal listing every species of that source,
+-- then puts the player's filters back. The open journal stops listening meanwhile and is redrawn
+-- once at the end, instead of after every filter change.
+local function ScanJournal(scan)
+    local J = C_PetJournal
+    local saved = SaveJournalFilters()
+    local journalListens = PetJournal and PetJournal:IsEventRegistered("PET_JOURNAL_LIST_UPDATE")
+    if journalListens then
+        PetJournal:UnregisterEvent("PET_JOURNAL_LIST_UPDATE")
+    end
+    scanning = true
+
     J.ClearSearchFilter()
     J.SetFilterChecked(LE_PET_JOURNAL_FILTER_COLLECTED, true)
-    J.SetFilterChecked(LE_PET_JOURNAL_FILTER_NOT_COLLECTED, includeUncollected)
+    J.SetFilterChecked(LE_PET_JOURNAL_FILTER_NOT_COLLECTED, true)
     J.SetAllPetTypesChecked(true)
-    J.SetAllPetSourcesChecked(true)
+    -- Errors are reported, but never leave the journal widened.
+    xpcall(function()
+        for source = 1, J.GetNumPetSources() do
+            J.SetAllPetSourcesChecked(false)
+            J.SetPetSourceChecked(source, true)
+            scan(source)
+        end
+    end, CallErrorHandler)
 
-    callback()
-
-    J.SetFilterChecked(LE_PET_JOURNAL_FILTER_COLLECTED, collected)
-    J.SetFilterChecked(LE_PET_JOURNAL_FILTER_NOT_COLLECTED, notCollected)
-    for i, checked in ipairs(types) do
-        J.SetPetTypeFilter(i, checked)
+    RestoreJournalFilters(saved)
+    scanning = false
+    if journalListens then
+        PetJournal:RegisterEvent("PET_JOURNAL_LIST_UPDATE")
+        if PetJournal:IsShown() then
+            PetJournal_UpdatePetList()
+        end
     end
-    for i, checked in ipairs(sources) do
-        J.SetPetSourceChecked(i, checked)
-    end
-    J.SetSearchFilter(searchText)
-    expanding = false
 end
 
-local function WithAllOwnedPets(callback)
-    -- Changing filters makes the journal rebuild its list (twice), so skip it when nothing is hidden.
-    if not IsAnyFilterUsed() then
-        callback()
-        return
-    end
-    WithWidenedFilters(false, callback)
-end
-
--- True while the journal filters are widened for a scan (its PET_JOURNAL_LIST_UPDATEs can be ignored).
+-- True while ScanJournal has the journal's filters changed (its list updates can be ignored).
 function Roster:IsScanning()
-    return expanding
+    return scanning
 end
 
 local cachedPets
@@ -104,33 +97,30 @@ function Roster:GetOwnedPets()
         return cachedPets
     end
     local pets = {}
-    WithAllOwnedPets(function()
-        for i = 1, C_PetJournal.GetNumPets() do
-            local petID, speciesID, owned, customName, level, _, _, speciesName, _, petType,
-                _, _, _, _, canBattle = C_PetJournal.GetPetInfoByIndex(i)
-            if petID and owned then
-                local _, maxHealth, _, _, rarity = C_PetJournal.GetPetStats(petID)
-                pets[#pets + 1] = {
-                    petID = petID,
-                    speciesID = speciesID,
-                    name = customName or speciesName,
-                    level = level or 1,
-                    rarity = rarity or 1,
-                    maxHealth = maxHealth or 0,
-                    petType = petType,
-                    canBattle = canBattle,
-                }
-            end
+    for _, petID in ipairs(C_PetJournal.GetOwnedPetIDs()) do
+        local info = C_PetJournal.GetPetInfoTableByPetID(petID)
+        if info then
+            local _, maxHealth, _, _, rarity = C_PetJournal.GetPetStats(petID)
+            pets[#pets + 1] = {
+                petID = petID,
+                speciesID = info.speciesID,
+                name = info.customName or info.name,
+                level = info.petLevel or 1,
+                rarity = rarity or 1,
+                maxHealth = maxHealth or 0,
+                petType = info.petType,
+                canBattle = info.canBattle,
+            }
         end
-    end)
+    end
     cachedPets = pets
     return pets
 end
 
 -- Every species in the journal, collected or not: [speciesID] = { petType, canBattle, source }.
--- source is the index of its pet source (BATTLE_PET_SOURCE_n). The journal can't say a pet's source,
--- only filter by it, so it's listed once per source. Species only change with patches, so the
--- result is kept for the session.
+-- source is the index of its pet source (BATTLE_PET_SOURCE_n); the journal can only filter by
+-- source, not say it, so each source is listed on its own. Species only change with patches, so
+-- the result is kept for the session.
 local allSpecies
 
 function Roster:GetAllSpecies()
@@ -138,17 +128,11 @@ function Roster:GetAllSpecies()
         return allSpecies
     end
     local species = {}
-    WithWidenedFilters(true, function()
-        local numSources = C_PetJournal.GetNumPetSources()
-        for source = 1, numSources do
-            for index = 1, numSources do
-                C_PetJournal.SetPetSourceChecked(index, index == source)
-            end
-            for index = 1, C_PetJournal.GetNumPets() do
-                local _, speciesID, _, _, _, _, _, _, _, petType, _, _, _, _, canBattle = C_PetJournal.GetPetInfoByIndex(index)
-                if speciesID and not species[speciesID] then
-                    species[speciesID] = { petType = petType, canBattle = canBattle, source = source }
-                end
+    ScanJournal(function(source)
+        for index = 1, C_PetJournal.GetNumPets() do
+            local _, speciesID, _, _, _, _, _, _, _, petType, _, _, _, _, canBattle = C_PetJournal.GetPetInfoByIndex(index)
+            if speciesID and not species[speciesID] then
+                species[speciesID] = { petType = petType, canBattle = canBattle, source = source }
             end
         end
     end)

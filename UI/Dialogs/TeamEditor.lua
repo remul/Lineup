@@ -93,8 +93,8 @@ local function AddAbilitiesToTooltip(entry)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine(L["Abilities"], NORMAL_FONT_COLOR:GetRGB())
     for index = 1, 3 do
-        local _, first = C_PetBattles.GetAbilityInfoByID(list[index])
-        local _, second = C_PetBattles.GetAbilityInfoByID(list[index + 3])
+        local first = ns.GetAbilityInfo(list[index])
+        local second = ns.GetAbilityInfo(list[index + 3])
         local choice = choices[index]
         local firstShade = (choice == 1 or not choice) and 1 or 0.45
         local secondShade = (choice == 2 or not choice) and 1 or 0.45
@@ -143,7 +143,7 @@ local function ShowAbilityMenu(owner, slot)
             root:CreateDivider()
             root:CreateTitle(format(L["Ability slot %d"], index))
             for _, abilityID in ipairs({ list[index], list[index + 3] }) do
-                local _, abilityName, abilityIcon = C_PetBattles.GetAbilityInfoByID(abilityID)
+                local abilityName, abilityIcon = ns.GetAbilityInfo(abilityID)
                 root:CreateRadio(format("|T%s:16:16|t %s", abilityIcon, abilityName), IsSelected, Select,
                     { index = index, abilityID = abilityID })
             end
@@ -178,6 +178,33 @@ local function SetSlotPet(slot, pet)
     UpdatePets()
 end
 
+-- The pet on the cursor, dragged from the Pet Journal (its list or loadout): petID, speciesID.
+local function GetCursorPet()
+    local kind, petID = GetCursorInfo()
+    if kind ~= "battlepet" or not petID then
+        return nil
+    end
+    return petID, C_PetJournal.GetPetInfoByPetID(petID)
+end
+
+-- Puts the pet on the cursor into a slot. If it's already in another slot, the two slots swap.
+local function DropCursorPet(slot)
+    local petID, speciesID = GetCursorPet()
+    if not speciesID then
+        return false
+    end
+    ClearCursor()
+    for otherSlot, entry in ipairs(draft.pets) do
+        if otherSlot ~= slot and entry.petID == petID then
+            draft.pets[otherSlot], draft.pets[slot] = draft.pets[slot], entry
+            UpdatePets()
+            return true
+        end
+    end
+    SetSlotPet(slot, { petID = petID, speciesID = speciesID })
+    return true
+end
+
 local function Save()
     local name = strtrim(nameBox:GetText())
     if name == "" then
@@ -201,7 +228,7 @@ local function Delete()
 end
 
 local function CreateEditor()
-    editor = ns.Dialogs.CreateWindow("LineupTeamEditor", EDITOR_WIDTH, EDITOR_HEIGHT)
+    editor = ns.Dialogs.CreateWindow("LineupPetBattlesTeamEditor", EDITOR_WIDTH, EDITOR_HEIGHT)
     editor.Inset:Hide()
 
     -- Name
@@ -273,7 +300,8 @@ local function CreateEditor()
     CreateLabel(L["Pets"], editor, -156)
     petIcons = {}
     for slot = 1, 3 do
-        -- Clicking the icon opens the pet picker for this slot.
+        -- Clicking the icon opens the pet picker for this slot; a pet dragged from the Pet Journal
+        -- can be dropped on it.
         local icon = CreateFrame("Button", nil, editor)
         icon:SetSize(PET_ICON_SIZE, PET_ICON_SIZE)
         icon:SetPoint("TOPLEFT", CONTENT_LEFT + LABEL_WIDTH + 6 + (slot - 1) * (PET_ICON_SIZE + PET_ICON_SPACING), -146)
@@ -306,11 +334,18 @@ local function CreateEditor()
             GameTooltip:Show()
         end
         icon:SetScript("OnEnter", function(button)
-            ShowTooltip(button, L["Click to choose a pet."])
+            ShowTooltip(button, GetCursorPet() and L["Drop to put this pet here."]
+                or L["Click to choose a pet, or drag one here from the Pet Journal."])
         end)
         icon:SetScript("OnLeave", GameTooltip_Hide)
+        icon:SetScript("OnReceiveDrag", function()
+            DropCursorPet(slot)
+        end)
         icon:SetScript("OnClick", function()
             GameTooltip:Hide()
+            if DropCursorPet(slot) then
+                return
+            end
             local taken = {}
             for otherSlot, entry in ipairs(draft.pets) do
                 if otherSlot ~= slot and entry.petID then
@@ -386,7 +421,7 @@ local function CreateEditor()
         GameTooltip:SetText(L["Select Script Abilities"])
         for _, fix in ipairs(scriptCheck.fixes) do
             local _, petName = Teams.GetSlotDisplay(draft.pets[fix.slot])
-            local _, abilityName = C_PetBattles.GetAbilityInfoByID(fix.abilityID)
+            local abilityName = ns.GetAbilityInfo(fix.abilityID)
             GameTooltip:AddDoubleLine(format(L["Slot %d: %s"], fix.slot, petName), abilityName, 1, 1, 1, 0, 1, 0)
         end
         GameTooltip:Show()

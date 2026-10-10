@@ -49,7 +49,7 @@ A Hide / Show button next to the journal's Find Battle button hides or shows the
 - Each pet's breed (e.g. P/S) as a badge below its name, in the list and on the three battle slots.
 - A toolbar with Revive Battle Pets, Battle Pet Bandage, Safari Hat, pet treats and Summon Random
   Favorite Pet.
-- Blizzard's Revive Battle Pets button glows when a pet in your loadout is hurt or dead.
+- The toolbar's Revive Battle Pets button glows when a pet in your loadout is hurt or dead.
 
 ### Scripts
 

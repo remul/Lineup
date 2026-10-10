@@ -105,15 +105,37 @@ end
 -- Severity of an import note: something is missing, something is off, or just good to know.
 Import.ERROR, Import.WARNING, Import.INFO = "error", "warning", "info"
 
+-- Owned pets by species ([speciesID] = { pet, ... }), for the roster list it was built from, so a big
+-- import doesn't go through every pet for every slot.
+local petsBySpecies, petsBySpeciesOf
+
+local function GetPetsOfSpecies(owned, speciesID)
+    if petsBySpeciesOf ~= owned then
+        petsBySpecies, petsBySpeciesOf = {}, owned
+        for _, pet in ipairs(owned) do
+            local list = petsBySpecies[pet.speciesID]
+            if not list then
+                list = {}
+                petsBySpecies[pet.speciesID] = list
+            end
+            list[#list + 1] = pet
+        end
+    end
+    return petsBySpecies[speciesID] or {}
+end
+
+local function Any()
+    return true
+end
+
 -- The pet to use for a slot: the best one of the species, or one of the wanted breed when it's as
 -- good (a low-level pet of the right breed doesn't help in a level 25 fight).
 local function PickPet(owned, info, used)
-    local best = ns.Roster.PickBest(owned, function(pet)
-        return pet.speciesID == info.speciesID
-    end, used)
+    local candidates = GetPetsOfSpecies(owned, info.speciesID)
+    local best = ns.Roster.PickBest(candidates, Any, used)
     if best and info.breed and not ns.Breeds.PetCanBe(best.petID, info.breed) then
-        local ofBreed = ns.Roster.PickBest(owned, function(pet)
-            return pet.speciesID == info.speciesID and ns.Breeds.PetCanBe(pet.petID, info.breed)
+        local ofBreed = ns.Roster.PickBest(candidates, function(pet)
+            return ns.Breeds.PetCanBe(pet.petID, info.breed)
         end, used)
         if ofBreed and ofBreed.level >= best.level then
             return ofBreed
@@ -140,7 +162,7 @@ local function DescribePetIssues(pet, entry)
         local position = abilityID and tIndexOf(abilityIDs, abilityID)
         local needed = position and levels[position]
         if needed and needed > pet.level then
-            local _, abilityName = C_PetBattles.GetAbilityInfoByID(abilityID)
+            local abilityName = ns.GetAbilityInfo(abilityID)
             issues[#issues + 1] = format(L["%s from level %d"], abilityName, needed)
         end
     end

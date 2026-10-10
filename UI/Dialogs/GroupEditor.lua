@@ -80,7 +80,7 @@ local function Delete()
 end
 
 local function CreateTab(index, text)
-    local tab = CreateFrame("Button", "LineupGroupEditorTab" .. index, editor, "PanelTabButtonTemplate")
+    local tab = CreateFrame("Button", "LineupPetBattlesGroupEditorTab" .. index, editor, "PanelTabButtonTemplate")
     tab:SetID(index)
     tab:SetText(text)
     PanelTemplates_TabResize(tab, 0)
@@ -92,7 +92,7 @@ local function CreateTab(index, text)
 end
 
 local function CreateEditor()
-    editor = ns.Dialogs.CreateWindow("LineupGroupEditor", ns.IconPicker.WIDTH + 24 + EXTRA_LEFT, EDITOR_HEIGHT)
+    editor = ns.Dialogs.CreateWindow("LineupPetBattlesGroupEditor", ns.IconPicker.WIDTH + 24 + EXTRA_LEFT, EDITOR_HEIGHT)
     editor.Inset:Hide()
 
     -- Tabs along the bottom edge, like other Blizzard windows.

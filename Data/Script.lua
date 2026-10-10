@@ -132,17 +132,12 @@ local function ParseAndValidate(text)
     return parsed, errors
 end
 
-local function GetAbilityName(abilityID)
-    local _, name = C_PetBattles.GetAbilityInfoByID(abilityID)
-    return name
-end
-
 -- Like tdBattlePetScript: by ID when the script gives one, otherwise by name in the game's language.
 local function IsAbility(ability, abilityID)
     if ability.id then
         return ability.id == abilityID
     end
-    return ability.name == GetAbilityName(abilityID)
+    return ability.name == ns.GetAbilityInfo(abilityID)
 end
 
 -- Where a species can pick the ability: abilitySlot (1-3), abilityID; nil if it can't learn it.

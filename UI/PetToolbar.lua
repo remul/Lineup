@@ -52,6 +52,8 @@ end
 local bar
 local buttons = {}
 local pendingSetup = false
+-- The bar is moved into place once the journal is drawn; it holds secure buttons, so not in combat.
+local alignAnchor, pendingAlign
 -- Blizzard buttons we've hooked to stay hidden.
 local keptHidden = {}
 
@@ -159,7 +161,7 @@ end
 
 local function CreateToolbarButton(info, index, offset)
     local isSecure = info.spellID or info.itemID or info.toyID
-    local button = CreateFrame("Button", "LineupToolbarButton" .. index, bar, isSecure and "SecureActionButtonTemplate" or nil)
+    local button = CreateFrame("Button", "LineupPetBattlesToolbarButton" .. index, bar, isSecure and "SecureActionButtonTemplate" or nil)
     button.info = info
     button:SetSize(BUTTON_SIZE, BUTTON_SIZE)
     button:SetPoint("LEFT", offset, 0)
@@ -272,7 +274,20 @@ local function Overlaps(region, frame)
     return left < frame:GetRight() and right > frame:GetLeft() and bottom < frame:GetTop() and top > frame:GetBottom()
 end
 
--- Collects the Pet Journal's text and buttons, skipping our own bar.
+-- True for the journal's own frames: named like Blizzard's (PetJournal..., CollectionsJournal...), or
+-- unnamed inside one of those. Frames of other addons (named otherwise) are left alone.
+local function IsBlizzardFrame(frame)
+    while frame and frame ~= PetJournal do
+        local name = frame:GetName()
+        if name then
+            return name:find("^PetJournal") ~= nil or name:find("^CollectionsJournal") ~= nil
+        end
+        frame = frame:GetParent()
+    end
+    return true
+end
+
+-- Collects the Pet Journal's own text and buttons, skipping our bar and other addons' frames.
 local function CollectJournalWidgets(frame, depth, fontStrings, journalButtons)
     for _, region in ipairs({ frame:GetRegions() }) do
         if region:GetObjectType() == "FontString" then
@@ -280,7 +295,7 @@ local function CollectJournalWidgets(frame, depth, fontStrings, journalButtons)
         end
     end
     for _, child in ipairs({ frame:GetChildren() }) do
-        if child ~= bar then
+        if child ~= bar and IsBlizzardFrame(child) then
             local objectType = child:GetObjectType()
             if objectType == "Button" or objectType == "CheckButton" then
                 journalButtons[#journalButtons + 1] = child
@@ -331,6 +346,11 @@ end
 -- Keeps the bar at its height but moves it so its right edge lines up with the right edge of the
 -- journal's content (the inset holding the pet card).
 local function AlignRight(anchor)
+    if InCombatLockdown() then
+        pendingAlign = true
+        return
+    end
+    pendingAlign = false
     local edgeFrame = PetJournal.RightInset or PetJournal
     local edge = edgeFrame:GetRight()
     local right = bar:GetRight()
@@ -361,6 +381,7 @@ local function Setup()
     end
     -- In the spot of the rightmost Blizzard button; the journal's top-right corner if none was found.
     local anchor = summon or heal
+    alignAnchor = anchor
     if anchor then
         bar:SetPoint("RIGHT", anchor, "RIGHT")
         bar:SetFrameLevel(anchor:GetFrameLevel() + 2)
@@ -392,6 +413,15 @@ local function Setup()
     C_Timer.After(0, AfterLayout)
 end
 
+-- The toolbar button for key (e.g. "revive"), or nil before the bar exists.
+function PetToolbar:GetButton(key)
+    for _, button in ipairs(buttons) do
+        if button.info.key == key then
+            return button
+        end
+    end
+end
+
 function PetToolbar:Refresh()
     if not bar or not bar:IsVisible() then
         return
@@ -414,6 +444,9 @@ ns:RegisterEvent("PLAYER_REGEN_ENABLED", function()
     if pendingSetup then
         pendingSetup = false
         Setup()
+    end
+    if pendingAlign and bar and bar:IsVisible() then
+        AlignRight(alignAnchor)
     end
     HideBlizzardButtons()
     PetToolbar:Refresh()

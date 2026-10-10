@@ -25,7 +25,7 @@ useful entries come first.
 
 - **Add pets by hand** (e.g. from the pet picker or the journal's right-click menu), not only
   through the queue's options.
-- **Drag and drop** for other lists, e.g. pets into team slots.
+- **Drag and drop** for other lists, e.g. pets from the pet picker into team slots.
 
 ### Options
 
@@ -73,6 +73,13 @@ Next release:
   search; how fast the list updates with a large collection.
 - The "Hidden" badge on hidden pets (Only hidden pets, All pets): it doesn't cover long names or
   the level, and goes away on Unhide.
+- Dragging a pet from the journal's list or loadout onto a slot in the team editor; dropping one
+  that's already in another slot swaps the two.
+- The Revive glow on the toolbar's own button (Blizzard's, which it used to sit on, is hidden).
+- Statistics and the leveling queue after the roster change (owned pets now come from
+  `GetOwnedPetIDs`; only the species list still changes the journal's filters, once per session).
+- No blocked-action errors with the journal open in combat; other addons' widgets near the toolbar
+  stay visible.
 
 Older:
 
@@ -86,6 +93,8 @@ Older:
 
 ## Known issues
 
+- Saved variables are still called `LineupDB` / `LineupCharDB`, the same as the other "Lineup" addon
+  on CurseForge; renaming them would lose everyone's teams, so they'd need a one-time copy.
 - Making room for the Lineup window next to the journal (the journal's `extraWidth` for Blizzard's
   panel manager) touches protected UI. It waits for combat to end, but if Lineup is ever blamed for
   blocked actions in combat with other windows (Character, Talents, Spellbook), this is the likely

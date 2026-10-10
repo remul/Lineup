@@ -12,9 +12,9 @@ local view, scrollBox, countText, emptyText
 
 local GetRarityColor = ns.GetRarityColor
 
--- Queue row (template: LineupQueueRowTemplate)
+-- Queue row (template: LineupPetBattlesQueueRowTemplate)
 local QueueRowMixin = {}
-_G.LineupQueueRowMixin = QueueRowMixin
+_G.LineupPetBattlesQueueRowMixin = QueueRowMixin
 
 function QueueRowMixin:OnLoad()
     self.Background = self:CreateTexture(nil, "BACKGROUND")
@@ -226,7 +226,7 @@ function QueueView:Create(parent)
 
     local listView = CreateScrollBoxListLinearView()
     listView:SetElementExtent(ROW_HEIGHT)
-    listView:SetElementInitializer("LineupQueueRowTemplate", function(row, data)
+    listView:SetElementInitializer("LineupPetBattlesQueueRowTemplate", function(row, data)
         row:Init(data)
     end)
     listView:SetPadding(0, 0, 0, 0, 2)

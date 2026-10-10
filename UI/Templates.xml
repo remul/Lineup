@@ -1,22 +1,13 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/AddOns/Blizzard_SharedXML/UI.xsd">
     <!-- Row and button templates for scroll lists; behaviour lives in the Lua mixins. -->
-    <Button name="LineupGroupHeaderTemplate" mixin="LineupGroupHeaderMixin" virtual="true">
+    <Button name="LineupPetBattlesGroupHeaderTemplate" mixin="LineupPetBattlesGroupHeaderMixin" virtual="true">
         <Scripts>
             <OnLoad method="OnLoad"/>
             <OnClick method="OnClick"/>
         </Scripts>
     </Button>
 
-    <Button name="LineupTeamRowTemplate" mixin="LineupTeamRowMixin" virtual="true">
-        <Scripts>
-            <OnLoad method="OnLoad"/>
-            <OnClick method="OnClick"/>
-            <OnEnter method="OnEnter"/>
-            <OnLeave method="OnLeave"/>
-        </Scripts>
-    </Button>
-
-    <Button name="LineupQueueRowTemplate" mixin="LineupQueueRowMixin" virtual="true">
+    <Button name="LineupPetBattlesTeamRowTemplate" mixin="LineupPetBattlesTeamRowMixin" virtual="true">
         <Scripts>
             <OnLoad method="OnLoad"/>
             <OnClick method="OnClick"/>
@@ -25,14 +16,23 @@
         </Scripts>
     </Button>
 
-    <Button name="LineupGroupSortRowTemplate" mixin="LineupGroupSortRowMixin" virtual="true">
+    <Button name="LineupPetBattlesQueueRowTemplate" mixin="LineupPetBattlesQueueRowMixin" virtual="true">
+        <Scripts>
+            <OnLoad method="OnLoad"/>
+            <OnClick method="OnClick"/>
+            <OnEnter method="OnEnter"/>
+            <OnLeave method="OnLeave"/>
+        </Scripts>
+    </Button>
+
+    <Button name="LineupPetBattlesGroupSortRowTemplate" mixin="LineupPetBattlesGroupSortRowMixin" virtual="true">
         <Scripts>
             <OnLoad method="OnLoad"/>
         </Scripts>
     </Button>
 
     <!-- Grid views need a sized template. -->
-    <Button name="LineupIconButtonTemplate" mixin="LineupIconButtonMixin" virtual="true">
+    <Button name="LineupPetBattlesIconButtonTemplate" mixin="LineupPetBattlesIconButtonMixin" virtual="true">
         <Size x="36" y="36"/>
         <Scripts>
             <OnLoad method="OnLoad"/>

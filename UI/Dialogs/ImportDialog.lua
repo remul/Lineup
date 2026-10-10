@@ -130,7 +130,7 @@ local function DoImport()
 end
 
 local function CreateDialog()
-    dialog = ns.Dialogs.CreateWindow("LineupImportDialog", DIALOG_WIDTH, DIALOG_HEIGHT)
+    dialog = ns.Dialogs.CreateWindow("LineupPetBattlesImportDialog", DIALOG_WIDTH, DIALOG_HEIGHT)
     dialog.Inset:Hide()
     dialog:SetTitle(L["Import Team"])
 

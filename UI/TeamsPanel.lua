@@ -149,9 +149,9 @@ local function DescribeTarget(team)
     end
 end
 
--- Group header (template: LineupGroupHeaderTemplate)
+-- Group header (template: LineupPetBattlesGroupHeaderTemplate)
 local GroupHeaderMixin = {}
-_G.LineupGroupHeaderMixin = GroupHeaderMixin
+_G.LineupPetBattlesGroupHeaderMixin = GroupHeaderMixin
 
 function GroupHeaderMixin:OnLoad()
     self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -261,9 +261,9 @@ function GroupHeaderMixin:OnClick(mouseButton)
     TeamsPanel:Refresh()
 end
 
--- Team row (template: LineupTeamRowTemplate)
+-- Team row (template: LineupPetBattlesTeamRowTemplate)
 local TeamRowMixin = {}
-_G.LineupTeamRowMixin = TeamRowMixin
+_G.LineupPetBattlesTeamRowMixin = TeamRowMixin
 
 -- "Zunta (Humanoid)" -> "Zunta", "Humanoid"; names without a trailing bracket are returned as is.
 local function SplitTeamName(name)
@@ -677,7 +677,7 @@ end
 
 -- Panel
 function TeamsPanel:Setup()
-    panel = CreateFrame("Frame", "LineupTeamsPanel", PetJournal, "ButtonFrameTemplate")
+    panel = CreateFrame("Frame", "LineupPetBattlesTeamsPanel", PetJournal, "ButtonFrameTemplate")
     panel:SetPoint("TOPLEFT", CollectionsJournal, "TOPRIGHT", WINDOW_OFFSET_X, 0)
     panel:SetPoint("BOTTOMLEFT", CollectionsJournal, "BOTTOMRIGHT", WINDOW_OFFSET_X, 0)
     panel:SetWidth(WINDOW_WIDTH)
@@ -754,11 +754,11 @@ function TeamsPanel:Setup()
         elseif data.isEmpty then
             factory("Button", InitEmptyGroupRow)
         elseif data.isHeader then
-            factory("LineupGroupHeaderTemplate", function(header, headerData)
+            factory("LineupPetBattlesGroupHeaderTemplate", function(header, headerData)
                 header:Init(headerData)
             end)
         else
-            factory("LineupTeamRowTemplate", function(row, rowData)
+            factory("LineupPetBattlesTeamRowTemplate", function(row, rowData)
                 row:Init(rowData)
             end)
         end
@@ -815,7 +815,7 @@ function TeamsPanel:Setup()
     -- Tabs along the bottom edge.
     panel.Tabs = {}
     for index, label in ipairs(TAB_LABELS) do
-        local tab = CreateFrame("Button", "LineupTeamsPanelTab" .. index, panel, "PanelTabButtonTemplate")
+        local tab = CreateFrame("Button", "LineupPetBattlesTeamsPanelTab" .. index, panel, "PanelTabButtonTemplate")
         tab:SetID(index)
         tab:SetText(L[label])
         PanelTemplates_TabResize(tab, 0)

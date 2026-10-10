@@ -336,7 +336,7 @@ local function RefreshBreakdown(stats)
     breakdown.MetricDropdown:GenerateMenu()
 
     local byFamily = breakdownBy == BY_FAMILY
-    local values, fullBar = Collection.GetBreakdown(breakdownBy, metric)
+    local values, fullBar = Collection.GetBreakdown(stats, breakdownBy, metric)
     local rowsTop = DROPDOWN_HEIGHT + (byFamily and ROWS_GAP or SOURCE_ROWS_GAP)
     local rowsHeight = breakdown:GetHeight() - rowsTop
     local rowHeight = max(BAR_ROW_MIN_HEIGHT, min(BAR_ROW_HEIGHT, floor(rowsHeight / max(#values, 1))))
@@ -396,11 +396,6 @@ function StatisticsView:Create(parent)
     inset:SetPoint("TOPLEFT", overviewInset, "BOTTOMLEFT", 0, -ns.TeamsPanel.INSET_GAP)
     inset:SetPoint("BOTTOMRIGHT", ns.TeamsPanel.INSET_RIGHT, 26)
     CreateBreakdown(inset)
-
-    -- Pets changed (see Roster:Invalidate): redraw once the new list can be read.
-    hooksecurefunc(ns.Roster, "Invalidate", function()
-        ns.TeamsPanel:Refresh()
-    end)
     return view
 end
 

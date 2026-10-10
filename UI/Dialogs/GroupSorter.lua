@@ -39,9 +39,9 @@ local function CreateArrowButton(row, delta)
     end)
 end
 
--- Group row (template: LineupGroupSortRowTemplate)
+-- Group row (template: LineupPetBattlesGroupSortRowTemplate)
 local GroupSortRowMixin = {}
-_G.LineupGroupSortRowMixin = GroupSortRowMixin
+_G.LineupPetBattlesGroupSortRowMixin = GroupSortRowMixin
 
 -- A card like a group header in the Lineup window: a drag grip where the header has its chevron,
 -- the group's icon, name and team count, and up / down arrows where it has its gear.
@@ -103,7 +103,7 @@ function GroupSortRowMixin:Init(data)
 end
 
 local function CreateWindow()
-    window = ns.Dialogs.CreateWindow("LineupGroupSorter", WINDOW_WIDTH, WINDOW_HEIGHT)
+    window = ns.Dialogs.CreateWindow("LineupPetBattlesGroupSorter", WINDOW_WIDTH, WINDOW_HEIGHT)
     window:SetTitle(L["Sort Groups"])
 
     local hint = window:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -130,7 +130,7 @@ local function CreateWindow()
 
     local view = CreateScrollBoxListLinearView()
     view:SetElementExtent(ROW_HEIGHT)
-    view:SetElementInitializer("LineupGroupSortRowTemplate", function(row, data)
+    view:SetElementInitializer("LineupPetBattlesGroupSortRowTemplate", function(row, data)
         row:Init(data)
     end)
     view:SetPadding(LIST_PADDING, LIST_PADDING, LIST_PADDING, LIST_PADDING, ROW_SPACING)

@@ -27,14 +27,14 @@ end
 -- badge's right. Blizzard sets the name's height on each redraw but anchors the sub name only
 -- once, so it's put back here when there's no badge.
 local function UpdateBadge(frame, layout, breed, customName)
-    local badge = frame.LineupBreedBadge
+    local badge = frame.LineupPetBattlesBreedBadge
     if not badge then
         if not breed then
             return
         end
         badge = ns.CreateBadge(frame)
         badge:SetPoint("TOPLEFT", frame.name, "BOTTOMLEFT", 0, layout.subNameGap - BADGE_TOP_GAP)
-        frame.LineupBreedBadge = badge
+        frame.LineupPetBattlesBreedBadge = badge
     end
     badge:SetText(breed)
 

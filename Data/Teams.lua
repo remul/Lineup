@@ -52,6 +52,11 @@ function Teams:GetLoadedTeam()
                 break
             end
         end
+        -- The team is gone (e.g. deleted on another character): forget it, so this isn't searched
+        -- again on every call.
+        if not loadedTeam then
+            ns.charDb.loadedTeamName = nil
+        end
     end
     return loadedTeam
 end

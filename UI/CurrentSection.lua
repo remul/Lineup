@@ -50,7 +50,40 @@ local function GetReviveCooldown()
     return max(0, info.startTime + info.duration - GetTime())
 end
 
+-- Pulsing glow around the pet toolbar's Revive Battle Pets button (see PetToolbar), made once the
+-- button exists (the toolbar waits for combat to end). The glow itself isn't protected, so showing
+-- it is fine during combat too.
+local function CreateHealGlow()
+    local reviveButton = ns.PetToolbar:GetButton("revive")
+    if not reviveButton then
+        return nil
+    end
+    local glow = CreateFrame("Frame", nil, reviveButton)
+    glow:SetPoint("TOPLEFT", -6, 6)
+    glow:SetPoint("BOTTOMRIGHT", 6, -6)
+    glow:SetFrameLevel(reviveButton:GetFrameLevel() + 5)
+    local texture = glow:CreateTexture(nil, "OVERLAY")
+    texture:SetAllPoints()
+    texture:SetTexture("Interface\\Buttons\\CheckButtonHilight")
+    texture:SetBlendMode("ADD")
+    local pulse = glow:CreateAnimationGroup()
+    pulse:SetLooping("BOUNCE")
+    local fade = pulse:CreateAnimation("Alpha")
+    fade:SetFromAlpha(1)
+    fade:SetToAlpha(0.25)
+    fade:SetDuration(0.8)
+    glow:SetScript("OnShow", function()
+        pulse:Play()
+    end)
+    glow:SetScript("OnHide", function()
+        pulse:Stop()
+    end)
+    glow:Hide()
+    return glow
+end
+
 local function UpdateHealGlow()
+    healGlow = healGlow or CreateHealGlow()
     if healGlow then
         healGlow:SetShown(#injured > 0 and GetReviveCooldown() == 0)
     end
@@ -153,7 +186,7 @@ local function CreatePetCard(parent, slot)
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine(L["Abilities"], NORMAL_FONT_COLOR:GetRGB())
         for _, abilityID in ipairs({ ability1, ability2, ability3 }) do
-            local _, abilityName, abilityIcon = C_PetBattles.GetAbilityInfoByID(abilityID)
+            local abilityName, abilityIcon = ns.GetAbilityInfo(abilityID)
             GameTooltip:AddLine(format("|T%s:14:14|t %s", abilityIcon, abilityName), 1, 1, 1)
         end
         GameTooltip:AddLine(" ")
@@ -325,38 +358,11 @@ function CurrentSection:Create(parent)
     end)
     section.Health:SetScript("OnLeave", GameTooltip_Hide)
 
-    -- Pulsing glow around Blizzard's heal button, hidden along with it (e.g. while the journal is
-    -- locked). The glow itself isn't protected, so showing it is fine during combat too.
-    local healFrame = PetJournal.HealPetSpellFrame
-    local healButton = healFrame and (healFrame.Button or healFrame)
-    if healButton then
-        healGlow = CreateFrame("Frame", nil, healFrame)
-        healGlow:SetPoint("TOPLEFT", healButton, "TOPLEFT", -6, 6)
-        healGlow:SetPoint("BOTTOMRIGHT", healButton, "BOTTOMRIGHT", 6, -6)
-        healGlow:SetFrameLevel(healButton:GetFrameLevel() + 5)
-        local texture = healGlow:CreateTexture(nil, "OVERLAY")
-        texture:SetAllPoints()
-        texture:SetTexture("Interface\\Buttons\\CheckButtonHilight")
-        texture:SetBlendMode("ADD")
-        local pulse = healGlow:CreateAnimationGroup()
-        pulse:SetLooping("BOUNCE")
-        local fade = pulse:CreateAnimation("Alpha")
-        fade:SetFromAlpha(1)
-        fade:SetToAlpha(0.25)
-        fade:SetDuration(0.8)
-        healGlow:SetScript("OnShow", function()
-            pulse:Play()
-        end)
-        healGlow:SetScript("OnHide", function()
-            pulse:Stop()
-        end)
-        healGlow:Hide()
-        ns:RegisterEvent("SPELL_UPDATE_COOLDOWN", function()
-            if healGlow:IsShown() or #injured > 0 then
-                UpdateHealGlow()
-            end
-        end)
-    end
+    ns:RegisterEvent("SPELL_UPDATE_COOLDOWN", function()
+        if #injured > 0 or (healGlow and healGlow:IsShown()) then
+            UpdateHealGlow()
+        end
+    end)
 
     return section
 end

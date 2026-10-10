@@ -73,19 +73,29 @@ local function CountMatches(filter, count)
 end
 
 -- [speciesID] = number of pets you have, and of them at level 25, from every pet you own (the
--- journal's list only has the ones its filters show).
+-- journal's list only has the ones its filters show). Kept until pets change.
+local ownedCopies, ownedMaxed
+
 local function CountOwnedSpecies()
-    local copies, maxed = {}, {}
-    for _, petID in ipairs(C_PetJournal.GetOwnedPetIDs()) do
-        local speciesID, _, level = C_PetJournal.GetPetInfoByPetID(petID)
-        if speciesID then
-            copies[speciesID] = (copies[speciesID] or 0) + 1
-            if level == MAX_LEVEL then
-                maxed[speciesID] = (maxed[speciesID] or 0) + 1
+    if not ownedCopies then
+        ownedCopies, ownedMaxed = {}, {}
+        for _, petID in ipairs(C_PetJournal.GetOwnedPetIDs()) do
+            local speciesID, _, level = C_PetJournal.GetPetInfoByPetID(petID)
+            if speciesID then
+                ownedCopies[speciesID] = (ownedCopies[speciesID] or 0) + 1
+                if level == MAX_LEVEL then
+                    ownedMaxed[speciesID] = (ownedMaxed[speciesID] or 0) + 1
+                end
             end
         end
     end
-    return copies, maxed
+    return ownedCopies, ownedMaxed
+end
+
+for _, event in ipairs({ "NEW_PET_ADDED", "PET_JOURNAL_PET_DELETED", "PET_BATTLE_LEVEL_CHANGED", "PET_BATTLE_CLOSE" }) do
+    ns:RegisterEvent(event, function()
+        ownedCopies, ownedMaxed = nil, nil
+    end)
 end
 
 local function IsHidden(petID, speciesID)
@@ -113,6 +123,10 @@ end
 
 -- After the journal built its list: the same list without the pets that don't pass.
 local function FilterJournalList()
+    -- Lineup's own scans change the journal's filters for a moment; it's redrawn after them.
+    if ns.Roster:IsScanning() then
+        return
+    end
     if not IsActive() and not (next(ns.db.hiddenPets) or next(ns.db.hiddenSpecies)) then
         return
     end
@@ -213,14 +227,14 @@ end
 -- A muted "Hidden" badge in the top right corner, on hidden pets the Hidden pets filter shows.
 local function UpdateHiddenBadge(listButton)
     local hidden = IsHidden(listButton.petID, listButton.speciesID)
-    local badge = listButton.LineupHiddenBadge
+    local badge = listButton.LineupPetBattlesHiddenBadge
     if not badge then
         if not hidden then
             return
         end
         badge = ns.CreateBadge(listButton)
         badge:SetPoint("TOPRIGHT", -8, -6)
-        listButton.LineupHiddenBadge = badge
+        listButton.LineupPetBattlesHiddenBadge = badge
     end
     badge:SetText(hidden and L["Hidden"] or nil, ns.MUTED_COLOR)
 end

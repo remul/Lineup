@@ -98,8 +98,8 @@ local function GetNamedIcons()
         end
     end
     for abilityID = 1, MAX_ABILITY_ID do
-        local id, name, icon = C_PetBattles.GetAbilityInfoByID(abilityID)
-        if id and type(name) == "string" and icon then
+        local name, icon = C_PetJournal.GetPetAbilityInfo(abilityID)
+        if type(name) == "string" and icon then
             list[#list + 1] = { icon = icon, label = L["Ability: "] .. name, search = name:lower() }
         end
     end
@@ -143,9 +143,9 @@ local function Search(text)
     return results
 end
 
--- Icon button (template: LineupIconButtonTemplate)
+-- Icon button (template: LineupPetBattlesIconButtonTemplate)
 local IconButtonMixin = {}
-_G.LineupIconButtonMixin = IconButtonMixin
+_G.LineupPetBattlesIconButtonMixin = IconButtonMixin
 
 function IconButtonMixin:OnLoad()
     self.Icon = self:CreateTexture(nil, "ARTWORK")
@@ -246,7 +246,7 @@ function IconPicker.Create(parent, onSelect)
     inset:SetPoint("BOTTOMRIGHT")
 
     local view = CreateScrollBoxListGridView(STRIDE, 0, 0, 0, 0, ICON_SPACING, ICON_SPACING)
-    view:SetElementInitializer("LineupIconButtonTemplate", function(button, entry)
+    view:SetElementInitializer("LineupPetBattlesIconButtonTemplate", function(button, entry)
         button:Init(entry, picker)
     end)
     picker.ScrollBox = ns.CreateScrollList(inset, view, 6)

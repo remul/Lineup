@@ -14,7 +14,7 @@ local TEXT_PADDING = 8
 local window, scrollFrame, content, notesText
 
 local function CreateWindow()
-    window = ns.Dialogs.CreateWindow("LineupNotesWindow", WINDOW_WIDTH, WINDOW_HEIGHT, true)
+    window = ns.Dialogs.CreateWindow("LineupPetBattlesNotesWindow", WINDOW_WIDTH, WINDOW_HEIGHT, true)
     window:SetPoint("CENTER", 300, 0)
 
     local inset = window.Inset

@@ -113,7 +113,7 @@ local function ShowAbilityTooltip(owner, abilityID, speciesID, petID)
         PetJournal_ShowAbilityTooltip(owner, abilityID, speciesID, petID)
         PetJournalPrimaryAbilityTooltip:SetFrameStrata("TOOLTIP")
     else
-        local _, name = C_PetBattles.GetAbilityInfoByID(abilityID)
+        local name = ns.GetAbilityInfo(abilityID)
         GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
         GameTooltip:SetText(name)
         GameTooltip:Show()
@@ -162,7 +162,7 @@ local function UpdateAbilityIcons(row, pet)
         local abilityID = abilities.ids[index]
         abilityOfIcon[ability] = { abilityID = abilityID, speciesID = pet.speciesID, petID = pet.petID }
         if abilityID then
-            local _, _, icon = C_PetBattles.GetAbilityInfoByID(abilityID)
+            local _, icon = ns.GetAbilityInfo(abilityID)
             local learned = pet.level >= (abilities.levels[index] or 1)
             ability.Icon:SetTexture(icon)
             ability.Icon:SetDesaturated(not learned)
@@ -243,7 +243,7 @@ local function InitRow(row, pet)
 end
 
 local function CreatePicker(parent)
-    picker = CreateFrame("Frame", "LineupPetPicker", parent, "ButtonFrameTemplate")
+    picker = CreateFrame("Frame", "LineupPetBattlesPetPicker", parent, "ButtonFrameTemplate")
     picker:SetSize(PICKER_WIDTH, PICKER_HEIGHT)
     picker:SetToplevel(true)
     picker:SetClampedToScreen(true)

@@ -12,7 +12,7 @@ local DIALOG_HEIGHT = 320
 local dialog, textBox, exportedText
 
 local function CreateDialog()
-    dialog = ns.Dialogs.CreateWindow("LineupExportDialog", DIALOG_WIDTH, DIALOG_HEIGHT)
+    dialog = ns.Dialogs.CreateWindow("LineupPetBattlesExportDialog", DIALOG_WIDTH, DIALOG_HEIGHT)
     dialog.Inset:Hide()
 
     -- Addons can't write to the clipboard, so the text is selected for Ctrl+C.

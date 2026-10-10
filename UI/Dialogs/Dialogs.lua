@@ -4,7 +4,7 @@ local _, ns = ...
 local Dialogs = {}
 ns.Dialogs = Dialogs
 
-StaticPopupDialogs.LINEUP_CONFIRM = {
+StaticPopupDialogs.LINEUP_PETBATTLES_CONFIRM = {
     text = "%s",
     button1 = YES,
     button2 = NO,
@@ -17,7 +17,7 @@ StaticPopupDialogs.LINEUP_CONFIRM = {
 }
 
 function Dialogs.Confirm(prompt, onAccept)
-    StaticPopup_Show("LINEUP_CONFIRM", prompt, nil, { onAccept = onAccept })
+    StaticPopup_Show("LINEUP_PETBATTLES_CONFIRM", prompt, nil, { onAccept = onAccept })
 end
 
 -- ButtonFrameTemplate's left border is wider than its right one, so content needs this much more
