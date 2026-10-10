@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.10.2
+
+- Fixed: an error when importing a team whose script uses an ability the team's pets don't have
+  selected.
+
 ## 1.10.1
 
 - Fixed: an error after combat when the Pet Journal hadn't been opened yet in the session.

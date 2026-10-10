@@ -184,7 +184,7 @@ local function CheckAbilities(abilities, pets)
 
     for _, entry in ipairs(missing) do
         local ability, fix = entry.ability, entry.fix
-        local name = ability.id and GetAbilityName(ability.id) or ability.name
+        local name = ability.id and ns.GetAbilityInfo(ability.id) or ability.name
         if fix then
             local _, petName = ns.Teams.GetSlotDisplay(pets[fix.slot])
             warnings[#warnings + 1] = format(L["%s isn't selected on %s (slot %d)."], name, petName, fix.slot)
