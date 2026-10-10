@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.9.0
+
+- **Saved data starts fresh**: Lineup's saved variables are renamed (`LineupPetBattlesDB`,
+  `LineupPetBattlesCharDB`) so they can't clash with another addon called Lineup. Teams, groups,
+  hidden pets and settings from earlier versions aren't carried over; export your teams with an
+  older version first if you want to keep them.
+- **Duplicates** and **Level 25 copies** filters in the journal's Filter menu: show only species
+  you have more than once, or by how many you have at level 25 (at least one, at least two, none).
+- **Hidden** badge on hidden pets when the Hidden pets filter shows them.
+- **Drag pets from the Pet Journal** (its list or loadout) onto a slot in the team editor; dropping
+  a pet that's already in the team swaps the two slots.
+- The Revive Battle Pets glow is on the pet toolbar's button (it never showed before).
+- Faster: owned pets are read without changing the journal's filters, the new filters and team
+  search keep their results, imports find your pets by species, and Statistics does less work per
+  redraw.
+- Fixed: the Open Options button caused a blocked-action error in combat; it's disabled then.
+- Fixed: the pet toolbar could be moved in combat, and could hide other addons' buttons under it.
+
 ## 1.8.0
 
 - **Hide pets** in the Pet Journal: "Hide" in a pet's right-click menu takes it out of the list,
