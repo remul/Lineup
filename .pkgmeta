@@ -6,6 +6,8 @@ ignore:
   - .github
   # Generates Data/BreedData.lua; not needed in game.
   - tools
+  # Planning notes for development.
+  - ROADMAP.md
   # Logo sources for GitHub and CurseForge; only the .tga files in Media are used in game.
   - Media/Emblem.svg
   - Media/Emblem.png

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.8.0
+
+- **Hide pets** in the Pet Journal: "Hide" in a pet's right-click menu takes it out of the list,
+  "Unhide" brings it back. Pets you haven't collected can be hidden too (by species). A new
+  **Hidden pets** filter in the journal's Filter menu hides them (the default), shows only them
+  or shows all pets.
+- **Lineup in Blizzard's Options** (AddOns tab): the settings moved there from the Settings tab,
+  grouped under Teams and Development. The Settings tab has an Open Options button.
+- **Language option** under Development: switch Lineup's language (to test translations),
+  applied after a reload.
+- **Danger zone** in the options: show all hidden pets again, delete all teams, all groups, or
+  both. Each one asks first.
+- The **Ungrouped** header shows even when there are no groups.
+- Statistics: less space above the overview and above the quality bar, a smaller, centred
+  quality legend, and the source bars sit a bit higher, so sources fit better.
+- A roadmap of planned features (ROADMAP.md).
+
 ## 1.7.0
 
 - **French, Italian and Russian** translations.

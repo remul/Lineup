@@ -52,7 +52,8 @@ local HAS_CHEVRON = C_Texture.GetAtlasInfo(CHEVRON_ATLAS) ~= nil
 local UNGROUPED = 0
 
 local TAB_TEAMS, TAB_QUEUE, TAB_STATISTICS, TAB_ABOUT = 1, 2, 3, 4
-local TAB_LABELS = { L["Teams"], L["Leveling Queue"], L["Statistics"], L["Settings"] }
+-- Translated where they're shown (L[label]).
+local TAB_LABELS = { "Teams", "Leveling Queue", "Statistics", "Settings" }
 
 local panel, teamsView, queueView, statisticsView, aboutView, scrollBox, countText, emptyText, searchBox, expandAllButton
 local currentTab = TAB_TEAMS
@@ -351,9 +352,9 @@ end
 -- tdBattlePetScript isn't installed (nothing can run then), otherwise green, orange or red like the
 -- script's status.
 local SCRIPT_LABELS = {
-    ok = L["Script"],
-    warning = L["Script · check abilities"],
-    error = L["Script · error"],
+    ok = "Script",
+    warning = "Script · check abilities",
+    error = "Script · error",
 }
 
 function TeamRowMixin:UpdateScriptLabel(team)
@@ -363,7 +364,7 @@ function TeamRowMixin:UpdateScriptLabel(team)
     end
     local status = ns.Script.Check(team.script, team.pets)
     local idle = ns.Script.IsReadyButIdle(status)
-    self.ScriptBadge:SetText(SCRIPT_LABELS[status.level] or L["Script"], idle and ns.MUTED_COLOR or status.color)
+    self.ScriptBadge:SetText(L[SCRIPT_LABELS[status.level] or "Script"], idle and ns.MUTED_COLOR or status.color)
 end
 
 function TeamRowMixin:Init(data)
@@ -647,19 +648,16 @@ local function BuildElements(query)
     end
 
     local ungrouped = Filter(teamsByGroup[UNGROUPED] or {}, nil)
-    if #groups == 0 then
-        -- No groups yet: a plain list without headers.
-        AddTeams(ungrouped, false)
-    elseif #ungrouped > 0 then
+    if #ungrouped > 0 then
         AddGroup(nil, L["Ungrouped"], ungrouped)
     end
     return elements, numShown
 end
 
 -- Shows the state like the group headers: right while any group is collapsed, down when all are
--- open. A click toggles (the tooltip says which way); hidden without groups.
+-- open. A click toggles (the tooltip says which way); hidden without any header (no groups or teams).
 local function UpdateExpandAllButton()
-    expandAllButton:SetShown(#Teams:GetGroups() > 0)
+    expandAllButton:SetShown(#Teams:GetGroups() > 0 or #Teams:GetAll() > 0)
     SetChevron(expandAllButton.Icon, Teams:IsAnyCollapsed())
 end
 
@@ -819,7 +817,7 @@ function TeamsPanel:Setup()
     for index, label in ipairs(TAB_LABELS) do
         local tab = CreateFrame("Button", "LineupTeamsPanelTab" .. index, panel, "PanelTabButtonTemplate")
         tab:SetID(index)
-        tab:SetText(label)
+        tab:SetText(L[label])
         PanelTemplates_TabResize(tab, 0)
         tab:SetScript("OnClick", function()
             PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB)

@@ -19,8 +19,14 @@ local DEFAULTS = {
     queueCustomOrder = {},
     queueIncludeDuplicates = false,
     queueIncludeMaxedSpecies = false,
+    -- Pets hidden from the Pet Journal's list (see JournalFilters): collected ones by petID,
+    -- species not collected by speciesID; [id] = true.
+    hiddenPets = {},
+    hiddenSpecies = {},
     -- The Lineup window beside the Pet Journal, hidden with the button by the journal's close button.
     windowHidden = false,
+    -- Lineup's language (a locale like "deDE"), or "" for the game's.
+    locale = "",
 }
 
 local CHAR_DEFAULTS = {}
@@ -379,6 +385,10 @@ function ns:ADDON_LOADED(loadedName)
     ApplyDefaults(LineupCharDB, CHAR_DEFAULTS)
     self.db = LineupDB
     self.charDb = LineupCharDB
+    if self.db.locale ~= "" then
+        self.SetLocale(self.db.locale)
+    end
+    self.Options:Setup()
 end
 
 ns:RegisterEvent("ADDON_LOADED")
@@ -392,9 +402,8 @@ SlashCmdList.LINEUP = function(msg)
     if cmd == "" then
         ns:ToggleJournal()
     elseif cmd == "debug" then
-        ns.db.debug = not ns.db.debug
+        ns.Options:Set("debug", not ns.db.debug)
         ns:Print(L["Debug"], ns.db.debug and L["enabled"] or L["disabled"])
-        ns.TeamsPanel:Refresh() -- keeps the setting's checkbox on the Settings tab in sync
     else
         ns:Print(L["Commands:"])
         print(L["  /lineup - open the Pet Journal"])

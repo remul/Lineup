@@ -1,13 +1,12 @@
 local addonName, ns = ...
 local L = ns.L
 
--- The Settings tab of the Lineup window: the settings and general info about the addon.
+-- The Settings tab of the Lineup window: general info about the addon, and a button to its
+-- settings in Blizzard's Options (see ns.Options).
 local AboutView = {}
 ns.AboutView = AboutView
 
 local view, versionText, statsText, rematchText, rematchButton
--- Checkboxes for settings: { button, key in ns.db }.
-local checkboxes = {}
 
 -- Imports every Rematch team and group (with tdBattlePetScript scripts), after confirming.
 local function ImportFromRematch()
@@ -103,36 +102,8 @@ function AboutView:Create(parent)
     content:SetPoint("TOPLEFT", edge - insetLeft, -10)
     content:SetPoint("BOTTOMRIGHT", -(edge - insetLeft), 10)
 
-    -- Settings
-    local settings = CreateSection(content, L["Settings"])
-
-    -- A checkbox for the setting ns.db[key], below anchor, explained by tooltip.
-    local function CreateCheckbox(key, label, tooltip, anchor, offsetX, offsetY)
-        local check = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
-        check:SetSize(24, 24)
-        check:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", offsetX, offsetY)
-        check.Label = check:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-        check.Label:SetPoint("LEFT", check, "RIGHT", 2, 0)
-        check.Label:SetPoint("RIGHT", content, "RIGHT")
-        check.Label:SetJustifyH("LEFT")
-        check.Label:SetText(label)
-        check:SetScript("OnClick", function(button)
-            ns.db[key] = button:GetChecked()
-        end)
-        ns.SetTooltip(check, label, tooltip, "ANCHOR_TOPLEFT")
-        checkboxes[#checkboxes + 1] = { button = check, key = key }
-        return check
-    end
-
-    local autoLoadCheck = CreateCheckbox("autoLoadTargetTeam", L["Load a target's team automatically"],
-        L["Targeting a tamer or wild pet with exactly one team loads that team."],
-        settings, -4, -HEADER_GAP + 2)
-    local debugCheck = CreateCheckbox("debug", L["Debug messages in chat"],
-        L["Shows team loading details in chat, for troubleshooting."], autoLoadCheck, 0, 0)
-
     -- Import & Export: teams from Rematch, and all teams as text.
-    local transfer = CreateSection(content, L["Import & Export"], debugCheck)
-    transfer:SetPoint("TOPLEFT", debugCheck, "BOTTOMLEFT", 4, -SECTION_GAP + 2)
+    local transfer = CreateSection(content, L["Import & Export"])
     rematchText = CreateParagraph(content, "", transfer, -HEADER_GAP)
 
     rematchButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
@@ -164,6 +135,15 @@ function AboutView:Create(parent)
         L["|cffffd100/lineup|r  open the Pet Journal\n|cffffd100/lineup debug|r  toggle debug messages"],
         commands, -HEADER_GAP)
 
+    -- At the bottom: Lineup's settings, in Blizzard's Options.
+    local optionsButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+    optionsButton:SetPoint("BOTTOM")
+    optionsButton:SetSize(180, 22)
+    optionsButton:SetText(L["Open Options"])
+    optionsButton:SetScript("OnClick", function()
+        ns.Options:Open()
+    end)
+
     return view
 end
 
@@ -179,9 +159,6 @@ function AboutView:Refresh()
 
     statsText:SetText(format(L["%d teams in %d groups\n%d pets in the leveling queue"],
         #ns.Teams:GetAll(), #ns.Teams:GetGroups(), #ns.LevelingQueue:Get()))
-    for _, checkbox in ipairs(checkboxes) do
-        checkbox.button:SetChecked(ns.db[checkbox.key])
-    end
 
     local rematchLoaded = ns.Import.IsRematchAvailable()
     rematchButton:SetEnabled(rematchLoaded)

@@ -27,10 +27,11 @@ local LOW_HEALTH_PERCENT = 50
 -- journal (casting needs a secure button, and one inside Lineup's window would lock it during
 -- combat). Lineup points at it with a glow while a pet is hurt and the spell is ready.
 
+-- Translated where they're shown (L[label]).
 local SCRIPT_LABELS = {
-    ok = L["Script ready"],
-    warning = L["Script · check abilities"],
-    error = L["Script · error"],
+    ok = "Script ready",
+    warning = "Script · check abilities",
+    error = "Script · error",
 }
 
 local section, healGlow
@@ -409,7 +410,7 @@ function CurrentSection:Refresh()
         if ns.Script.IsReadyButIdle(status) then
             badge:SetText(L["Script"], ns.MUTED_COLOR)
         else
-            badge:SetText(SCRIPT_LABELS[status.level] or L["Script"], status.color)
+            badge:SetText(L[SCRIPT_LABELS[status.level] or "Script"], status.color)
         end
     elseif team then
         badge:SetText(L["No script"], ns.MUTED_COLOR)

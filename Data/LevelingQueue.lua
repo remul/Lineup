@@ -31,21 +31,22 @@ local function ByName(a, b)
     return a.name < b.name
 end
 
--- Sort orders for the queue; each falls back to further criteria for ties.
+-- Sort orders for the queue; each falls back to further criteria for ties. Labels are translated
+-- where they're shown (L[label]).
 LevelingQueue.SORTS = {
-    { key = "levelDesc", label = L["Highest level first"], compare = function(a, b)
+    { key = "levelDesc", label = "Highest level first", compare = function(a, b)
         if a.level ~= b.level then
             return a.level > b.level
         end
         return ByName(a, b)
     end },
-    { key = "levelAsc", label = L["Lowest level first"], compare = function(a, b)
+    { key = "levelAsc", label = "Lowest level first", compare = function(a, b)
         if a.level ~= b.level then
             return a.level < b.level
         end
         return ByName(a, b)
     end },
-    { key = "family", label = L["Family"], compare = function(a, b)
+    { key = "family", label = "Family", compare = function(a, b)
         if a.petType ~= b.petType then
             return ns.GetFamilyName(a.petType) < ns.GetFamilyName(b.petType)
         end
@@ -54,7 +55,7 @@ LevelingQueue.SORTS = {
         end
         return ByName(a, b)
     end },
-    { key = "rarity", label = L["Quality"], compare = function(a, b)
+    { key = "rarity", label = "Quality", compare = function(a, b)
         if a.rarity ~= b.rarity then
             return a.rarity > b.rarity
         end
@@ -63,8 +64,8 @@ LevelingQueue.SORTS = {
         end
         return ByName(a, b)
     end },
-    { key = "name", label = L["Name"], compare = ByName },
-    { key = "custom", label = L["Custom"] },
+    { key = "name", label = "Name", compare = ByName },
+    { key = "custom", label = "Custom" },
 }
 
 -- The custom order: pets in queueCustomOrder by their place there, then the others (new to the

@@ -10,15 +10,16 @@ local MAX_LEVEL = 25
 local RARE = 4
 
 -- What a breakdown can show for each family or source. percent and average are bounded (100%,
--- level 25); the others are counts, scaled to the largest one.
+-- level 25); the others are counts, scaled to the largest one. Labels are translated where they're
+-- shown (L[label]), as the addon's language is only known once it's loaded.
 Collection.METRICS = {
-    { key = "collected", label = L["Pets collected"] },
-    { key = "unique", label = L["Unique pets collected"] },
-    { key = "missing", label = L["Pets not collected"] },
-    { key = "percent", label = L["Percent collected"], max = 100, format = "%.0f%%" },
-    { key = "maxLevel", label = L["Pets at level 25"] },
-    { key = "average", label = L["Average level"], max = MAX_LEVEL, format = "%.1f" },
-    { key = "rare", label = L["Rare quality pets"] },
+    { key = "collected", label = "Pets collected" },
+    { key = "unique", label = "Unique pets collected" },
+    { key = "missing", label = "Pets not collected" },
+    { key = "percent", label = "Percent collected", max = 100, format = "%.0f%%" },
+    { key = "maxLevel", label = "Pets at level 25" },
+    { key = "average", label = "Average level", max = MAX_LEVEL, format = "%.1f" },
+    { key = "rare", label = "Rare quality pets" },
 }
 
 -- Counts for a set of species (all of them, a family or a source).

@@ -2,7 +2,7 @@
 ## Title: Lineup
 ## Notes: Pet battle team manager for the Pet Journal.
 ## Author: Remul
-## Version: 1.7.0
+## Version: 1.8.0
 ## OptionalDeps: tdBattlePetScript
 ## SavedVariables: LineupDB
 ## SavedVariablesPerCharacter: LineupCharDB
@@ -43,6 +43,7 @@ UI\FamilyFilter.lua
 UI\JournalBreeds.lua
 UI\JournalFilters.lua
 UI\StatisticsView.lua
+UI\Options.lua
 UI\PetToolbar.lua
 UI\TargetSection.lua
 UI\CurrentSection.lua

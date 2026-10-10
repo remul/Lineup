@@ -23,8 +23,8 @@ local SIDE_PADDING = 10
 -- Space below the quality legend.
 local BOTTOM_PADDING = 6
 -- The quality legend: a badge per quality ("Rare 123"; see ns.CreateBadge), a bit bigger than
--- the default, this far below the bar and apart.
-local LEGEND_BADGE_SCALE = 1.15
+-- the default, centered this far below the bar and apart.
+local LEGEND_BADGE_SCALE = 1.05
 local LEGEND_BADGE_HEIGHT = 14 * LEGEND_BADGE_SCALE
 local LEGEND_TOP_GAP = 10
 local LEGEND_BADGE_GAP = 6
@@ -42,6 +42,8 @@ local QUALITY_COLORS = {
 -- so the bar's segments are darkened this much to look alike.
 local QUALITY_BAR_SHADE = 0.9
 local DROPDOWN_HEIGHT = 26
+-- Space between the dropdowns and the first bar row; less for sources, which have no icons.
+local ROWS_GAP, SOURCE_ROWS_GAP = 8, 4
 local BY_FAMILY, BY_SOURCE = "families", "sources"
 
 local view, header, overview, breakdown
@@ -131,7 +133,7 @@ end
 
 local Overview = {}
 -- The table (header, 3 rows, divider, 4 rows), then the quality bar and legend.
-Overview.HEIGHT = 8 * TABLE_ROW_HEIGHT + 10 + 14 + 12 + 6 + 12 + LEGEND_TOP_GAP + LEGEND_BADGE_HEIGHT + BOTTOM_PADDING
+Overview.HEIGHT = 8 * TABLE_ROW_HEIGHT + 10 + 10 + 12 + 6 + 12 + LEGEND_TOP_GAP + LEGEND_BADGE_HEIGHT + BOTTOM_PADDING
 
 function Overview:Create(parent)
     local frame = CreateFrame("Frame", nil, parent)
@@ -164,7 +166,7 @@ function Overview:Create(parent)
 
     -- Quality: one bar split by the share of each quality, and the counts below it.
     local qualityTitle = CreateText(frame, "GameFontNormal")
-    qualityTitle:SetPoint("TOPLEFT", frame.InTeams, "BOTTOMLEFT", 0, -14)
+    qualityTitle:SetPoint("TOPLEFT", frame.InTeams, "BOTTOMLEFT", 0, -10)
     qualityTitle:SetText(QUALITY)
 
     frame.QualityBar = CreateFrame("Frame", nil, frame)
@@ -192,16 +194,20 @@ function Overview:Create(parent)
         previous = segment
     end
 
-    -- Legend under the bar, in the bar's order: rare first.
+    -- Legend centered under the bar, in the bar's order: rare first. It's as wide as its badges
+    -- (see RefreshOverview).
+    frame.Legend = CreateFrame("Frame", nil, frame)
+    frame.Legend:SetPoint("TOP", frame.QualityBar, "BOTTOM", 0, -LEGEND_TOP_GAP)
+    frame.Legend:SetHeight(LEGEND_BADGE_HEIGHT)
     frame.QualityBadges = {}
     previous = nil
     for rarity = 4, 1, -1 do
         -- (Offsets are in the badge's own, scaled units.)
-        local badge = ns.CreateBadge(frame, LEGEND_BADGE_SCALE)
+        local badge = ns.CreateBadge(frame.Legend, LEGEND_BADGE_SCALE)
         if previous then
             badge:SetPoint("LEFT", previous, "RIGHT", LEGEND_BADGE_GAP / LEGEND_BADGE_SCALE, 0)
         else
-            badge:SetPoint("TOPLEFT", frame.QualityBar, "BOTTOMLEFT", 0, -LEGEND_TOP_GAP / LEGEND_BADGE_SCALE)
+            badge:SetPoint("LEFT")
         end
         frame.QualityBadges[rarity] = badge
         previous = badge
@@ -226,6 +232,7 @@ local function RefreshOverview(stats)
 
     -- Segment widths by share; a texture can't be 0 wide, so empty ones are hidden instead.
     local barWidth = overview.QualityBar:GetWidth()
+    local legendWidth = -LEGEND_BADGE_GAP
     for rarity = 4, 1, -1 do
         local count = stats.qualities[rarity]
         local segment = overview.QualitySegments[rarity]
@@ -233,7 +240,9 @@ local function RefreshOverview(stats)
         segment:SetShown(count > 0)
         overview.QualityBadges[rarity]:SetText(_G["ITEM_QUALITY" .. (rarity - 1) .. "_DESC"] .. " " .. FormatNumber(count),
             QUALITY_COLORS[rarity])
+        legendWidth = legendWidth + overview.QualityBadges[rarity]:GetWidth() * LEGEND_BADGE_SCALE + LEGEND_BADGE_GAP
     end
+    overview.Legend:SetWidth(legendWidth)
 end
 
 -- Breakdown (families or sources), filling the rest of the tab
@@ -248,7 +257,7 @@ local function ShowRowTooltip(row)
     for _, each in ipairs(Collection.METRICS) do
         local _, text = Collection.Describe(tally, each)
         local shade = each == metric and 1 or 0.75
-        GameTooltip:AddDoubleLine(each.label, text, shade, shade, shade, 1, 1, 1)
+        GameTooltip:AddDoubleLine(L[each.label], text, shade, shade, shade, 1, 1, 1)
     end
     GameTooltip:Show()
 end
@@ -314,7 +323,7 @@ local function CreateBreakdown(parent)
             StatisticsView:Refresh()
         end
         for _, each in ipairs(Collection.METRICS) do
-            root:CreateRadio(each.label, IsSelected, Select, each)
+            root:CreateRadio(L[each.label], IsSelected, Select, each)
         end
     end)
 
@@ -328,13 +337,14 @@ local function RefreshBreakdown(stats)
 
     local byFamily = breakdownBy == BY_FAMILY
     local values, fullBar = Collection.GetBreakdown(breakdownBy, metric)
-    local rowsHeight = breakdown:GetHeight() - DROPDOWN_HEIGHT - 8
+    local rowsTop = DROPDOWN_HEIGHT + (byFamily and ROWS_GAP or SOURCE_ROWS_GAP)
+    local rowsHeight = breakdown:GetHeight() - rowsTop
     local rowHeight = max(BAR_ROW_MIN_HEIGHT, min(BAR_ROW_HEIGHT, floor(rowsHeight / max(#values, 1))))
     for index, entry in ipairs(values) do
         local row = breakdown.Rows[index] or CreateBarRow(breakdown)
         breakdown.Rows[index] = row
         row:SetHeight(rowHeight)
-        row:SetPoint("TOPLEFT", 0, -DROPDOWN_HEIGHT - 8 - (index - 1) * rowHeight)
+        row:SetPoint("TOPLEFT", 0, -rowsTop - (index - 1) * rowHeight)
         row.tally = (byFamily and stats.families or stats.sources)[entry.id]
 
         row.Icon:SetShown(byFamily)
@@ -373,7 +383,7 @@ function StatisticsView:Create(parent)
     -- The overview sunk into the window below the header, like a section (see
     -- TeamsPanel.CreateSectionInset), with the breakdown in a second inset under it.
     local padding = ns.TeamsPanel.SECTION_INSET - ns.TeamsPanel.INSET_LEFT
-    local overviewTop = HEADER_TOP - HEADER_HEIGHT - 12
+    local overviewTop = HEADER_TOP - HEADER_HEIGHT - 8
     local overviewInset = CreateFrame("Frame", nil, view, "InsetFrameTemplate")
     overviewInset:SetPoint("TOPLEFT", ns.TeamsPanel.INSET_LEFT, overviewTop)
     overviewInset:SetPoint("TOPRIGHT", ns.TeamsPanel.INSET_RIGHT, overviewTop)

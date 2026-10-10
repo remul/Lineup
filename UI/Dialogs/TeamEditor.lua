@@ -48,9 +48,10 @@ local SCRIPT_STATUS_ICONS = {
 }
 local SAVE_BUTTON_MIN_WIDTH = 100
 
+-- Translated where they're shown (L[text]).
 local SAVE_TEXTS = {
-    error = L["Save with Errors"],
-    warning = L["Save with Warnings"],
+    error = "Save with Errors",
+    warning = "Save with Warnings",
 }
 
 -- Sizes a button to its text, at least minWidth wide.
@@ -70,7 +71,7 @@ local function UpdateScriptStatus()
     fixAbilitiesButton:SetShown(canFix)
     scriptStatus:SetPoint("RIGHT", canFix and fixAbilitiesButton or editor, canFix and "LEFT" or "RIGHT", canFix and -6 or -16, 0)
 
-    saveButton:SetText(SAVE_TEXTS[scriptCheck.level] or SAVE)
+    saveButton:SetText(SAVE_TEXTS[scriptCheck.level] and L[SAVE_TEXTS[scriptCheck.level]] or SAVE)
     FitButton(saveButton, SAVE_BUTTON_MIN_WIDTH)
 end
 

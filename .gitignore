@@ -3,3 +3,5 @@
 .vscode/
 *.swp
 .release/
+# Files Claude makes on request (notes, drafts, exports); never committed.
+scratch/

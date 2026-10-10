@@ -165,7 +165,7 @@ function Settings:Create(parent)
     sortTitle:SetPoint("TOPLEFT")
     local previous
     for _, sort in ipairs(ns.LevelingQueue.SORTS) do
-        local radio = CreateRadio(frame, sort.label)
+        local radio = CreateRadio(frame, L[sort.label])
         if previous then
             radio:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, 16 - SETTING_ROW_HEIGHT)
         else

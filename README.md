@@ -114,6 +114,7 @@ Releases are built by the [BigWigs packager](https://github.com/BigWigsMods/pack
 `.pkgmeta`) when a version tag is pushed. Before tagging, set `## Version` in
 `Lineup_PetBattles.toc` to the same version; it's shown on the Settings tab. Changes are listed in
 [CHANGELOG.md](CHANGELOG.md).
+Planned features, ideas and known issues are tracked in [ROADMAP.md](ROADMAP.md).
 
 ## License
 

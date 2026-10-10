@@ -236,6 +236,11 @@ function Teams:Delete(team)
     tDeleteItem(ns.db.teams, team)
 end
 
+function Teams:DeleteAll()
+    SetLoadedTeam(nil)
+    wipe(ns.db.teams)
+end
+
 function Teams:GetForTarget(npcID)
     local result = {}
     for _, team in ipairs(self:GetAll()) do
@@ -552,6 +557,13 @@ function Teams:DeleteGroup(group, deleteTeams)
         end
     end
     tDeleteItem(ns.db.groups, group)
+end
+
+-- Deletes every group (see DeleteGroup).
+function Teams:DeleteAllGroups(deleteTeams)
+    for _, group in ipairs(CopyTable(ns.db.groups, true)) do
+        self:DeleteGroup(group, deleteTeams)
+    end
 end
 
 -- Collapse state; a nil groupID means the "Ungrouped" group.
