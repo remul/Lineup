@@ -314,7 +314,11 @@ function Teams.DescribeInjuredPets(injured)
     return table.concat(parts, ", ")
 end
 
+-- Pets and abilities can't be changed in combat (the game blocks it) or during a pet battle.
 function Teams:CanLoad()
+    if InCombatLockdown() then
+        return false, ERR_NOT_IN_COMBAT
+    end
     if C_PetBattles.IsInBattle() then
         return false, L["You can't change pets during a battle."]
     end
@@ -373,6 +377,13 @@ end
 local function RunPlan(plan, token, attempt)
     if token ~= loadToken then
         return -- a newer load replaced this one
+    end
+    -- A retry after combat started: the game would block the changes, so loading stops.
+    if InCombatLockdown() then
+        loading = false
+        ns:Debug("Combat started; stopped loading.")
+        ns.TeamsPanel:Refresh()
+        return
     end
     for _, step in ipairs(plan) do
         local missing = GetMissing(step)

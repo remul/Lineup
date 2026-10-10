@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.10.3
+
+- Fixed: loading a team in combat caused a blocked action error; it now says teams can't be
+  loaded in combat.
+
 ## 1.10.2
 
 - Fixed: an error when importing a team whose script uses an ability the team's pets don't have
