@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.10.1
+
+- Fixed: an error after combat when the Pet Journal hadn't been opened yet in the session.
+
 ## 1.10.0
 
 - **Import single teams without the editor**: a new option (Teams) saves a single imported team

@@ -257,7 +257,9 @@ local function GetBlizzardButtons()
 end
 
 local function HideBlizzardButtons()
-    if InCombatLockdown() then
+    -- Before the toolbar is set up (e.g. leaving combat before the Pet Journal was ever opened),
+    -- the journal and its buttons don't exist yet.
+    if InCombatLockdown() or not bar then
         return
     end
     local heal, summon = GetBlizzardButtons()

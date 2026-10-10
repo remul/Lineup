@@ -2,7 +2,7 @@
 ## Title: Lineup
 ## Notes: Pet battle team manager for the Pet Journal.
 ## Author: Remul
-## Version: 1.10.0
+## Version: 1.10.1
 ## OptionalDeps: tdBattlePetScript
 ## SavedVariables: LineupPetBattlesDB
 ## SavedVariablesPerCharacter: LineupPetBattlesCharDB
