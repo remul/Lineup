@@ -254,6 +254,21 @@ function Script.IsReadyButIdle(status)
     return status.level == "ok" and not Script.CanRun()
 end
 
+-- Badge text and colour for a checked script: readyText (translated) when it's fine, what's wrong
+-- otherwise, coloured like its status; plain "Script" muted while it can't run (IsReadyButIdle).
+local PROBLEM_BADGES = {
+    warning = "Script · check abilities",
+    error = "Script · error",
+}
+
+function Script.GetBadge(status, readyText)
+    if Script.IsReadyButIdle(status) then
+        return L["Script"], ns.MUTED_COLOR
+    end
+    local problem = PROBLEM_BADGES[status.level]
+    return problem and L[problem] or readyText, status.color
+end
+
 -- Tooltip lines for a checked script: every problem (or the summary), and a note when scripts
 -- can't run because tdBattlePetScript is missing.
 function Script.AddCheckToTooltip(tooltip, status)

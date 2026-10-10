@@ -90,15 +90,24 @@ local function AddPetCardBackground(inset, heightShare)
     background:SetHeight((inset:GetHeight() - 6) * (heightShare or 1))
 end
 
--- Sorts teams by name, lowercasing each name once instead of on every comparison.
-local function SortTeamsByName(teams)
-    local keys = {}
-    for _, team in ipairs(teams) do
-        keys[team] = team.name:lower()
+-- Lowercase names to sort by, kept per team until it's renamed.
+local sortKeys = setmetatable({}, { __mode = "k" })
+
+local function GetSortKey(team)
+    local cached = sortKeys[team]
+    if not cached or cached.name ~= team.name then
+        cached = { name = team.name, key = team.name:lower() }
+        sortKeys[team] = cached
     end
-    table.sort(teams, function(a, b)
-        return keys[a] < keys[b]
-    end)
+    return cached.key
+end
+
+local function CompareTeamNames(a, b)
+    return GetSortKey(a) < GetSortKey(b)
+end
+
+local function SortTeamsByName(teams)
+    table.sort(teams, CompareTeamNames)
 end
 
 -- Points the chevron down when open, right when collapsed (plus / minus without the atlas).
@@ -348,23 +357,14 @@ function TeamRowMixin:OnLoad()
     end
 end
 
--- "Script", with what's wrong when it won't run as written ("No script" without one). Muted while
--- tdBattlePetScript isn't installed (nothing can run then), otherwise green, orange or red like the
--- script's status.
-local SCRIPT_LABELS = {
-    ok = "Script",
-    warning = "Script · check abilities",
-    error = "Script · error",
-}
-
+-- "Script", with what's wrong when it won't run as written ("No script" without one); see
+-- Script.GetBadge.
 function TeamRowMixin:UpdateScriptLabel(team)
     if not team.script then
         self.ScriptBadge:SetText(L["No script"], ns.MUTED_COLOR)
         return
     end
-    local status = ns.Script.Check(team.script, team.pets)
-    local idle = ns.Script.IsReadyButIdle(status)
-    self.ScriptBadge:SetText(L[SCRIPT_LABELS[status.level] or "Script"], idle and ns.MUTED_COLOR or status.color)
+    self.ScriptBadge:SetText(ns.Script.GetBadge(ns.Script.Check(team.script, team.pets), L["Script"]))
 end
 
 function TeamRowMixin:Init(data)
@@ -556,25 +556,46 @@ local function Contains(text, query)
     return text ~= nil and text:lower():find(query, 1, true) ~= nil
 end
 
--- True if the team's name, target or one of its pets (species or custom name) contains the
--- (lowercase) search text. Random and leveling slots have no pet to match.
-local function TeamMatches(team, query)
-    if Contains(team.name, query) or Contains(team.targetName, query) then
-        return true
+-- What a team is searched by, lowercase and separated by newlines: its name, target and pets
+-- (species and custom names; random and leveling slots have none). Kept per team while its name,
+-- target and pets stay the same; pet changes (e.g. renames) clear them all.
+local searchTexts = setmetatable({}, { __mode = "k" })
+ns:RegisterEvent("PET_JOURNAL_LIST_UPDATE", function()
+    wipe(searchTexts)
+end)
+
+local function GetSearchText(team)
+    local parts = { team.name, team.targetName or "" }
+    local signature = { team.name, team.targetName or "" }
+    for slot = 1, 3 do
+        local entry = team.pets[slot]
+        if entry then
+            signature[#signature + 1] = tostring(entry.petID or entry.speciesID or "")
+        end
+    end
+    signature = table.concat(signature, "\n")
+    local cached = searchTexts[team]
+    if cached and cached.signature == signature then
+        return cached.text
     end
     for slot = 1, 3 do
-        local entry = team.pets[slot] or {}
-        if entry.speciesID and Contains((ns.GetSpeciesInfo(entry.speciesID)), query) then
-            return true
+        local entry = team.pets[slot]
+        if entry and entry.speciesID then
+            parts[#parts + 1] = ns.GetSpeciesInfo(entry.speciesID) or ""
         end
-        if entry.petID then
+        if entry and entry.petID then
             local _, customName = C_PetJournal.GetPetInfoByPetID(entry.petID)
-            if Contains(customName, query) then
-                return true
-            end
+            parts[#parts + 1] = customName or ""
         end
     end
-    return false
+    local text = table.concat(parts, "\n"):lower()
+    searchTexts[team] = { signature = signature, text = text }
+    return text
+end
+
+-- True if the team's name, target or one of its pets contains the (lowercase) search text.
+local function TeamMatches(team, query)
+    return GetSearchText(team):find(query, 1, true) ~= nil
 end
 
 -- List building: headers followed by their (sorted) teams unless collapsed, with a little space

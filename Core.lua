@@ -395,12 +395,12 @@ function ns:ADDON_LOADED(loadedName)
     end
     self:UnregisterEvent("ADDON_LOADED")
 
-    LineupDB = LineupDB or {}
-    LineupCharDB = LineupCharDB or {}
-    ApplyDefaults(LineupDB, DEFAULTS)
-    ApplyDefaults(LineupCharDB, CHAR_DEFAULTS)
-    self.db = LineupDB
-    self.charDb = LineupCharDB
+    LineupPetBattlesDB = LineupPetBattlesDB or {}
+    LineupPetBattlesCharDB = LineupPetBattlesCharDB or {}
+    ApplyDefaults(LineupPetBattlesDB, DEFAULTS)
+    ApplyDefaults(LineupPetBattlesCharDB, CHAR_DEFAULTS)
+    self.db = LineupPetBattlesDB
+    self.charDb = LineupPetBattlesCharDB
     if self.db.locale ~= "" then
         self.SetLocale(self.db.locale)
     end

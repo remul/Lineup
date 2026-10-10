@@ -4,8 +4,8 @@
 ## Author: Remul
 ## Version: 1.8.0
 ## OptionalDeps: tdBattlePetScript
-## SavedVariables: LineupDB
-## SavedVariablesPerCharacter: LineupCharDB
+## SavedVariables: LineupPetBattlesDB
+## SavedVariablesPerCharacter: LineupPetBattlesCharDB
 ## IconTexture: Interface\AddOns\Lineup_PetBattles\Media\Icon
 ## AddonCompartmentFunc: Lineup_OnAddonCompartmentClick
 ## Category-enUS: Pet Battles

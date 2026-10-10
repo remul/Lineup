@@ -23,16 +23,10 @@ local HEADER_ICON_GAP = 8
 -- Pets below this much health get an orange warning (dead pets always get a red one).
 local LOW_HEALTH_PERCENT = 50
 
--- Healing hurt pets is left to Blizzard's own "Revive Battle Pets" button at the top of the
+-- Healing hurt pets is left to the pet toolbar's "Revive Battle Pets" button at the top of the
 -- journal (casting needs a secure button, and one inside Lineup's window would lock it during
 -- combat). Lineup points at it with a glow while a pet is hurt and the spell is ready.
 
--- Translated where they're shown (L[label]).
-local SCRIPT_LABELS = {
-    ok = "Script ready",
-    warning = "Script · check abilities",
-    error = "Script · error",
-}
 
 local section, healGlow
 local currentTeam -- the loaded team, as last drawn
@@ -412,12 +406,7 @@ function CurrentSection:Refresh()
     -- Script of the loaded team, in a badge coloured like its status.
     local badge = section.Script.Badge
     if team and team.script then
-        local status = ns.Script.Check(team.script, team.pets)
-        if ns.Script.IsReadyButIdle(status) then
-            badge:SetText(L["Script"], ns.MUTED_COLOR)
-        else
-            badge:SetText(L[SCRIPT_LABELS[status.level] or "Script"], status.color)
-        end
+        badge:SetText(ns.Script.GetBadge(ns.Script.Check(team.script, team.pets), L["Script ready"]))
     elseif team then
         badge:SetText(L["No script"], ns.MUTED_COLOR)
     else

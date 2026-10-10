@@ -93,8 +93,6 @@ Older:
 
 ## Known issues
 
-- Saved variables are still called `LineupDB` / `LineupCharDB`, the same as the other "Lineup" addon
-  on CurseForge; renaming them would lose everyone's teams, so they'd need a one-time copy.
 - Making room for the Lineup window next to the journal (the journal's `extraWidth` for Blizzard's
   panel manager) touches protected UI. It waits for combat to end, but if Lineup is ever blamed for
   blocked actions in combat with other windows (Character, Talents, Spellbook), this is the likely
