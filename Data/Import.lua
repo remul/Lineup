@@ -322,12 +322,13 @@ local function FindGroupByName(name)
 end
 
 -- Saves every team of a ParseAll result. Teams go into groupID unless a group header comes first.
--- With replace, a team with the same name is overwritten instead of added again. A group header
+-- With replace, a team you already had with the same name is overwritten (once: a name repeated in
+-- the import is added again); otherwise, and for repeats, the new team's name gets a number. A group header
 -- named ungroupedName (Rematch's "Ungrouped") puts the teams after it in no group.
 -- Returns numImported, numReplaced, problems ({ teamName, list of problem strings }).
 function Import.ImportAll(result, groupID, replace, ungroupedName)
     local numImported, numReplaced, problems = 0, 0, {}
-    -- Existing teams by name, so big imports don't scan the whole list for every team.
+    -- Teams from before the import by name, so big imports don't scan the whole list for every team.
     local teamsByName = {}
     for _, team in ipairs(ns.Teams:GetAll()) do
         teamsByName[team.name] = teamsByName[team.name] or team
@@ -346,8 +347,10 @@ function Import.ImportAll(result, groupID, replace, ungroupedName)
             local teamProblems = Import.GetProblems(notes)
             draft.groupID = groupID
             local existing = replace and teamsByName[draft.name]
-            local team = ns.Teams:Save(existing, draft)
-            teamsByName[team.name] = teamsByName[team.name] or team
+            if existing then
+                teamsByName[draft.name] = nil
+            end
+            ns.Teams:Save(existing, draft)
             numImported = numImported + 1
             if existing then
                 numReplaced = numReplaced + 1
@@ -371,10 +374,18 @@ function Import.DescribeImportAll(result, replace, ungroupedName)
         groupNames[group.name] = true
     end
 
-    local numReplaced, newGroups = 0, {}
+    -- Like ImportAll: each team you have is replaced at most once; other taken names get a number.
+    local numReplaced, numRenamed, newGroups = 0, 0, {}
     for _, entry in ipairs(result.entries) do
-        if entry.kind == "team" and replace and teamNames[entry.parsed.name] then
-            numReplaced = numReplaced + 1
+        if entry.kind == "team" then
+            local name = entry.parsed.name
+            if teamNames[name] == true and replace then
+                numReplaced = numReplaced + 1
+                teamNames[name] = "replaced"
+            elseif teamNames[name] then
+                numRenamed = numRenamed + 1
+            end
+            teamNames[name] = teamNames[name] or "imported"
         elseif entry.kind == "group" and entry.name ~= ungroupedName and not groupNames[entry.name] then
             groupNames[entry.name] = true
             newGroups[#newGroups + 1] = entry.name
@@ -384,6 +395,9 @@ function Import.DescribeImportAll(result, replace, ungroupedName)
     local lines = { format(result.numTeams == 1 and L["Import %d team?"] or L["Import %d teams?"], result.numTeams) }
     if numReplaced > 0 then
         lines[#lines + 1] = format(numReplaced == 1 and L["%d replaces a team you already have."] or L["%d replace teams you already have."], numReplaced)
+    end
+    if numRenamed > 0 then
+        lines[#lines + 1] = format(L["Names already taken get a number (%d)."], numRenamed)
     end
     if #newGroups == 1 then
         lines[#lines + 1] = format(L["Creates the group \"%s\"."], newGroups[1])

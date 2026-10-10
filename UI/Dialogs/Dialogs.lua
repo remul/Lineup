@@ -20,6 +20,32 @@ function Dialogs.Confirm(prompt, onAccept)
     StaticPopup_Show("LINEUP_PETBATTLES_CONFIRM", prompt, nil, { onAccept = onAccept })
 end
 
+-- Two choices and Cancel, e.g. Replace / Keep Both. The button texts are set on each show.
+StaticPopupDialogs.LINEUP_PETBATTLES_CHOOSE = {
+    text = "%s",
+    button1 = OKAY,
+    button2 = CANCEL,
+    button3 = OKAY,
+    OnShow = function(popup, data)
+        popup:GetButton1():SetText(data.firstText)
+        popup:GetButton3():SetText(data.secondText)
+    end,
+    OnAccept = function(_, data)
+        data.onFirst()
+    end,
+    OnAlt = function(_, data)
+        data.onSecond()
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+}
+
+function Dialogs.Choose(prompt, firstText, onFirst, secondText, onSecond)
+    StaticPopup_Show("LINEUP_PETBATTLES_CHOOSE", prompt, nil,
+        { firstText = firstText, onFirst = onFirst, secondText = secondText, onSecond = onSecond })
+end
+
 -- ButtonFrameTemplate's left border is wider than its right one, so content needs this much more
 -- room on the left than on the right to sit evenly between them. Windows are this much wider too.
 Dialogs.LEFT_BORDER_EXTRA = 5

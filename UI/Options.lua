@@ -67,6 +67,8 @@ function Options:Setup()
     AddSection(L["Teams"])
     AddCheckbox("autoLoadTargetTeam", L["Load a target's team automatically"],
         L["Targeting a tamer or wild pet with exactly one team loads that team."])
+    AddCheckbox("importWithoutEditor", L["Import single teams without the editor"],
+        L["A single imported team is saved right away, instead of opening in the team editor to review first."])
 
     AddSection(L["Development"])
     AddCheckbox("debug", L["Debug messages in chat"], L["Shows team loading details in chat, for troubleshooting."])

@@ -128,18 +128,43 @@ function Teams:CreateDraft(team)
         }
     end
     return {
-        name = format(L["Team %d"], #self:GetAll() + 1),
+        name = self:GetUniqueName(format(L["Team %d"], #self:GetAll() + 1)),
         pets = self:CaptureLoadout(),
         script = "",
     }
 end
 
+-- The team with this name, other than except (nil if none).
+function Teams:FindByName(name, except)
+    for _, team in ipairs(self:GetAll()) do
+        if team ~= except and team.name == name then
+            return team
+        end
+    end
+end
+
+-- name, or with a number ("Name (2)", "Name (3)", ...) when another team (other than except)
+-- already has it. Names must be unique: the loaded team is remembered by name.
+function Teams:GetUniqueName(name, except)
+    if not self:FindByName(name, except) then
+        return name
+    end
+    local base = name:match("^(.-) %(%d+%)$") or name
+    local number = 2
+    while self:FindByName(format("%s (%d)", base, number), except) do
+        number = number + 1
+    end
+    return format("%s (%d)", base, number)
+end
+
+-- Writes the draft into team, or into a new team. A name another team has gets a number.
 function Teams:Save(team, draft)
+    local name = self:GetUniqueName(draft.name, team)
     if not team then
         team = {}
         tinsert(ns.db.teams, team)
     end
-    team.name = draft.name
+    team.name = name
     team.groupID = draft.groupID
     team.pets = draft.pets
     team.targetNpcID = draft.targetNpcID

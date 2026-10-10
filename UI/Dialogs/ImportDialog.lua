@@ -2,7 +2,9 @@ local _, ns = ...
 local L = ns.L
 
 -- Window to paste Rematch team strings into. A single team opens in the team editor to review
--- before saving; several teams (one per line, as Xu-Fu exports them) are saved directly.
+-- before saving (or is saved right away with the "Import single teams without the editor" option);
+-- several teams (one per line, as Xu-Fu exports them) are saved directly. A team whose name you
+-- already have can replace that team or be kept as well, with a number.
 local ImportDialog = {}
 ns.ImportDialog = ImportDialog
 
@@ -99,9 +101,27 @@ local function UpdateStatus()
     replaceCheck:SetShown(result ~= nil and result.numTeams > 1)
 end
 
--- One team: open it in the editor (its notes were in the preview). Several: confirm, then save them
--- all and list the teams that need attention in chat.
--- (A single team under a group header is saved directly, without asking.)
+-- A single team: into the editor to review (its notes were in the preview), or saved right away.
+-- replacing is the team it replaces, if any.
+local function ImportSingle(parsed, groupID, replacing)
+    local draft, notes = ns.Import.BuildDraft(parsed)
+    draft.groupID = groupID
+    if not replacing then
+        draft.name = ns.Teams:GetUniqueName(draft.name)
+    end
+    if not ns.db.importWithoutEditor then
+        ns.TeamEditor:Open(replacing, draft)
+        return
+    end
+    local team = ns.Teams:Save(replacing, draft)
+    local problems = ns.Import.GetProblems(notes)
+    ns.Import.Report(1, replacing and 1 or 0, #problems > 0 and { { teamName = team.name, problems = problems } } or {})
+    ns.TeamsPanel:ShowTeam(team)
+end
+
+-- One team: imported as above, asking first if you already have a team of that name. Several:
+-- confirm, then save them all and list the teams that need attention in chat.
+-- (A single team under a group header is saved like several, without asking.)
 local function DoImport()
     if not result then
         return
@@ -114,10 +134,18 @@ local function DoImport()
     end
 
     if result.numTeams == 1 and not hasGroups then
-        -- The notes were in the preview already; the editor shows the pets and the script's check.
-        local draft = ns.Import.BuildDraft(result.entries[1].parsed)
-        draft.groupID = importGroupID
-        ns.TeamEditor:Open(nil, draft)
+        local parsed, groupID = result.entries[1].parsed, importGroupID
+        local existing = ns.Teams:FindByName(parsed.name)
+        if not existing then
+            ImportSingle(parsed, groupID)
+            return
+        end
+        ns.Dialogs.Choose(format(L["You already have a team named \"%s\". Replace it, or keep both?"], parsed.name),
+            L["Replace"], function()
+                ImportSingle(parsed, groupID or existing.groupID, existing)
+            end, L["Keep Both"], function()
+                ImportSingle(parsed, groupID)
+            end)
         return
     end
 

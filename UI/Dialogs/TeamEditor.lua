@@ -212,6 +212,11 @@ local function Save()
         nameBox:SetFocus()
         return
     end
+    if Teams:FindByName(name, editingTeam) then
+        ShowNameError(L["Another team already has this name"])
+        nameBox:SetFocus()
+        return
+    end
     draft.name = name
     Teams:Save(editingTeam, draft)
     editor:Hide()

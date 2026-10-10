@@ -10,6 +10,8 @@ ns.MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
 local DEFAULTS = {
     debug = false,
     autoLoadTargetTeam = false,
+    -- A single imported team is saved right away instead of opening in the team editor.
+    importWithoutEditor = false,
     teams = {},
     groups = {},
     nextGroupID = 1,

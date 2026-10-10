@@ -80,6 +80,8 @@ Next release:
   `GetOwnedPetIDs`; only the species list still changes the journal's filters, once per session).
 - No blocked-action errors with the journal open in combat; other addons' widgets near the toolbar
   stay visible.
+- Importing a team whose name you have: Replace / Keep Both / Cancel, with and without the
+  "Import single teams without the editor" option; batch imports with a name repeated in the file.
 
 Older:
 

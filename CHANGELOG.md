@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.10.0
+
+- **Import single teams without the editor**: a new option (Teams) saves a single imported team
+  right away instead of opening it in the team editor first.
+- Importing a team whose name you already have asks whether to **replace** it or **keep both**.
+- Team names are unique: a name that's taken gets a number ("Name (2)"), and the team editor says
+  when another team already has the name.
+- Bulk imports replace each team you have at most once; a name repeated in the import is added
+  with a number instead of overwriting the team imported just before. The confirmation says how
+  many names get a number.
+
 ## 1.9.0
 
 - **Saved data starts fresh**: Lineup's saved variables are renamed (`LineupPetBattlesDB`,
