@@ -143,6 +143,24 @@ function AboutView:Create(parent)
     optionsButton:SetScript("OnClick", function()
         ns.Options:Open()
     end)
+    -- Disabled in combat, when Blizzard's Options can't be opened; its tooltip says why.
+    optionsButton:SetMotionScriptsWhileDisabled(true)
+    optionsButton:SetScript("OnEnter", function(button)
+        if not button:IsEnabled() then
+            GameTooltip:SetOwner(button, "ANCHOR_TOP")
+            GameTooltip:SetText(L["Open Options"])
+            GameTooltip_AddErrorLine(GameTooltip, ERR_NOT_IN_COMBAT)
+            GameTooltip:Show()
+        end
+    end)
+    optionsButton:SetScript("OnLeave", GameTooltip_Hide)
+    optionsButton:SetEnabled(not InCombatLockdown())
+    ns:RegisterEvent("PLAYER_REGEN_DISABLED", function()
+        optionsButton:Disable()
+    end)
+    ns:RegisterEvent("PLAYER_REGEN_ENABLED", function()
+        optionsButton:Enable()
+    end)
 
     return view
 end

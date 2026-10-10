@@ -116,6 +116,10 @@ function Options:Set(key, value)
     settings[key]:SetValue(value)
 end
 
+-- Blizzard's Options can't be opened in combat.
 function Options:Open()
+    if InCombatLockdown() then
+        return
+    end
     Settings.OpenToCategory(category:GetID())
 end
