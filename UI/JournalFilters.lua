@@ -1,16 +1,17 @@
 local _, ns = ...
 local L = ns.L
 
--- Lineup's filters in Blizzard's Pet Journal: "Strong vs." and "Tough vs." an enemy family, breed
--- and a level range, added to the journal's own Filter menu. The journal builds its list from its
+-- Lineup's filters in Blizzard's Pet Journal: "Strong vs." and "Tough vs." an enemy family, breed,
+-- a level range, duplicates and how many of a species you have at level 25, added to the journal's
+-- own Filter menu. The journal builds its list from its
 -- own filters; Lineup then leaves out the pets that don't pass these. While one is on, a small
 -- button at the end of the family row shows it and clears it; the journal's Reset clears them too.
 -- They last until the game is reloaded. Pets that aren't collected have no breed, so a breed
 -- filter leaves them out.
 -- Pets can also be hidden from the list with "Hide" in their right-click menu (and shown again
 -- with "Unhide"); they stay hidden, and the Hidden pets filter leaves them out (the default), shows
--- only them or shows all pets. A collected pet is hidden by itself, one not collected by its species; Blizzard has no
--- right-click menu for those, so Lineup opens its own.
+-- only them or shows all pets, with a "Hidden" badge. A collected pet is hidden by itself, one not
+-- collected by its species; Blizzard has no right-click menu for those, so Lineup opens its own.
 local JournalFilters = {}
 ns.JournalFilters = JournalFilters
 
@@ -38,17 +39,53 @@ local HIDE_HIDDEN = { label = "Hide hidden pets" }
 local ONLY_HIDDEN = { label = "Only hidden pets", short = "Hidden" }
 local ALL_PETS = { label = "All pets", short = "All pets" }
 local hiddenMode = HIDE_HIDDEN
+-- Duplicates and Level 25 submenus: by how many pets of the species you have (at least min, at most
+-- max), counted over your whole collection; the first of each is "any". Only collected pets pass.
+local MAX_LEVEL = 25
+local COPIES_FILTERS = {
+    { label = "Any" },
+    { label = "Duplicates only", short = "x2+", min = 2 },
+}
+local MAXED_FILTERS = {
+    { label = "Any" },
+    { label = "At least one at 25", short = "25 x1+", min = 1 },
+    { label = "At least two at 25", short = "25 x2+", min = 2 },
+    { label = "None at 25", short = "25 x0", max = 0 },
+}
+local copiesFilter, maxedFilter = COPIES_FILTERS[1], MAXED_FILTERS[1]
 local clearButton
 
 -- Whether a filter is changed from its default (shown by the clear button).
 local function IsActive()
     return strongVs ~= 0 or toughVs ~= 0 or levelRange ~= nil or next(breeds) ~= nil or hiddenMode ~= HIDE_HIDDEN
+        or copiesFilter ~= COPIES_FILTERS[1] or maxedFilter ~= MAXED_FILTERS[1]
 end
 
 local function ClearAll()
     strongVs, toughVs, levelRange = 0, 0, nil
     wipe(breeds)
     hiddenMode = HIDE_HIDDEN
+    copiesFilter, maxedFilter = COPIES_FILTERS[1], MAXED_FILTERS[1]
+end
+
+local function CountMatches(filter, count)
+    return count >= (filter.min or 0) and count <= (filter.max or math.huge)
+end
+
+-- [speciesID] = number of pets you have, and of them at level 25, from every pet you own (the
+-- journal's list only has the ones its filters show).
+local function CountOwnedSpecies()
+    local copies, maxed = {}, {}
+    for _, petID in ipairs(C_PetJournal.GetOwnedPetIDs()) do
+        local speciesID, _, level = C_PetJournal.GetPetInfoByPetID(petID)
+        if speciesID then
+            copies[speciesID] = (copies[speciesID] or 0) + 1
+            if level == MAX_LEVEL then
+                maxed[speciesID] = (maxed[speciesID] or 0) + 1
+            end
+        end
+    end
+    return copies, maxed
 end
 
 local function IsHidden(petID, speciesID)
@@ -58,7 +95,11 @@ local function IsHidden(petID, speciesID)
     return ns.db.hiddenSpecies[speciesID] == true
 end
 
-local function Passes(petID, speciesID, level, petType)
+local function Passes(petID, speciesID, level, petType, copies, maxed)
+    if copies and not (petID and CountMatches(copiesFilter, copies[speciesID] or 0)
+        and CountMatches(maxedFilter, maxed[speciesID] or 0)) then
+        return false
+    end
     if hiddenMode ~= ALL_PETS and IsHidden(petID, speciesID) ~= (hiddenMode == ONLY_HIDDEN) then
         return false
     end
@@ -75,10 +116,14 @@ local function FilterJournalList()
     if not IsActive() and not (next(ns.db.hiddenPets) or next(ns.db.hiddenSpecies)) then
         return
     end
+    local copies, maxed
+    if copiesFilter ~= COPIES_FILTERS[1] or maxedFilter ~= MAXED_FILTERS[1] then
+        copies, maxed = CountOwnedSpecies()
+    end
     local dataProvider = CreateDataProvider()
     for index = 1, C_PetJournal.GetNumPets() do
         local petID, speciesID, _, _, level, _, _, _, _, petType = C_PetJournal.GetPetInfoByIndex(index)
-        if speciesID and Passes(petID, speciesID, level, petType) then
+        if speciesID and Passes(petID, speciesID, level, petType, copies, maxed) then
             dataProvider:Insert({ index = index, petID = petID, speciesID = speciesID })
         end
     end
@@ -99,6 +144,8 @@ local function UpdateClearButton()
         icons[#icons + 1] = levelRange.short
     end
     icons[#icons + 1] = ns.PetFilters.DescribeBreeds(breeds)
+    icons[#icons + 1] = copiesFilter.short
+    icons[#icons + 1] = maxedFilter.short
     icons[#icons + 1] = hiddenMode.short and L[hiddenMode.short]
     clearButton.Text:SetText(table.concat(icons, " ") .. " |TInterface\\Buttons\\UI-StopButton:12:12|t")
     clearButton:SetWidth(clearButton.Text:GetStringWidth() + 10)
@@ -163,9 +210,26 @@ local function ShowUncollectedMenu(listButton, mouseButton)
     end)
 end
 
+-- A muted "Hidden" badge in the top right corner, on hidden pets the Hidden pets filter shows.
+local function UpdateHiddenBadge(listButton)
+    local hidden = IsHidden(listButton.petID, listButton.speciesID)
+    local badge = listButton.LineupHiddenBadge
+    if not badge then
+        if not hidden then
+            return
+        end
+        badge = ns.CreateBadge(listButton)
+        badge:SetPoint("TOPRIGHT", -8, -6)
+        listButton.LineupHiddenBadge = badge
+    end
+    badge:SetText(hidden and L["Hidden"] or nil, ns.MUTED_COLOR)
+end
+
 local hookedListButtons = {}
 
-local function HookListButton(listButton)
+-- Blizzard (re)drew a list button.
+local function UpdateListButton(listButton)
+    UpdateHiddenBadge(listButton)
     if hookedListButtons[listButton] then
         return
     end
@@ -177,6 +241,22 @@ local function HookListButton(listButton)
             ShowUncollectedMenu(listButton, mouseButton)
         end
     end)
+end
+
+-- A submenu of radio buttons, one per option (labels translated here); get() returns the chosen one.
+local function AddRadioSubmenu(root, label, options, get, set)
+    local menu = root:CreateButton(label)
+    local function IsSelected(option)
+        return option == get()
+    end
+    local function Select(option)
+        set(option)
+        Changed()
+        return MenuResponse.Refresh
+    end
+    for _, option in ipairs(options) do
+        menu:CreateRadio(L[option.label], IsSelected, Select, option)
+    end
 end
 
 -- "Strong vs." / "Tough vs." submenu: any family, or one.
@@ -225,19 +305,13 @@ function JournalFilters:Setup()
         for _, range in ipairs(LEVEL_RANGES) do
             levelMenu:CreateRadio(RangeLabel(range), IsSelected, Select, range)
         end
+        AddRadioSubmenu(root, L["Duplicates"], COPIES_FILTERS, function() return copiesFilter end,
+            function(filter) copiesFilter = filter end)
+        AddRadioSubmenu(root, L["Level 25 copies"], MAXED_FILTERS, function() return maxedFilter end,
+            function(filter) maxedFilter = filter end)
         -- Hidden pets: left out, only them, or all pets.
-        local hiddenMenu = root:CreateButton(L["Hidden pets"])
-        local function IsModeSelected(mode)
-            return mode == hiddenMode
-        end
-        local function SelectMode(mode)
-            hiddenMode = mode
-            Changed()
-            return MenuResponse.Refresh
-        end
-        for _, mode in ipairs({ HIDE_HIDDEN, ONLY_HIDDEN, ALL_PETS }) do
-            hiddenMenu:CreateRadio(L[mode.label], IsModeSelected, SelectMode, mode)
-        end
+        AddRadioSubmenu(root, L["Hidden pets"], { HIDE_HIDDEN, ONLY_HIDDEN, ALL_PETS }, function() return hiddenMode end,
+            function(mode) hiddenMode = mode end)
     end)
 
     -- "Hide" or "Unhide" in a pet's right-click menu. It opens from a list button (or its icon),
@@ -252,7 +326,7 @@ function JournalFilters:Setup()
         AddHideButton(root, petID)
     end)
     if PetJournal_InitPetButton then
-        hooksecurefunc("PetJournal_InitPetButton", HookListButton)
+        hooksecurefunc("PetJournal_InitPetButton", UpdateListButton)
     end
 
     -- Shows the active filters at the end of the family row; a click clears them.
@@ -283,6 +357,11 @@ function JournalFilters:Setup()
         local breedNames = ns.PetFilters.DescribeBreeds(breeds)
         if breedNames then
             GameTooltip:AddLine(L["Breed: "] .. breedNames, 1, 1, 1)
+        end
+        for _, filter in ipairs({ copiesFilter, maxedFilter }) do
+            if filter.short then
+                GameTooltip:AddLine(L[filter.label], 1, 1, 1)
+            end
         end
         if hiddenMode ~= HIDE_HIDDEN then
             GameTooltip:AddLine(L[hiddenMode.label], 1, 1, 1)
