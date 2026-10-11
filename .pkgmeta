@@ -13,6 +13,8 @@ ignore:
   - Media/Emblem.png
   - Media/Logo.svg
   - Media/Logo.png
+  # Screenshots for the CurseForge project page.
+  - Screenshots
 
 manual-changelog:
   filename: CHANGELOG.md
