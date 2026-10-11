@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.10.4
+
+- **Current team**: long pet names get a slightly smaller font before they're cut short, health is
+  a little smaller, and so are the pet icons, so more fits on the pet cards. "No team loaded" is
+  centred on the icon.
+
 ## 1.10.3
 
 - Fixed: loading a team in combat caused a blocked action error; it now says teams can't be

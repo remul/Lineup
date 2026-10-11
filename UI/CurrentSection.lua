@@ -10,11 +10,16 @@ ns.CurrentSection = CurrentSection
 
 CurrentSection.HEIGHT = 100
 local NUM_SLOTS = 3
-local PET_ICON_SIZE = 30
+local PET_ICON_SIZE = 26
+local PET_CARD_HEIGHT = 38
 -- Health is shown like on Blizzard's pet cards: the heart from the pet battle stat icons.
 local STAT_ICONS = "Interface\\PetBattles\\PetBattle-StatIcons"
 local SKULL_ICON = "Interface\\TargetingFrame\\UI-TargetingFrame-Skull"
 local HEALTH_ICON_SIZE = 12
+-- Pet names too long for a card get a smaller font, down to this much smaller, before they're cut
+-- short; health is a little smaller than names, so it fits too.
+local NAME_MAX_SHRINK = 2
+local HEALTH_SHRINK = 1
 local CARD_SPACING = 6
 -- Header: the loaded team's group icon, its name and group, like the Settings tab's header.
 local HEADER_HEIGHT = 36
@@ -122,10 +127,28 @@ local function DescribeHealth()
     return ""
 end
 
+-- Gives a pet name too long for its card a smaller font (see NAME_MAX_SHRINK). Called when the name
+-- or the card's width changes; without a width yet, it's fitted when the card gets one.
+local function FitName(card)
+    local name = card.Name
+    local font, _, flags = name:GetFont()
+    name:SetFont(font, card.nameFontSize, flags)
+    -- The card minus the icon and the space around the name (see CreatePetCard).
+    local available = card:GetWidth() - 4 - PET_ICON_SIZE - 5 - 4
+    if available <= 0 then
+        return
+    end
+    local size = card.nameFontSize
+    while size > card.nameFontSize - NAME_MAX_SHRINK and name:GetUnboundedStringWidth() > available do
+        size = size - 1
+        name:SetFont(font, size, flags)
+    end
+end
+
 -- Pet card: icon, name and health ("♥ 1000 / 1000", or a skull and "Dead") for one loadout slot.
 local function CreatePetCard(parent, slot)
     local card = CreateFrame("Button", nil, parent)
-    card:SetHeight(PET_ICON_SIZE + 8)
+    card:SetHeight(PET_CARD_HEIGHT)
     -- A card like the team list's.
     ns.CreateCardFill(card)
     card.Outline = ns.CreateCardOutline(card)
@@ -140,15 +163,20 @@ local function CreatePetCard(parent, slot)
     card.Level:SetPoint("BOTTOMRIGHT", card.Icon, "BOTTOMRIGHT", 1, -1)
 
     card.Name = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    card.Name:SetPoint("TOPLEFT", card.Icon, "TOPRIGHT", 5, -3)
+    -- Name and health at the card's top and bottom, beside the (smaller) icon.
+    card.Name:SetPoint("TOPLEFT", 4 + PET_ICON_SIZE + 5, -7)
     card.Name:SetPoint("RIGHT", -4, 0)
     card.Name:SetJustifyH("LEFT")
     card.Name:SetWordWrap(false)
+    card.nameFontSize = select(2, card.Name:GetFont())
+    card:SetScript("OnSizeChanged", FitName)
 
     card.HealthIcon = card:CreateTexture(nil, "ARTWORK")
     card.HealthIcon:SetSize(HEALTH_ICON_SIZE, HEALTH_ICON_SIZE)
-    card.HealthIcon:SetPoint("BOTTOMLEFT", card.Icon, "BOTTOMRIGHT", 4, 1)
+    card.HealthIcon:SetPoint("BOTTOMLEFT", 4 + PET_ICON_SIZE + 4, 3)
     card.HealthText = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local healthFont, healthSize, healthFlags = card.HealthText:GetFont()
+    card.HealthText:SetFont(healthFont, healthSize - HEALTH_SHRINK, healthFlags)
     card.HealthText:SetPoint("LEFT", card.HealthIcon, "RIGHT", 3, 0)
     card.HealthText:SetPoint("RIGHT", -4, 0)
     card.HealthText:SetJustifyH("LEFT")
@@ -203,6 +231,7 @@ local function UpdatePetCard(card, slot)
         card.Level:SetText("")
         card.Name:SetText(L["Empty slot"])
         card.Name:SetTextColor(ns.MUTED_COLOR:GetRGB())
+        FitName(card)
         card.HealthIcon:Hide()
         card.HealthText:SetText("")
         return
@@ -217,6 +246,7 @@ local function UpdatePetCard(card, slot)
     card.Border:Show()
     card.Level:SetText(level < 25 and level or "")
     card.Name:SetText(customName or speciesName)
+    FitName(card)
     card.Name:SetTextColor((health == 0 and RED_FONT_COLOR or HIGHLIGHT_FONT_COLOR):GetRGB())
 
     if health == 0 then
@@ -269,8 +299,8 @@ function CurrentSection:Create(parent)
     end)
     section.SaveButton:SetPoint("RIGHT", section.RevertButton, "LEFT", -4, 0)
 
+    -- Placed in Refresh: centred on the icon without a team, above the group line with one.
     section.TeamName = section.TeamLine:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    section.TeamName:SetPoint("TOPLEFT", 2 + HEADER_ICON_SIZE + HEADER_ICON_GAP, -2)
     section.TeamName:SetJustifyH("LEFT")
     section.TeamName:SetWordWrap(false)
     section.TeamGroup = section.TeamLine:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
@@ -378,11 +408,16 @@ function CurrentSection:Refresh()
     local group = team and team.groupID and Teams:GetGroup(team.groupID)
     ns.IconPicker.SetIconTexture(section.TeamIcon, group and group.icon or ns.MEDIA .. "Icon", HEADER_ICON_SIZE)
     section.TeamIcon:SetDesaturated(team == nil)
+    -- With a team its name sits above the group line; without one it's alone, centred on the icon.
+    local nameX = 2 + HEADER_ICON_SIZE + HEADER_ICON_GAP
+    section.TeamName:ClearAllPoints()
     if team then
+        section.TeamName:SetPoint("TOPLEFT", nameX, -2)
         section.TeamName:SetText((ns.TeamsPanel.SplitTeamName(team.name)))
         section.TeamName:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
         section.TeamGroup:SetText(group and group.name or L["Ungrouped"])
     else
+        section.TeamName:SetPoint("LEFT", nameX, 0)
         section.TeamName:SetText(L["No team loaded"])
         section.TeamName:SetTextColor(ns.MUTED_COLOR:GetRGB())
         section.TeamGroup:SetText("")
