@@ -358,4 +358,8 @@ ns.RegisterLocale("itIT", {
     ["Pets at level 25"] = "Mascotte al livello 25",
     ["Average level"] = "Livello medio",
     ["Rare quality pets"] = "Mascotte rare",
+    ["%d teams pasted. They're too long to show here, but all of them will be imported."] = "%d squadre incollate. Sono troppo lunghe per mostrarle qui, ma verranno importate tutte.",
+    ["The pasted text is too long to show here."] = "Il testo incollato è troppo lungo per mostrarlo qui.",
+    ["Click here to paste something else."] = "Clicca qui per incollare qualcos'altro.",
+    ["1 team pasted. It's too long to show here, but it will be imported."] = "1 squadra incollata. È troppo lunga per mostrarla qui, ma verrà importata.",
 })

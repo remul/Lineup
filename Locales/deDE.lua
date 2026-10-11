@@ -358,4 +358,8 @@ ns.RegisterLocale("deDE", {
     ["Pets at level 25"] = "Haustiere auf Stufe 25",
     ["Average level"] = "Durchschnittsstufe",
     ["Rare quality pets"] = "Seltene Haustiere",
+    ["%d teams pasted. They're too long to show here, but all of them will be imported."] = "%d Teams eingefügt. Sie sind zu lang, um sie hier anzuzeigen, werden aber alle importiert.",
+    ["The pasted text is too long to show here."] = "Der eingefügte Text ist zu lang, um ihn hier anzuzeigen.",
+    ["Click here to paste something else."] = "Klicke hier, um etwas anderes einzufügen.",
+    ["1 team pasted. It's too long to show here, but it will be imported."] = "1 Team eingefügt. Es ist zu lang, um es hier anzuzeigen, wird aber importiert.",
 })

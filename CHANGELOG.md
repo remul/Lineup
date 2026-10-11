@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.10.5
+
+- **Pasting many teams at once** into Import no longer freezes the game for seconds. A paste too
+  long for the text box is read in full, and the box says how many teams were pasted instead of
+  showing the text; clicking it empties it to paste something else.
+
 ## 1.10.4
 
 - **Current team**: long pet names get a slightly smaller font before they're cut short, health is

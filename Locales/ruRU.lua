@@ -358,4 +358,8 @@ ns.RegisterLocale("ruRU", {
     ["Pets at level 25"] = "Питомцы 25-го уровня",
     ["Average level"] = "Средний уровень",
     ["Rare quality pets"] = "Редкие питомцы",
+    ["%d teams pasted. They're too long to show here, but all of them will be imported."] = "Вставлено команд: %d. Они слишком длинные, чтобы показать их здесь, но будут импортированы все.",
+    ["The pasted text is too long to show here."] = "Вставленный текст слишком длинный, чтобы показать его здесь.",
+    ["Click here to paste something else."] = "Нажмите здесь, чтобы вставить что-то другое.",
+    ["1 team pasted. It's too long to show here, but it will be imported."] = "Вставлена 1 команда. Она слишком длинная, чтобы показать её здесь, но будет импортирована.",
 })

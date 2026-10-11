@@ -28,8 +28,19 @@ local READY_ICON = "|TInterface\\RaidFrame\\ReadyCheck-Ready:14:14|t "
 
 local MAX_LISTED_NAMES = 3
 
+-- The text box holds this many bytes at most: the game lays out all of an edit box's text, which
+-- freezes it for seconds with a big paste (hundreds of teams). A longer paste is caught character
+-- by character instead (see OnChar), and the box only shows its start.
+local MAX_BOX_BYTES = 500
+
 local dialog, textBox, statusText, previewText, importButton, groupDropdown, replaceCheck
 local result, importGroupID
+-- The whole text of a paste too long for the box, or nil while the box holds all of it.
+local pastedText
+-- The characters of the paste coming in this frame (nil between pastes), and how many.
+local pasteBuffer, pasteLength = nil, 0
+-- When the paste's first character came (debugprofilestop), for the debug message.
+local pasteStart
 
 local function GetTeamNames()
     local names = {}
@@ -68,12 +79,15 @@ end
 local function UpdateStatus()
     result = nil
     previewText:SetText("")
-    local text = textBox:GetText()
+    local text = pastedText or textBox:GetText()
     if strtrim(text) == "" then
         statusText:SetText(L["Paste a team to import"])
         statusText:SetTextColor(ns.MUTED_COLOR:GetRGB())
     else
+        local start = debugprofilestop()
         local all = ns.Import.ParseAll(text)
+        ns:Debug(format("Import: read %d teams (%d characters) in %.1f ms", all.numTeams, #text,
+            debugprofilestop() - start))
         if all.numTeams == 0 then
             statusText:SetText(all.errors[1] or L["Not a team string"])
             statusText:SetTextColor(RED_FONT_COLOR:GetRGB())
@@ -152,9 +166,69 @@ local function DoImport()
     local replace = replaceCheck:GetChecked()
     local toImport, groupID = result, importGroupID
     ns.Import.ConfirmImportAll(toImport, replace, nil, nil, function()
-        ns.Import.Report(ns.Import.ImportAll(toImport, groupID, replace))
+        local start = debugprofilestop()
+        local numImported, numReplaced, problems = ns.Import.ImportAll(toImport, groupID, replace)
+        ns:Debug(format("Import: saved %d teams in %.1f ms", numImported, debugprofilestop() - start))
+        ns.Import.Report(numImported, numReplaced, problems)
         ns.TeamsPanel:Refresh()
     end)
+end
+
+-- Empties the box (after a long paste, see ShowPasteNote, ready to paste again).
+local function ClearText()
+    pastedText = nil
+    textBox:SetTextColor(HIGHLIGHT_FONT_COLOR:GetRGB())
+    textBox:SetText("")
+end
+
+-- After a paste too long for the box: instead of its cut-off start, the box says what was pasted.
+-- Clicking it (or Clear) empties it, so the text can't be half changed.
+local function ShowPasteNote()
+    local note
+    if result and result.numTeams == 1 then
+        note = L["1 team pasted. It's too long to show here, but it will be imported."]
+    elseif result then
+        note = format(L["%d teams pasted. They're too long to show here, but all of them will be imported."],
+            result.numTeams)
+    else
+        note = L["The pasted text is too long to show here."]
+    end
+    textBox:SetText(note .. "\n\n" .. L["Click here to paste something else."])
+    textBox:SetTextColor(ns.MUTED_COLOR:GetRGB())
+    textBox:SetCursorPosition(0)
+    textBox:ClearFocus()
+end
+
+-- A paste comes in as one OnChar per character, all in one frame; the next frame puts them
+-- together. If the box couldn't hold it all, the whole paste is kept in pastedText (replacing what
+-- was in the box), and the box says so (see ShowPasteNote).
+local function FinishPaste()
+    if not pasteBuffer then
+        return
+    end
+    local text = table.concat(pasteBuffer, "", 1, pasteLength)
+    pasteBuffer, pasteLength = nil, 0
+    if #text <= 1 or #textBox:GetText() < MAX_BOX_BYTES - 4 then
+        -- Typing, or a paste the box holds whole.
+        return
+    end
+    local _, bufferLines = text:gsub("\n", "")
+    local _, boxLines = textBox:GetText():gsub("\n", "")
+    ns:Debug(format("Import: caught a paste of %d characters (%d line breaks; %d in the box) in %.1f ms",
+        #text, bufferLines, boxLines, debugprofilestop() - pasteStart))
+    pastedText = text
+    UpdateStatus()
+    ShowPasteNote()
+end
+
+-- Runs for every character of a paste (156,000 for 200 teams), so it does as little as it can.
+local function OnChar(_, char)
+    if not pasteBuffer then
+        pasteBuffer, pasteStart = {}, debugprofilestop()
+        C_Timer.After(0, FinishPaste)
+    end
+    pasteLength = pasteLength + 1
+    pasteBuffer[pasteLength] = char
 end
 
 local function CreateDialog()
@@ -168,7 +242,7 @@ local function CreateDialog()
     clearButton:SetSize(80, 22)
     clearButton:SetText(L["Clear"])
     clearButton:SetScript("OnClick", function()
-        textBox:SetText("")
+        ClearText()
         textBox:SetFocus()
     end)
 
@@ -192,7 +266,22 @@ local function CreateDialog()
             end)
         end
         lastLength = length
+        -- The note after a long paste (see ShowPasteNote): the status is already the paste's.
+        if pastedText and not userInput then
+            return
+        end
+        -- The box changed by hand: a long paste caught before is replaced by what's in the box (a
+        -- new long paste is caught again by FinishPaste).
+        pastedText = nil
         UpdateStatus()
+    end)
+    textBox:SetMaxBytes(MAX_BOX_BYTES)
+    textBox:SetScript("OnChar", OnChar)
+    -- Clicking the note after a long paste empties the box for the next paste.
+    textBox:HookScript("OnEditFocusGained", function()
+        if pastedText then
+            ClearText()
+        end
     end)
 
     statusText = dialog:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -258,7 +347,7 @@ function ImportDialog:Open(groupID)
     end
     importGroupID = groupID
     groupDropdown:GenerateMenu()
-    textBox:SetText("")
+    ClearText()
     UpdateStatus()
 
     ns.Dialogs.PlaceWindow(dialog)
