@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.10.6
+
+- Updated for patch 12.1.5.
+
 ## 1.10.5
 
 - **Pasting many teams at once** into Import no longer freezes the game for seconds. A paste too

@@ -1,8 +1,8 @@
-## Interface: 120100
+## Interface: 120105
 ## Title: Lineup
 ## Notes: Pet battle team manager for the Pet Journal.
 ## Author: Remul
-## Version: 1.10.5
+## Version: 1.10.6
 ## OptionalDeps: tdBattlePetScript
 ## SavedVariables: LineupPetBattlesDB
 ## SavedVariablesPerCharacter: LineupPetBattlesCharDB
